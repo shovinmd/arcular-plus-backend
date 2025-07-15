@@ -1,0 +1,16 @@
+exports.getLabProfile = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.updateLabProfile = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.getTests = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.createTest = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.updateTest = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.deleteTest = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.getSamples = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.addSample = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.getResults = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.addResult = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.getPatientInfo = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.sendPatientMessage = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.getChatMessages = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.sendChatMessage = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.getNotifications = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.updateSettings = async (req, res) => res.status(501).json({ error: 'Not implemented' }); 

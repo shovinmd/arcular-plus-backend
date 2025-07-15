@@ -1,0 +1,11 @@
+exports.getPendingApprovals = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.approveUser = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.rejectUser = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.getUsersByType = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.getUserDocuments = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.verifyUserDocument = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.getRegistrationReport = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.getApprovalReport = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.getActivityReport = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.getNotifications = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.updateSettings = async (req, res) => res.status(501).json({ error: 'Not implemented' }); 

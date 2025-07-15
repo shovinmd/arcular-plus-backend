@@ -1,0 +1,17 @@
+exports.getNurseProfile = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.updateNurseProfile = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.getAssignedPatients = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.getVitals = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.addVitals = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.getMedicationLog = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.addMedicationLog = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.getCareReminders = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.addCareReminder = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.getChatMessages = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.sendChatMessage = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.getShifts = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.createShift = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.updateShift = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.deleteShift = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.getNotifications = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.updateSettings = async (req, res) => res.status(501).json({ error: 'Not implemented' }); 

@@ -1,0 +1,14 @@
+exports.getPharmacyProfile = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.updatePharmacyProfile = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.getInventory = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.addMedicine = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.updateMedicine = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.deleteMedicine = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.getPrescriptions = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.fulfillPrescription = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.getDeliveries = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.createDelivery = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.getChatMessages = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.sendChatMessage = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.getNotifications = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+exports.updateSettings = async (req, res) => res.status(501).json({ error: 'Not implemented' }); 
