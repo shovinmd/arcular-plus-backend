@@ -135,6 +135,36 @@ const updateUser = async (req, res) => {
   }
 };
 
+exports.registerUser = async (req, res) => {
+  try {
+    const { uid, fullName, email, mobileNumber, type, knownAllergies, chronicConditions } = req.body;
+
+    // Generate Arc ID
+    const arcId = 'ARC-' + uuidv4().slice(0, 8).toUpperCase();
+
+    // Generate QR code (using Arc ID or UID)
+    const qrCode = await QRCode.toDataURL(arcId);
+
+    // Save all info
+    const user = new User({
+      uid,
+      fullName,
+      email,
+      mobileNumber,
+      type,
+      arcId,
+      qrCode,
+      knownAllergies,
+      chronicConditions,
+    });
+
+    await user.save();
+    res.status(201).json(user);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 exports.registerOrSyncUser = async (req, res) => {
   try {
     const firebaseUser = req.user; // set by auth middleware
@@ -170,6 +200,17 @@ exports.registerOrSyncUser = async (req, res) => {
       }
       await user.save();
     }
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.getUserProfile = async (req, res) => {
+  try {
+    const { uid } = req.user; // assuming Firebase Auth middleware sets req.user
+    const user = await User.findOne({ uid });
+    if (!user) return res.status(404).json({ error: 'User not found' });
     res.json(user);
   } catch (err) {
     res.status(500).json({ error: err.message });
