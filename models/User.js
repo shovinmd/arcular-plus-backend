@@ -25,6 +25,8 @@ const UserSchema = new mongoose.Schema({
   emergencyContactNumber: String,
   emergencyContactRelation: String,
   healthQrId: String, // for QR code
+  arcId: { type: String, unique: true }, // Arcular ID
+  qrCode: String, // QR code data (base64 or URL)
   // Add more fields as needed
 });
 
