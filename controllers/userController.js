@@ -1,5 +1,7 @@
 const User = require('../models/User');
 const { validationResult } = require('express-validator');
+const { v4: uuidv4 } = require('uuid');
+const QRCode = require('qrcode');
 
 // Get user by UID
 const getUserByUid = async (req, res) => {
@@ -142,10 +144,16 @@ exports.registerOrSyncUser = async (req, res) => {
     const User = require('../models/User');
     let user = await User.findOne({ uid: firebaseUser.uid });
     if (!user) {
+      // Generate Arc ID
+      const arcId = 'ARC-' + uuidv4().slice(0, 8).toUpperCase();
+      // Generate QR code (using Arc ID)
+      const qrCode = await QRCode.toDataURL(arcId);
       // Create new user in MongoDB with all details from req.body
       user = new User({
         uid: firebaseUser.uid,
         ...req.body,
+        arcId,
+        qrCode,
         status: 'active',
         createdAt: new Date(),
       });
@@ -153,6 +161,13 @@ exports.registerOrSyncUser = async (req, res) => {
     } else {
       // Update user with new info from req.body
       Object.assign(user, req.body);
+      // If arcId or qrCode missing, generate them
+      if (!user.arcId) {
+        user.arcId = 'ARC-' + uuidv4().slice(0, 8).toUpperCase();
+      }
+      if (!user.qrCode && user.arcId) {
+        user.qrCode = await QRCode.toDataURL(user.arcId);
+      }
       await user.save();
     }
     res.json(user);
