@@ -133,6 +133,34 @@ const updateUser = async (req, res) => {
   }
 };
 
+exports.registerOrSyncUser = async (req, res) => {
+  try {
+    const firebaseUser = req.user; // set by auth middleware
+    if (!firebaseUser || !firebaseUser.uid) {
+      return res.status(400).json({ error: 'Invalid Firebase user' });
+    }
+    const User = require('../models/User');
+    let user = await User.findOne({ uid: firebaseUser.uid });
+    if (!user) {
+      // Create new user in MongoDB
+      user = new User({
+        uid: firebaseUser.uid,
+        fullName: firebaseUser.name || firebaseUser.displayName || '',
+        email: firebaseUser.email || '',
+        type: req.body.type || 'patient',
+        status: 'active',
+        createdAt: new Date(),
+        // Add more fields as needed from req.body
+        ...req.body
+      });
+      await user.save();
+    }
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 module.exports = {
   getUserByUid,
   createUser,

@@ -20,4 +20,7 @@ router.put('/:uid', auth, async (req, res) => {
   res.json(user);
 });
 
+// Add user registration/sync endpoint
+router.post('/register', auth, require('../controllers/userController').registerOrSyncUser);
+
 module.exports = router; 
