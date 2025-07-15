@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const User = require('../models/User');
+const { getUserProfile } = require('../controllers/userController');
+const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
 
 // Get user profile
 router.get('/:uid', auth, async (req, res) => {
@@ -22,5 +24,6 @@ router.put('/:uid', auth, async (req, res) => {
 
 // Add user registration/sync endpoint
 router.post('/register', auth, require('../controllers/userController').registerOrSyncUser);
+router.get('/profile', firebaseAuthMiddleware, getUserProfile);
 
 module.exports = router; 
