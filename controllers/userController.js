@@ -142,17 +142,17 @@ exports.registerOrSyncUser = async (req, res) => {
     const User = require('../models/User');
     let user = await User.findOne({ uid: firebaseUser.uid });
     if (!user) {
-      // Create new user in MongoDB
+      // Create new user in MongoDB with all details from req.body
       user = new User({
         uid: firebaseUser.uid,
-        fullName: firebaseUser.name || firebaseUser.displayName || '',
-        email: firebaseUser.email || '',
-        type: req.body.type || 'patient',
+        ...req.body,
         status: 'active',
         createdAt: new Date(),
-        // Add more fields as needed from req.body
-        ...req.body
       });
+      await user.save();
+    } else {
+      // Update user with new info from req.body
+      Object.assign(user, req.body);
       await user.save();
     }
     res.json(user);
