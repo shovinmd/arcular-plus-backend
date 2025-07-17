@@ -1,5 +1,15 @@
 const Appointment = require('../models/Appointment');
 const { validationResult } = require('express-validator');
+const nodemailer = require('nodemailer');
+
+// Configure transporter (replace with your SMTP credentials)
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
 
 // Get appointments for a user
 const getAppointmentsByUser = async (req, res) => {
@@ -48,7 +58,8 @@ const createAppointment = async (req, res) => {
       notes,
       duration,
       location,
-      type
+      type,
+      patientEmail // <-- Make sure frontend sends this
     } = req.body;
 
     const appointment = new Appointment({
@@ -64,6 +75,23 @@ const createAppointment = async (req, res) => {
     });
 
     await appointment.save();
+
+    // Send confirmation email
+    if (patientEmail) {
+      const mailOptions = {
+        from: 'shovinmicheldavid1285@gmail.com',
+        to: patientEmail,
+        subject: 'Appointment Confirmation',
+        text: `Dear Patient,\n\nYour appointment with Dr. ${doctorName} is confirmed for ${dateTime}.\n\nThank you for using Arcular Plus!`,
+      };
+      transporter.sendMail(mailOptions, (error, info) => {
+        if (error) {
+          console.error('Error sending confirmation email:', error);
+        } else {
+          console.log('Confirmation email sent:', info.response);
+        }
+      });
+    }
 
     res.status(201).json({
       success: true,

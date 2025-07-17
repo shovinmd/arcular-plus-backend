@@ -1,12 +1,10 @@
 // node_backend/firebase.js
 const admin = require('firebase-admin');
-const serviceAccount = require('./serviceAccountKey.json'); // <-- update path if needed
+const serviceAccount = require('./serviceAccountKey.json'); // Download from Firebase Console
 
-if (!admin.apps.length) { // Prevent re-initialization in dev/hot-reload
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-     databaseURL: "https://arcularplus-7e66c.firebaseio.com" 
-  });
-}
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+  storageBucket: 'your-project-id.appspot.com'
+});
 
 module.exports = admin;

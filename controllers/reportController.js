@@ -3,6 +3,8 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
 const { validationResult } = require('express-validator');
+const admin = require('../firebase');
+const bucket = admin.storage().bucket();
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -78,61 +80,15 @@ const getReportsByUser = async (req, res) => {
 
 // Upload report file
 const uploadReport = async (req, res) => {
-  try {
-    upload.single('file')(req, res, async (err) => {
-      if (err) {
-        return res.status(400).json({
-          success: false,
-          error: err.message
-        });
-      }
-
-      if (!req.file) {
-        return res.status(400).json({
-          success: false,
-          error: 'No file uploaded'
-        });
-      }
-
-      const { userId, description, category } = req.body;
-      const { originalname, filename, mimetype, size } = req.file;
-
-      // Determine file type
-      let fileType = 'document';
-      if (mimetype.startsWith('image/')) {
-        fileType = 'image';
-      } else if (mimetype === 'application/pdf') {
-        fileType = 'pdf';
-      }
-
-      const report = new Report({
-        name: originalname,
-        url: `/uploads/${filename}`,
-        type: fileType,
-        patientId: userId,
-        doctorId: req.user?.uid || 'system', // From auth middleware
-        description: description || '',
-        category: category || 'Other',
-        fileSize: size,
-        mimeType: mimetype,
-        status: 'uploaded'
-      });
-
-      await report.save();
-
-      res.status(201).json({
-        success: true,
-        data: report,
-        message: 'Report uploaded successfully'
-      });
-    });
-  } catch (error) {
-    console.error('Error uploading report:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to upload report'
-    });
-  }
+  if (!req.file) return res.status(400).send('No file uploaded.');
+  const blob = bucket.file(Date.now() + '-' + req.file.originalname);
+  const blobStream = blob.createWriteStream();
+  blobStream.on('error', err => res.status(500).send(err));
+  blobStream.on('finish', async () => {
+    const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+    res.status(200).json({ url: publicUrl });
+  });
+  blobStream.end(req.file.buffer);
 };
 
 // Delete report
