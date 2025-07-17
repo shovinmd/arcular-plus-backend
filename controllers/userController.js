@@ -215,4 +215,8 @@ exports.getUserProfile = async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+<<<<<<< HEAD
 }; 
+=======
+}; 
+>>>>>>> 964012eb894d5dcf61cf467301e445bc1a924aab

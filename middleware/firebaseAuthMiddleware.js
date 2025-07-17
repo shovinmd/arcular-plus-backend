@@ -14,4 +14,8 @@ module.exports = async function (req, res, next) {
   } catch (error) {
     return res.status(401).json({ message: 'Invalid or expired token', error: error.message });
   }
+<<<<<<< HEAD
 }; 
+=======
+}; 
+>>>>>>> 964012eb894d5dcf61cf467301e445bc1a924aab
