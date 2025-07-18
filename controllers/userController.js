@@ -135,7 +135,7 @@ const updateUser = async (req, res) => {
   }
 };
 
-exports.registerUser = async (req, res) => {
+const registerUser = async (req, res) => {
   try {
     const { uid, fullName, email, mobileNumber, type, knownAllergies, chronicConditions } = req.body;
 
@@ -165,7 +165,7 @@ exports.registerUser = async (req, res) => {
   }
 };
 
-exports.registerOrSyncUser = async (req, res) => {
+const registerOrSyncUser = async (req, res) => {
   try {
     const firebaseUser = req.user; // set by auth middleware
     if (!firebaseUser || !firebaseUser.uid) {
@@ -206,7 +206,7 @@ exports.registerOrSyncUser = async (req, res) => {
   }
 };
 
-exports.getUserProfile = async (req, res) => {
+const getUserProfile = async (req, res) => {
   try {
     const { uid } = req.user; // assuming Firebase Auth middleware sets req.user
     const user = await User.findOne({ uid });
@@ -215,8 +215,13 @@ exports.getUserProfile = async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-<<<<<<< HEAD
-}; 
-=======
-}; 
->>>>>>> 964012eb894d5dcf61cf467301e445bc1a924aab
+};
+
+module.exports = {
+  getUserByUid,
+  createUser,
+  updateUser,
+  registerUser,
+  registerOrSyncUser,
+  getUserProfile,
+};
