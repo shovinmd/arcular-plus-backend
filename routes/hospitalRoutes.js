@@ -72,4 +72,10 @@ router.get('/:id/notifications', auth, hospitalController.getNotifications);
 // Settings
 router.put('/:id/settings', auth, hospitalController.updateSettings);
 
+// Hospital registration
+router.post('/register', auth, hospitalController.registerHospital);
+
+// Fetch all hospitals
+router.get('/', auth, hospitalController.getAllHospitals);
+
 module.exports = router; 
