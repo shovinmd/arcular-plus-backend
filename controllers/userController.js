@@ -103,27 +103,30 @@ const updateUser = async (req, res) => {
   try {
     const { uid } = req.params;
     const updateData = req.body;
-
-    const user = await User.findByUid(uid);
+    const user = await User.findOne({ uid });
     if (!user) {
       return res.status(404).json({
         success: false,
         error: 'User not found'
       });
     }
-
-    // Update user
+    // Update all fields from req.body
     Object.keys(updateData).forEach(key => {
       if (updateData[key] !== undefined) {
         user[key] = updateData[key];
       }
     });
-
+    // Ensure arcId and qrCode are present
+    if (!user.arcId) {
+      user.arcId = 'ARC-' + uuidv4().slice(0, 8).toUpperCase();
+    }
+    if (!user.qrCode && user.arcId) {
+      user.qrCode = await QRCode.toDataURL(user.arcId);
+    }
     await user.save();
-
     res.json({
       success: true,
-      data: user.getPublicProfile(),
+      data: user,
       message: 'User updated successfully'
     });
   } catch (error) {
@@ -165,13 +168,22 @@ const registerUser = async (req, res) => {
   }
 };
 
+const REQUIRED_FIELDS = [
+  'fullName', 'email', 'mobileNumber', 'gender', 'dateOfBirth', 'address', 'pincode', 'city', 'state'
+];
+
 const registerOrSyncUser = async (req, res) => {
   try {
     const firebaseUser = req.user; // set by auth middleware
     if (!firebaseUser || !firebaseUser.uid) {
       return res.status(400).json({ error: 'Invalid Firebase user' });
     }
-    const User = require('../models/User');
+    // Validate required fields
+    for (const field of REQUIRED_FIELDS) {
+      if (!req.body[field]) {
+        return res.status(400).json({ error: `Missing required field: ${field}` });
+      }
+    }
     let user = await User.findOne({ uid: firebaseUser.uid });
     if (!user) {
       // Generate Arc ID
