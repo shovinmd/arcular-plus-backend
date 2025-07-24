@@ -229,6 +229,20 @@ const getUserProfile = async (req, res) => {
   }
 };
 
+// Get user by ARC ID
+const getUserByArcId = async (req, res) => {
+  try {
+    const { arcId } = req.params;
+    const user = await User.findOne({ arcId });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 module.exports = {
   getUserByUid,
   createUser,
@@ -236,4 +250,5 @@ module.exports = {
   registerUser,
   registerOrSyncUser,
   getUserProfile,
+  getUserByArcId,
 };

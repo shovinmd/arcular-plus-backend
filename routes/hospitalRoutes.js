@@ -1,81 +1,81 @@
 const express = require('express');
-const auth = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 const hospitalController = require('../controllers/hospitalController');
 const router = express.Router();
 
 // Profile
-router.get('/:id', auth, hospitalController.getHospitalProfile);
-router.put('/:id', auth, hospitalController.updateHospitalProfile);
+router.get('/:id', authenticateToken, hospitalController.getHospitalProfile);
+router.put('/:id', authenticateToken, hospitalController.updateHospitalProfile);
 
 // Doctors
-router.get('/:id/doctors', auth, hospitalController.getDoctors);
-router.post('/:id/doctors', auth, hospitalController.addDoctor);
-router.delete('/:id/doctors/:doctorId', auth, hospitalController.removeDoctor);
+router.get('/:id/doctors', authenticateToken, hospitalController.getDoctors);
+router.post('/:id/doctors', authenticateToken, hospitalController.addDoctor);
+router.delete('/:id/doctors/:doctorId', authenticateToken, hospitalController.removeDoctor);
 
 // Departments
-router.get('/:id/departments', auth, hospitalController.getDepartments);
-router.post('/:id/departments', auth, hospitalController.addDepartment);
-router.delete('/:id/departments/:deptName', auth, hospitalController.removeDepartment);
+router.get('/:id/departments', authenticateToken, hospitalController.getDepartments);
+router.post('/:id/departments', authenticateToken, hospitalController.addDepartment);
+router.delete('/:id/departments/:deptName', authenticateToken, hospitalController.removeDepartment);
 
 // Appointments
-router.get('/:id/appointments', auth, hospitalController.getAppointments);
-router.post('/:id/appointments', auth, hospitalController.createAppointment);
-router.put('/:id/appointments/:appointmentId', auth, hospitalController.updateAppointment);
+router.get('/:id/appointments', authenticateToken, hospitalController.getAppointments);
+router.post('/:id/appointments', authenticateToken, hospitalController.createAppointment);
+router.put('/:id/appointments/:appointmentId', authenticateToken, hospitalController.updateAppointment);
 
 // Admissions
-router.get('/:id/admissions', auth, hospitalController.getAdmissions);
-router.post('/:id/admissions', auth, hospitalController.admitPatient);
-router.put('/:id/admissions/:admissionId', auth, hospitalController.updateAdmission);
+router.get('/:id/admissions', authenticateToken, hospitalController.getAdmissions);
+router.post('/:id/admissions', authenticateToken, hospitalController.admitPatient);
+router.put('/:id/admissions/:admissionId', authenticateToken, hospitalController.updateAdmission);
 
 // Pharmacy
-router.get('/:id/pharmacy', auth, hospitalController.getPharmacyItems);
-router.post('/:id/pharmacy', auth, hospitalController.addPharmacyItem);
-router.put('/:id/pharmacy/:itemId', auth, hospitalController.updatePharmacyItem);
-router.delete('/:id/pharmacy/:itemId', auth, hospitalController.removePharmacyItem);
+router.get('/:id/pharmacy', authenticateToken, hospitalController.getPharmacyItems);
+router.post('/:id/pharmacy', authenticateToken, hospitalController.addPharmacyItem);
+router.put('/:id/pharmacy/:itemId', authenticateToken, hospitalController.updatePharmacyItem);
+router.delete('/:id/pharmacy/:itemId', authenticateToken, hospitalController.removePharmacyItem);
 
 // Lab
-router.get('/:id/lab-tests', auth, hospitalController.getLabTests);
-router.post('/:id/lab-tests', auth, hospitalController.addLabTest);
-router.put('/:id/lab-tests/:testId', auth, hospitalController.updateLabTest);
-router.delete('/:id/lab-tests/:testId', auth, hospitalController.removeLabTest);
+router.get('/:id/lab-tests', authenticateToken, hospitalController.getLabTests);
+router.post('/:id/lab-tests', authenticateToken, hospitalController.addLabTest);
+router.put('/:id/lab-tests/:testId', authenticateToken, hospitalController.updateLabTest);
+router.delete('/:id/lab-tests/:testId', authenticateToken, hospitalController.removeLabTest);
 
 // QR Records
-router.get('/:id/qr-records', auth, hospitalController.getQrRecords);
+router.get('/:id/qr-records', authenticateToken, hospitalController.getQrRecords);
 
 // Analytics
-router.get('/:id/analytics', auth, hospitalController.getAnalytics);
+router.get('/:id/analytics', authenticateToken, hospitalController.getAnalytics);
 
 // Reports
-router.get('/:id/reports', auth, hospitalController.getReports);
+router.get('/:id/reports', authenticateToken, hospitalController.getReports);
 
 // Chat
-router.get('/:id/chat', auth, hospitalController.getChatMessages);
-router.post('/:id/chat', auth, hospitalController.sendChatMessage);
+router.get('/:id/chat', authenticateToken, hospitalController.getChatMessages);
+router.post('/:id/chat', authenticateToken, hospitalController.sendChatMessage);
 
 // Shifts
-router.get('/:id/shifts', auth, hospitalController.getShifts);
-router.post('/:id/shifts', auth, hospitalController.createShift);
-router.put('/:id/shifts/:shiftId', auth, hospitalController.updateShift);
-router.delete('/:id/shifts/:shiftId', auth, hospitalController.deleteShift);
+router.get('/:id/shifts', authenticateToken, hospitalController.getShifts);
+router.post('/:id/shifts', authenticateToken, hospitalController.createShift);
+router.put('/:id/shifts/:shiftId', authenticateToken, hospitalController.updateShift);
+router.delete('/:id/shifts/:shiftId', authenticateToken, hospitalController.deleteShift);
 
 // Billing
-router.get('/:id/billing', auth, hospitalController.getBilling);
-router.post('/:id/billing', auth, hospitalController.createBillingEntry);
+router.get('/:id/billing', authenticateToken, hospitalController.getBilling);
+router.post('/:id/billing', authenticateToken, hospitalController.createBillingEntry);
 
 // Documents
-router.get('/:id/documents', auth, hospitalController.getDocuments);
-router.post('/:id/documents', auth, hospitalController.uploadDocument);
+router.get('/:id/documents', authenticateToken, hospitalController.getDocuments);
+router.post('/:id/documents', authenticateToken, hospitalController.uploadDocument);
 
 // Notifications
-router.get('/:id/notifications', auth, hospitalController.getNotifications);
+router.get('/:id/notifications', authenticateToken, hospitalController.getNotifications);
 
 // Settings
-router.put('/:id/settings', auth, hospitalController.updateSettings);
+router.put('/:id/settings', authenticateToken, hospitalController.updateSettings);
 
 // Hospital registration
-router.post('/register', auth, hospitalController.registerHospital);
+router.post('/register', authenticateToken, hospitalController.registerHospital);
 
 // Fetch all hospitals
-router.get('/', auth, hospitalController.getAllHospitals);
+router.get('/', authenticateToken, hospitalController.getAllHospitals);
 
 module.exports = router; 

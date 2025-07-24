@@ -1,11 +1,11 @@
 const express = require('express');
-const auth = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 const sosController = require('../controllers/sosController');
 const router = express.Router();
 
 // Send SOS
-router.post('/', auth, sosController.sendSOS);
+router.post('/', authenticateToken, sosController.sendSOS);
 // Get all SOS records for a user
-router.get('/:userId', auth, sosController.getSOSByUser);
+router.get('/:userId', authenticateToken, sosController.getSOSByUser);
 
 module.exports = router; 

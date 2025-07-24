@@ -27,6 +27,7 @@ const UserSchema = new mongoose.Schema({
   healthQrId: String, // for QR code
   arcId: { type: String, unique: true }, // Arcular ID
   qrCode: String, // QR code data (base64 or URL)
+  profileImageUrl: String, // URL to user's profile image
   // Add more fields as needed
 });
 
