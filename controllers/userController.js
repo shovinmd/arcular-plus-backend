@@ -103,7 +103,10 @@ const updateUser = async (req, res) => {
   try {
     const { uid } = req.params;
     const updateData = req.body;
+    console.log('Updating user:', uid);
+    console.log('Update data:', updateData);
     const user = await User.findOne({ uid });
+    console.log('Found user:', user ? 'Yes' : 'No');
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -124,6 +127,8 @@ const updateUser = async (req, res) => {
       user.qrCode = await QRCode.toDataURL(user.arcId);
     }
     await user.save();
+    console.log('User saved successfully');
+    console.log('Updated user data:', user);
     res.json({
       success: true,
       data: user,

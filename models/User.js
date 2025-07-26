@@ -13,6 +13,8 @@ const UserSchema = new mongoose.Schema({
   city: String,
   state: String,
   aadhaarNumber: String, // Added missing field
+  aadhaarFrontImageUrl: String, // Aadhaar front image URL
+  aadhaarBackImageUrl: String, // Aadhaar back image URL
   type: { type: String, default: 'patient' },
   role: String, // Added for ARC Staff/Superadmin support
   createdAt: { type: Date, default: Date.now },
@@ -77,5 +79,17 @@ const UserSchema = new mongoose.Schema({
   homeDelivery: Boolean,
   drugLicenseUrl: String,
 });
+
+// Add static method to find user by UID
+UserSchema.statics.findByUid = function(uid) {
+  return this.findOne({ uid });
+};
+
+// Add method to get public profile
+UserSchema.methods.getPublicProfile = function() {
+  const userObject = this.toObject();
+  delete userObject.__v;
+  return userObject;
+};
 
 module.exports = mongoose.model('User', UserSchema); 
