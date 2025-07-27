@@ -28,6 +28,10 @@ const UserSchema = new mongoose.Schema({
   babyName: String, // Added missing field
   dueDate: Date, // Added missing field
   babyWeightAtBirth: Number, // Added missing field
+  numberOfPreviousPregnancies: Number, // New field for pregnancy history
+  lastPregnancyYear: Number, // New field for last pregnancy year
+  pregnancyHealthNotes: String, // New field for pregnancy health notes
+  pregnancyPrivacyConsent: Boolean, // New field for privacy consent
   knownAllergies: [String],
   chronicConditions: [String],
   emergencyContactName: String,
