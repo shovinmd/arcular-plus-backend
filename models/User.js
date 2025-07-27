@@ -38,6 +38,8 @@ const UserSchema = new mongoose.Schema({
   emergencyContactNumber: String,
   emergencyContactRelation: String,
   healthInsuranceId: String, // Added missing field
+  policyNumber: String, // Health insurance policy number
+  policyExpiryDate: Date, // Health insurance expiry date
   lastPeriodStartDate: Date, // Added missing field
   cycleLength: Number, // Added missing field
   periodDuration: Number, // Added missing field
