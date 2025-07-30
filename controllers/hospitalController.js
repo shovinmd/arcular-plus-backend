@@ -1,10 +1,54 @@
 const User = require('../models/User');
 const { v4: uuidv4 } = require('uuid');
 const QRCode = require('qrcode');
+const nodemailer = require('nodemailer');
 
 const REQUIRED_HOSPITAL_FIELDS = [
   'fullName', 'email', 'mobileNumber', 'hospitalName', 'registrationNumber', 'hospitalType', 'hospitalAddress', 'hospitalEmail', 'hospitalPhone', 'numberOfBeds', 'hasPharmacy', 'hasLab', 'departments'
 ];
+
+// Email configuration
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER || 'your-email@gmail.com',
+    pass: process.env.EMAIL_PASS || 'your-app-password'
+  }
+});
+
+// Send approval email
+const sendApprovalEmail = async (hospitalEmail, hospitalName, isApproved, reason = '') => {
+  try {
+    const subject = isApproved ? 'Hospital Registration Approved' : 'Hospital Registration Update';
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center;">
+          <h1>Arcular Plus</h1>
+          <h2>${subject}</h2>
+        </div>
+        <div style="padding: 20px;">
+          <p>Dear ${hospitalName},</p>
+          ${isApproved ? 
+            '<p>Congratulations! Your hospital registration has been approved. You can now access your hospital dashboard and start using all features.</p>' :
+            `<p>We regret to inform you that your hospital registration requires additional information.</p>
+             <p><strong>Reason:</strong> ${reason}</p>
+             <p>Please update your registration details and resubmit for approval.</p>`
+          }
+          <p>Best regards,<br>Arcular Plus Team</p>
+        </div>
+      </div>
+    `;
+    
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER || 'your-email@gmail.com',
+      to: hospitalEmail,
+      subject: subject,
+      html: html
+    });
+  } catch (error) {
+    console.error('Error sending approval email:', error);
+  }
+};
 
 exports.registerHospital = async (req, res) => {
   try {
@@ -30,13 +74,18 @@ exports.registerHospital = async (req, res) => {
         type: 'hospital',
         arcId,
         qrCode,
-        status: 'active',
+        status: 'pending', // Set to pending for approval
+        isApproved: false,
+        approvalStatus: 'pending',
         createdAt: new Date(),
       });
       await user.save();
     } else {
       Object.assign(user, req.body);
       user.type = 'hospital';
+      user.status = 'pending';
+      user.isApproved = false;
+      user.approvalStatus = 'pending';
       if (!user.arcId) {
         user.arcId = 'ARC-' + uuidv4().slice(0, 8).toUpperCase();
       }
@@ -46,6 +95,178 @@ exports.registerHospital = async (req, res) => {
       await user.save();
     }
     res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Get all pending hospitals for admin approval
+exports.getPendingHospitals = async (req, res) => {
+  try {
+    const hospitals = await User.find({ 
+      type: 'hospital', 
+      approvalStatus: 'pending' 
+    }).sort({ createdAt: -1 });
+    
+    res.json(hospitals);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Get all hospitals with approval status
+exports.getAllHospitals = async (req, res) => {
+  try {
+    const { status, page = 1, limit = 10 } = req.query;
+    const query = { type: 'hospital' };
+    
+    if (status) {
+      query.approvalStatus = status;
+    }
+    
+    const hospitals = await User.find(query)
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+    
+    const total = await User.countDocuments(query);
+    
+    res.json({
+      hospitals,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      total
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Approve a hospital
+exports.approveHospital = async (req, res) => {
+  try {
+    const { hospitalId } = req.params;
+    const { approvedBy, notes } = req.body;
+    
+    const hospital = await User.findById(hospitalId);
+    if (!hospital || hospital.type !== 'hospital') {
+      return res.status(404).json({ error: 'Hospital not found' });
+    }
+    
+    hospital.isApproved = true;
+    hospital.approvalStatus = 'approved';
+    hospital.status = 'active';
+    hospital.approvedBy = approvedBy;
+    hospital.approvedAt = new Date();
+    hospital.approvalNotes = notes;
+    
+    await hospital.save();
+    
+    // Send approval email
+    await sendApprovalEmail(hospital.email, hospital.hospitalName, true);
+    
+    res.json({ 
+      message: 'Hospital approved successfully',
+      hospital 
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Reject a hospital
+exports.rejectHospital = async (req, res) => {
+  try {
+    const { hospitalId } = req.params;
+    const { rejectedBy, reason } = req.body;
+    
+    const hospital = await User.findById(hospitalId);
+    if (!hospital || hospital.type !== 'hospital') {
+      return res.status(404).json({ error: 'Hospital not found' });
+    }
+    
+    hospital.isApproved = false;
+    hospital.approvalStatus = 'rejected';
+    hospital.status = 'inactive';
+    hospital.rejectedBy = rejectedBy;
+    hospital.rejectedAt = new Date();
+    hospital.rejectionReason = reason;
+    
+    await hospital.save();
+    
+    // Send rejection email
+    await sendApprovalEmail(hospital.email, hospital.hospitalName, false, reason);
+    
+    res.json({ 
+      message: 'Hospital rejected successfully',
+      hospital 
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Update hospital approval status
+exports.updateApprovalStatus = async (req, res) => {
+  try {
+    const { hospitalId } = req.params;
+    const { status, notes, updatedBy } = req.body;
+    
+    const hospital = await User.findById(hospitalId);
+    if (!hospital || hospital.type !== 'hospital') {
+      return res.status(404).json({ error: 'Hospital not found' });
+    }
+    
+    hospital.approvalStatus = status;
+    hospital.status = status === 'approved' ? 'active' : 'inactive';
+    
+    if (status === 'approved') {
+      hospital.isApproved = true;
+      hospital.approvedBy = updatedBy;
+      hospital.approvedAt = new Date();
+      hospital.approvalNotes = notes;
+    } else if (status === 'rejected') {
+      hospital.isApproved = false;
+      hospital.rejectedBy = updatedBy;
+      hospital.rejectedAt = new Date();
+      hospital.rejectionReason = notes;
+    }
+    
+    await hospital.save();
+    
+    // Send email notification
+    await sendApprovalEmail(hospital.email, hospital.hospitalName, status === 'approved', notes);
+    
+    res.json({ 
+      message: `Hospital status updated to ${status}`,
+      hospital 
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Get hospital approval status
+exports.getHospitalApprovalStatus = async (req, res) => {
+  try {
+    const { uid } = req.params;
+    const hospital = await User.findOne({ uid, type: 'hospital' });
+    
+    if (!hospital) {
+      return res.status(404).json({ error: 'Hospital not found' });
+    }
+    
+    res.json({
+      isApproved: hospital.isApproved,
+      approvalStatus: hospital.approvalStatus,
+      status: hospital.status,
+      approvedBy: hospital.approvedBy,
+      approvedAt: hospital.approvedAt,
+      approvalNotes: hospital.approvalNotes,
+      rejectedBy: hospital.rejectedBy,
+      rejectedAt: hospital.rejectedAt,
+      rejectionReason: hospital.rejectionReason
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -121,12 +342,4 @@ exports.createBillingEntry = async (req, res) => res.status(501).json({ error: '
 exports.getDocuments = async (req, res) => res.status(501).json({ error: 'Not implemented' });
 exports.uploadDocument = async (req, res) => res.status(501).json({ error: 'Not implemented' });
 exports.getNotifications = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-exports.updateSettings = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-exports.getAllHospitals = async (req, res) => {
-  try {
-    const hospitals = await User.find({ type: 'hospital' });
-    res.json(hospitals);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-}; 
+exports.updateSettings = async (req, res) => res.status(501).json({ error: 'Not implemented' }); 
