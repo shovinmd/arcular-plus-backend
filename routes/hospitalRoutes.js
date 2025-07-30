@@ -3,6 +3,16 @@ const { authenticateToken } = require('../middleware/auth');
 const hospitalController = require('../controllers/hospitalController');
 const router = express.Router();
 
+// Hospital approval routes (Admin only)
+router.get('/admin/pending', authenticateToken, hospitalController.getPendingHospitals);
+router.get('/admin/all', authenticateToken, hospitalController.getAllHospitals);
+router.post('/admin/:hospitalId/approve', authenticateToken, hospitalController.approveHospital);
+router.post('/admin/:hospitalId/reject', authenticateToken, hospitalController.rejectHospital);
+router.put('/admin/:hospitalId/status', authenticateToken, hospitalController.updateApprovalStatus);
+
+// Hospital approval status check
+router.get('/:uid/approval-status', authenticateToken, hospitalController.getHospitalApprovalStatus);
+
 // Profile
 router.get('/:id', authenticateToken, hospitalController.getHospitalProfile);
 router.put('/:id', authenticateToken, hospitalController.updateHospitalProfile);
