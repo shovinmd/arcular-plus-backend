@@ -5,19 +5,56 @@ const User = require('../models/User');
 const { getUserProfile, getUserByArcId } = require('../controllers/userController');
 const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
 
-// Get user profile
-router.get('/:uid', authenticateToken, async (req, res) => {
-  const { uid } = req.params;
-  const user = await User.findOne({ uid });
-  if (!user) return res.status(404).json({ error: 'User not found' });
-  res.json(user);
+// Get user profile by UID
+router.get('/:uid', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    const { uid } = req.params;
+    const user = await User.findOne({ uid });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json(user);
+  } catch (error) {
+    console.error('Error fetching user:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get user by email
+router.get('/email/:email', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    const { email } = req.params;
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json(user);
+  } catch (error) {
+    console.error('Error fetching user by email:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get user by phone
+router.get('/phone/:phone', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    const { phone } = req.params;
+    const user = await User.findOne({ mobileNumber: phone });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json(user);
+  } catch (error) {
+    console.error('Error fetching user by phone:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // Update user profile
-router.put('/:uid', authenticateToken, require('../controllers/userController').updateUser);
+router.put('/:uid', firebaseAuthMiddleware, require('../controllers/userController').updateUser);
 
 // Add user registration/sync endpoint
-router.post('/register', authenticateToken, require('../controllers/userController').registerOrSyncUser);
+router.post('/register', firebaseAuthMiddleware, require('../controllers/userController').registerOrSyncUser);
 router.get('/profile', firebaseAuthMiddleware, getUserProfile);
 
 // Add public endpoint to get user by ARC ID
