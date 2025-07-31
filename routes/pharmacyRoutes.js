@@ -1,34 +1,28 @@
 const express = require('express');
-const auth = require('../middleware/auth');
-const pharmacyController = require('../controllers/pharmacyController');
 const router = express.Router();
+const pharmacyController = require('../controllers/pharmacyController');
+const { authenticateToken } = require('../middleware/auth');
 
-// Profile
-router.get('/:id', auth, pharmacyController.getPharmacyProfile);
-router.put('/:id', auth, pharmacyController.updatePharmacyProfile);
+// Apply authentication middleware to all routes
+router.use(authenticateToken);
 
-// Medicine Inventory
-router.get('/:id/inventory', auth, pharmacyController.getInventory);
-router.post('/:id/inventory', auth, pharmacyController.addMedicine);
-router.put('/:id/inventory/:medicineId', auth, pharmacyController.updateMedicine);
-router.delete('/:id/inventory/:medicineId', auth, pharmacyController.deleteMedicine);
+// Pharmacy registration and management
+router.post('/register', pharmacyController.registerPharmacy);
+router.get('/', pharmacyController.getAllPharmacies);
+router.get('/:id', pharmacyController.getPharmacyById);
+router.get('/uid/:uid', pharmacyController.getPharmacyByUid);
+router.put('/:id', pharmacyController.updatePharmacy);
+router.delete('/:id', pharmacyController.deletePharmacy);
 
-// Prescription Fulfillment
-router.get('/:id/prescriptions', auth, pharmacyController.getPrescriptions);
-router.post('/:id/prescriptions/:prescriptionId/fulfill', auth, pharmacyController.fulfillPrescription);
+// Search and filter routes
+router.get('/city/:city', pharmacyController.getPharmaciesByCity);
+router.get('/type/:type', pharmacyController.getPharmaciesByType);
+router.get('/home-delivery', pharmacyController.getPharmaciesWithHomeDelivery);
+router.get('/search', pharmacyController.searchPharmacies);
 
-// Home Delivery
-router.get('/:id/deliveries', auth, pharmacyController.getDeliveries);
-router.post('/:id/deliveries', auth, pharmacyController.createDelivery);
-
-// Chat
-router.get('/:id/chat', auth, pharmacyController.getChatMessages);
-router.post('/:id/chat', auth, pharmacyController.sendChatMessage);
-
-// Notifications
-router.get('/:id/notifications', auth, pharmacyController.getNotifications);
-
-// Settings
-router.put('/:id/settings', auth, pharmacyController.updateSettings);
+// Approval routes
+router.get('/admin/pending', pharmacyController.getPendingApprovals);
+router.put('/admin/:id/approve', pharmacyController.approvePharmacy);
+router.put('/admin/:id/reject', pharmacyController.rejectPharmacy);
 
 module.exports = router; 
