@@ -17,6 +17,8 @@ const UserSchema = new mongoose.Schema({
   aadhaarBackImageUrl: String, // Aadhaar back image URL
   type: { type: String, default: 'patient' },
   role: String, // Added for ARC Staff/Superadmin support
+  organization: String, // Added for admin users
+  designation: String, // Added for admin users
   createdAt: { type: Date, default: Date.now },
   height: Number,
   weight: Number,
