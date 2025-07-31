@@ -22,6 +22,8 @@ const qrRoutes = require('./routes/qrRoutes');
 const hospitalRoutes = require('./routes/hospitalRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const arcStaffRoutes = require('./routes/arcStaffRoutes');
+const nurseRoutes = require('./routes/nurseRoutes');
+const pharmacyRoutes = require('./routes/pharmacyRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -55,6 +57,8 @@ app.use('/api/users/qr', qrRoutes);
 app.use('/api/hospitals', hospitalRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/arc-staff', arcStaffRoutes);
+app.use('/api/nurses', nurseRoutes);
+app.use('/api/pharmacies', pharmacyRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
