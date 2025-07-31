@@ -21,6 +21,7 @@ const sosRoutes = require('./routes/sosRoutes');
 const qrRoutes = require('./routes/qrRoutes');
 const hospitalRoutes = require('./routes/hospitalRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const arcStaffRoutes = require('./routes/arcStaffRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -53,6 +54,7 @@ app.use('/api/sos', sosRoutes);
 app.use('/api/users/qr', qrRoutes);
 app.use('/api/hospitals', hospitalRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/arc-staff', arcStaffRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
