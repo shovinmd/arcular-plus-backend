@@ -17,7 +17,7 @@ router.get('/:uid', authenticateToken, async (req, res) => {
 router.put('/:uid', authenticateToken, require('../controllers/userController').updateUser);
 
 // Add user registration/sync endpoint
-router.post('/register', authenticateToken, require('../controllers/userController').registerOrSyncUser);
+router.post('/register', firebaseAuthMiddleware, require('../controllers/userController').registerOrSyncUser);
 router.get('/profile', firebaseAuthMiddleware, getUserProfile);
 
 // Add public endpoint to get user by ARC ID
