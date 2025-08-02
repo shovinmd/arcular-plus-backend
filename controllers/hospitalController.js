@@ -2,6 +2,7 @@ const Hospital = require('../models/Hospital');
 const { v4: uuidv4 } = require('uuid');
 const QRCode = require('qrcode');
 const nodemailer = require('nodemailer');
+const admin = require('../firebase');
 
 const REQUIRED_HOSPITAL_FIELDS = [
   'fullName', 'email', 'mobileNumber', 'hospitalName', 'registrationNumber', 'hospitalType', 'address', 'city', 'state', 'pincode', 'numberOfBeds', 'departments', 'licenseDocumentUrl'
@@ -95,11 +96,6 @@ const validateRequiredFields = (body) => {
 
 exports.registerHospital = async (req, res) => {
   try {
-    const firebaseUser = req.user; // set by auth middleware
-    if (!firebaseUser || !firebaseUser.uid) {
-      return res.status(400).json({ error: 'Invalid Firebase user' });
-    }
-    
     console.log('🏥 Hospital registration request received');
     console.log('📋 Request body:', JSON.stringify(req.body, null, 2));
     
@@ -114,42 +110,59 @@ exports.registerHospital = async (req, res) => {
     
     console.log('✅ All required fields present');
     
-    let hospital = await Hospital.findOne({ uid: firebaseUser.uid });
+    // Check if hospital already exists by email
+    let hospital = await Hospital.findOne({ email: req.body.email });
     
-    if (!hospital) {
-      // Generate Arc ID
-      const arcId = 'ARC-' + uuidv4().slice(0, 8).toUpperCase();
-      // Generate QR code (using Arc ID)
-      const qrCode = await QRCode.toDataURL(arcId);
-      
-      hospital = new Hospital({
-        uid: firebaseUser.uid,
-        ...req.body,
-        arcId,
-        qrCode,
-        status: 'pending',
-        isApproved: false,
-        approvalStatus: 'pending',
-        createdAt: new Date(),
+    if (hospital) {
+      return res.status(400).json({ 
+        error: 'Hospital with this email already exists' 
       });
-      await hospital.save();
-      console.log('✅ New hospital created:', hospital.hospitalName);
-    } else {
-      Object.assign(hospital, req.body);
-      hospital.status = 'pending';
-      hospital.isApproved = false;
-      hospital.approvalStatus = 'pending';
-      if (!hospital.arcId) {
-        hospital.arcId = 'ARC-' + uuidv4().slice(0, 8).toUpperCase();
-      }
-      if (!hospital.qrCode && hospital.arcId) {
-        hospital.qrCode = await QRCode.toDataURL(hospital.arcId);
-      }
-      await hospital.save();
-      console.log('✅ Existing hospital updated:', hospital.hospitalName);
     }
     
-    res.json(hospital);
+    // Create Firebase user if not provided
+    let firebaseUid = req.body.uid;
+    if (!firebaseUid) {
+      try {
+        // Create Firebase user
+        const firebaseUser = await admin.auth().createUser({
+          email: req.body.email,
+          password: req.body.password || 'tempPassword123', // You should generate a secure password
+          displayName: req.body.hospitalName,
+        });
+        firebaseUid = firebaseUser.uid;
+        console.log('✅ Firebase user created:', firebaseUid);
+      } catch (firebaseError) {
+        console.error('❌ Firebase user creation failed:', firebaseError);
+        return res.status(400).json({ 
+          error: 'Failed to create Firebase user. Please try again.' 
+        });
+      }
+    }
+    
+    // Generate Arc ID
+    const arcId = 'ARC-' + uuidv4().slice(0, 8).toUpperCase();
+    // Generate QR code (using Arc ID)
+    const qrCode = await QRCode.toDataURL(arcId);
+    
+    hospital = new Hospital({
+      uid: firebaseUid,
+      ...req.body,
+      arcId,
+      qrCode,
+      status: 'pending',
+      isApproved: false,
+      approvalStatus: 'pending',
+      createdAt: new Date(),
+    });
+    
+    await hospital.save();
+    console.log('✅ New hospital created:', hospital.hospitalName);
+    
+    res.status(201).json({
+      message: 'Hospital registered successfully',
+      hospital: hospital,
+      firebaseUid: firebaseUid
+    });
   } catch (err) {
     console.error('❌ Hospital registration error:', err);
     res.status(500).json({ error: err.message });
