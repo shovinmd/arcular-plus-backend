@@ -50,6 +50,35 @@ const sendApprovalEmail = async (hospitalEmail, hospitalName, isApproved, reason
   }
 };
 
+// Helper function to validate required fields
+const validateRequiredFields = (body) => {
+  const missingFields = [];
+  
+  for (const field of REQUIRED_HOSPITAL_FIELDS) {
+    const value = body[field];
+    
+    // Special handling for different field types
+    if (field === 'numberOfBeds') {
+      // numberOfBeds can be 0, so check if it's defined and is a number
+      if (value === undefined || value === null || typeof value !== 'number') {
+        missingFields.push(field);
+      }
+    } else if (field === 'departments') {
+      // departments should be an array with at least one item
+      if (!Array.isArray(value) || value.length === 0) {
+        missingFields.push(field);
+      }
+    } else {
+      // For string fields, check if they exist and are not empty
+      if (!value || (typeof value === 'string' && value.trim() === '')) {
+        missingFields.push(field);
+      }
+    }
+  }
+  
+  return missingFields;
+};
+
 exports.registerHospital = async (req, res) => {
   try {
     const firebaseUser = req.user; // set by auth middleware
@@ -57,12 +86,19 @@ exports.registerHospital = async (req, res) => {
       return res.status(400).json({ error: 'Invalid Firebase user' });
     }
     
-    // Validate required fields
-    for (const field of REQUIRED_HOSPITAL_FIELDS) {
-      if (!req.body[field]) {
-        return res.status(400).json({ error: `Missing required field: ${field}` });
-      }
+    console.log('🏥 Hospital registration request received');
+    console.log('📋 Request body:', JSON.stringify(req.body, null, 2));
+    
+    // Validate required fields with proper handling
+    const missingFields = validateRequiredFields(req.body);
+    if (missingFields.length > 0) {
+      console.log('❌ Missing fields:', missingFields);
+      return res.status(400).json({ 
+        error: `Missing required fields: ${missingFields.join(', ')}` 
+      });
     }
+    
+    console.log('✅ All required fields present');
     
     let hospital = await Hospital.findOne({ uid: firebaseUser.uid });
     
@@ -83,6 +119,7 @@ exports.registerHospital = async (req, res) => {
         createdAt: new Date(),
       });
       await hospital.save();
+      console.log('✅ New hospital created:', hospital.hospitalName);
     } else {
       Object.assign(hospital, req.body);
       hospital.status = 'pending';
@@ -95,10 +132,12 @@ exports.registerHospital = async (req, res) => {
         hospital.qrCode = await QRCode.toDataURL(hospital.arcId);
       }
       await hospital.save();
+      console.log('✅ Existing hospital updated:', hospital.hospitalName);
     }
     
     res.json(hospital);
   } catch (err) {
+    console.error('❌ Hospital registration error:', err);
     res.status(500).json({ error: err.message });
   }
 };
