@@ -54,28 +54,42 @@ const sendApprovalEmail = async (hospitalEmail, hospitalName, isApproved, reason
 const validateRequiredFields = (body) => {
   const missingFields = [];
   
+  console.log('🔍 Validating fields:', Object.keys(body));
+  console.log('📋 Required fields:', REQUIRED_HOSPITAL_FIELDS);
+  
   for (const field of REQUIRED_HOSPITAL_FIELDS) {
     const value = body[field];
+    console.log(`🔍 Checking field '${field}':`, value, `(type: ${typeof value})`);
     
     // Special handling for different field types
     if (field === 'numberOfBeds') {
       // numberOfBeds can be 0, so check if it's defined and is a number
       if (value === undefined || value === null || typeof value !== 'number') {
         missingFields.push(field);
+        console.log(`❌ Missing ${field}: value is ${value} (type: ${typeof value})`);
       }
     } else if (field === 'departments') {
       // departments should be an array with at least one item
       if (!Array.isArray(value) || value.length === 0) {
         missingFields.push(field);
+        console.log(`❌ Missing ${field}: value is ${value} (type: ${typeof value})`);
+      }
+    } else if (field === 'licenseDocumentUrl') {
+      // licenseDocumentUrl should be a non-empty string
+      if (!value || (typeof value === 'string' && value.trim() === '')) {
+        missingFields.push(field);
+        console.log(`❌ Missing ${field}: value is ${value} (type: ${typeof value})`);
       }
     } else {
       // For string fields, check if they exist and are not empty
       if (!value || (typeof value === 'string' && value.trim() === '')) {
         missingFields.push(field);
+        console.log(`❌ Missing ${field}: value is ${value} (type: ${typeof value})`);
       }
     }
   }
   
+  console.log('❌ Missing fields:', missingFields);
   return missingFields;
 };
 
