@@ -1,10 +1,10 @@
-const User = require('../models/User');
+const Hospital = require('../models/Hospital');
 const { v4: uuidv4 } = require('uuid');
 const QRCode = require('qrcode');
 const nodemailer = require('nodemailer');
 
 const REQUIRED_HOSPITAL_FIELDS = [
-  'fullName', 'email', 'mobileNumber', 'hospitalName', 'registrationNumber', 'hospitalType', 'hospitalAddress', 'hospitalEmail', 'hospitalPhone', 'numberOfBeds', 'hasPharmacy', 'hasLab', 'departments'
+  'fullName', 'email', 'mobileNumber', 'hospitalName', 'registrationNumber', 'hospitalType', 'address', 'city', 'state', 'pincode', 'numberOfBeds', 'departments', 'licenseDocumentUrl'
 ];
 
 // Email configuration
@@ -56,45 +56,48 @@ exports.registerHospital = async (req, res) => {
     if (!firebaseUser || !firebaseUser.uid) {
       return res.status(400).json({ error: 'Invalid Firebase user' });
     }
+    
     // Validate required fields
     for (const field of REQUIRED_HOSPITAL_FIELDS) {
       if (!req.body[field]) {
         return res.status(400).json({ error: `Missing required field: ${field}` });
       }
     }
-    let user = await User.findOne({ uid: firebaseUser.uid });
-    if (!user) {
+    
+    let hospital = await Hospital.findOne({ uid: firebaseUser.uid });
+    
+    if (!hospital) {
       // Generate Arc ID
       const arcId = 'ARC-' + uuidv4().slice(0, 8).toUpperCase();
       // Generate QR code (using Arc ID)
       const qrCode = await QRCode.toDataURL(arcId);
-      user = new User({
+      
+      hospital = new Hospital({
         uid: firebaseUser.uid,
         ...req.body,
-        type: 'hospital',
         arcId,
         qrCode,
-        status: 'pending', // Set to pending for approval
+        status: 'pending',
         isApproved: false,
         approvalStatus: 'pending',
         createdAt: new Date(),
       });
-      await user.save();
+      await hospital.save();
     } else {
-      Object.assign(user, req.body);
-      user.type = 'hospital';
-      user.status = 'pending';
-      user.isApproved = false;
-      user.approvalStatus = 'pending';
-      if (!user.arcId) {
-        user.arcId = 'ARC-' + uuidv4().slice(0, 8).toUpperCase();
+      Object.assign(hospital, req.body);
+      hospital.status = 'pending';
+      hospital.isApproved = false;
+      hospital.approvalStatus = 'pending';
+      if (!hospital.arcId) {
+        hospital.arcId = 'ARC-' + uuidv4().slice(0, 8).toUpperCase();
       }
-      if (!user.qrCode && user.arcId) {
-        user.qrCode = await QRCode.toDataURL(user.arcId);
+      if (!hospital.qrCode && hospital.arcId) {
+        hospital.qrCode = await QRCode.toDataURL(hospital.arcId);
       }
-      await user.save();
+      await hospital.save();
     }
-    res.json(user);
+    
+    res.json(hospital);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -103,8 +106,7 @@ exports.registerHospital = async (req, res) => {
 // Get all pending hospitals for admin approval
 exports.getPendingHospitals = async (req, res) => {
   try {
-    const hospitals = await User.find({ 
-      type: 'hospital', 
+    const hospitals = await Hospital.find({ 
       approvalStatus: 'pending' 
     }).sort({ createdAt: -1 });
     
@@ -118,18 +120,18 @@ exports.getPendingHospitals = async (req, res) => {
 exports.getAllHospitals = async (req, res) => {
   try {
     const { status, page = 1, limit = 10 } = req.query;
-    const query = { type: 'hospital' };
+    const query = {};
     
     if (status) {
       query.approvalStatus = status;
     }
     
-    const hospitals = await User.find(query)
+    const hospitals = await Hospital.find(query)
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
     
-    const total = await User.countDocuments(query);
+    const total = await Hospital.countDocuments(query);
     
     res.json({
       hospitals,
@@ -148,8 +150,8 @@ exports.approveHospital = async (req, res) => {
     const { hospitalId } = req.params;
     const { approvedBy, notes } = req.body;
     
-    const hospital = await User.findById(hospitalId);
-    if (!hospital || hospital.type !== 'hospital') {
+    const hospital = await Hospital.findById(hospitalId);
+    if (!hospital) {
       return res.status(404).json({ error: 'Hospital not found' });
     }
     
@@ -180,8 +182,8 @@ exports.rejectHospital = async (req, res) => {
     const { hospitalId } = req.params;
     const { rejectedBy, reason } = req.body;
     
-    const hospital = await User.findById(hospitalId);
-    if (!hospital || hospital.type !== 'hospital') {
+    const hospital = await Hospital.findById(hospitalId);
+    if (!hospital) {
       return res.status(404).json({ error: 'Hospital not found' });
     }
     
@@ -212,8 +214,8 @@ exports.updateApprovalStatus = async (req, res) => {
     const { hospitalId } = req.params;
     const { status, notes, updatedBy } = req.body;
     
-    const hospital = await User.findById(hospitalId);
-    if (!hospital || hospital.type !== 'hospital') {
+    const hospital = await Hospital.findById(hospitalId);
+    if (!hospital) {
       return res.status(404).json({ error: 'Hospital not found' });
     }
     
@@ -250,7 +252,7 @@ exports.updateApprovalStatus = async (req, res) => {
 exports.getHospitalApprovalStatus = async (req, res) => {
   try {
     const { uid } = req.params;
-    const hospital = await User.findOne({ uid, type: 'hospital' });
+    const hospital = await Hospital.findOne({ uid });
     
     if (!hospital) {
       return res.status(404).json({ error: 'Hospital not found' });
@@ -275,9 +277,9 @@ exports.getHospitalApprovalStatus = async (req, res) => {
 exports.getHospitalProfile = async (req, res) => {
   try {
     const { uid } = req.params;
-    const user = await User.findOne({ uid, type: 'hospital' });
-    if (!user) return res.status(404).json({ error: 'Hospital not found' });
-    res.json(user);
+    const hospital = await Hospital.findOne({ uid });
+    if (!hospital) return res.status(404).json({ error: 'Hospital not found' });
+    res.json(hospital);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -287,27 +289,29 @@ exports.updateHospitalProfile = async (req, res) => {
   try {
     const { uid } = req.params;
     const updateData = req.body;
-    const user = await User.findOne({ uid, type: 'hospital' });
-    if (!user) {
+    const hospital = await Hospital.findOne({ uid });
+    if (!hospital) {
       return res.status(404).json({ error: 'Hospital not found' });
     }
     Object.keys(updateData).forEach(key => {
       if (updateData[key] !== undefined) {
-        user[key] = updateData[key];
+        hospital[key] = updateData[key];
       }
     });
-    if (!user.arcId) {
-      user.arcId = 'ARC-' + uuidv4().slice(0, 8).toUpperCase();
+    if (!hospital.arcId) {
+      hospital.arcId = 'ARC-' + uuidv4().slice(0, 8).toUpperCase();
     }
-    if (!user.qrCode && user.arcId) {
-      user.qrCode = await QRCode.toDataURL(user.arcId);
+    if (!hospital.qrCode && hospital.arcId) {
+      hospital.qrCode = await QRCode.toDataURL(hospital.arcId);
     }
-    await user.save();
-    res.json(user);
+    await hospital.save();
+    res.json(hospital);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+
+// Placeholder functions for future implementation
 exports.getDoctors = async (req, res) => res.status(501).json({ error: 'Not implemented' });
 exports.addDoctor = async (req, res) => res.status(501).json({ error: 'Not implemented' });
 exports.removeDoctor = async (req, res) => res.status(501).json({ error: 'Not implemented' });
