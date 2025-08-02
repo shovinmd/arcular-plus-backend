@@ -6,7 +6,7 @@ const { getUserProfile, getUserByArcId } = require('../controllers/userControlle
 const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
 
 // Get user profile
-router.get('/:uid', authenticateToken, async (req, res) => {
+router.get('/:uid', firebaseAuthMiddleware, async (req, res) => {
   const { uid } = req.params;
   const user = await User.findOne({ uid });
   if (!user) return res.status(404).json({ error: 'User not found' });
