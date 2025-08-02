@@ -10,11 +10,11 @@ router.post('/admin/:hospitalId/approve', authenticateToken, hospitalController.
 router.post('/admin/:hospitalId/reject', authenticateToken, hospitalController.rejectHospital);
 router.put('/admin/:hospitalId/status', authenticateToken, hospitalController.updateApprovalStatus);
 
+// Get hospital by UID (for login) - MUST BE BEFORE GENERIC :id ROUTES
+router.get('/uid/:uid', authenticateToken, hospitalController.getHospitalProfile);
+
 // Hospital approval status check
 router.get('/:uid/approval-status', authenticateToken, hospitalController.getHospitalApprovalStatus);
-
-// Get hospital by UID (for login)
-router.get('/uid/:uid', authenticateToken, hospitalController.getHospitalProfile);
 
 // Profile
 router.get('/:id', authenticateToken, hospitalController.getHospitalProfile);
