@@ -13,6 +13,9 @@ router.put('/admin/:hospitalId/status', authenticateToken, hospitalController.up
 // Hospital approval status check
 router.get('/:uid/approval-status', authenticateToken, hospitalController.getHospitalApprovalStatus);
 
+// Get hospital by UID (for login)
+router.get('/uid/:uid', authenticateToken, hospitalController.getHospitalProfile);
+
 // Profile
 router.get('/:id', authenticateToken, hospitalController.getHospitalProfile);
 router.put('/:id', authenticateToken, hospitalController.updateHospitalProfile);
