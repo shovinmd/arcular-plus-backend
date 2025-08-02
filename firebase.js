@@ -4,7 +4,7 @@ const serviceAccount = require('./serviceAccountKey.json'); // Download from Fir
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
-  storageBucket: 'your-project-id.appspot.com'
+  storageBucket: 'arcularplus-7e66c.appspot.com'
 });
 
 module.exports = admin;

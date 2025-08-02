@@ -3,6 +3,9 @@ const { authenticateToken } = require('../middleware/auth');
 const hospitalController = require('../controllers/hospitalController');
 const router = express.Router();
 
+// Hospital registration (no authentication required for new registrations)
+router.post('/register', hospitalController.registerHospital);
+
 // Hospital approval routes (Admin only)
 router.get('/admin/pending', authenticateToken, hospitalController.getPendingHospitals);
 router.get('/admin/all', authenticateToken, hospitalController.getAllHospitals);
@@ -84,9 +87,6 @@ router.get('/:id/notifications', authenticateToken, hospitalController.getNotifi
 
 // Settings
 router.put('/:id/settings', authenticateToken, hospitalController.updateSettings);
-
-// Hospital registration
-router.post('/register', authenticateToken, hospitalController.registerHospital);
 
 // Fetch all hospitals
 router.get('/', authenticateToken, hospitalController.getAllHospitals);
