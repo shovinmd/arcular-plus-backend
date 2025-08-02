@@ -399,4 +399,4 @@ exports.createBillingEntry = async (req, res) => res.status(501).json({ error: '
 exports.getDocuments = async (req, res) => res.status(501).json({ error: 'Not implemented' });
 exports.uploadDocument = async (req, res) => res.status(501).json({ error: 'Not implemented' });
 exports.getNotifications = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-exports.updateSettings = async (req, res) => res.status(501).json({ error: 'Not implemented' }); 
+exports.updateSettings = async (req, res) => res.status(501).json({ error: 'Not implemented' });
