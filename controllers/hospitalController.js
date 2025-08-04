@@ -330,25 +330,14 @@ exports.getHospitalApprovalStatus = async (req, res) => {
 exports.getHospitalProfile = async (req, res) => {
   try {
     const { uid } = req.params;
-    console.log('🔍 getHospitalProfile called with UID:', uid);
-    
     const hospital = await Hospital.findOne({ uid });
-    console.log('🔍 Hospital found:', hospital ? 'YES' : 'NO');
     
     if (!hospital) {
-      console.log('❌ Hospital not found for UID:', uid);
       return res.status(404).json({ error: 'Hospital not found' });
     }
     
-    console.log('✅ Hospital found:', hospital.hospitalName);
-    console.log('📋 Hospital approval status:', hospital.approvalStatus);
-    console.log('📋 Hospital isApproved:', hospital.isApproved);
-    
-    // For now, allow all hospitals to login regardless of approval status
-    // In production, you might want to check approval status
     res.json(hospital);
   } catch (err) {
-    console.error('❌ Error in getHospitalProfile:', err);
     res.status(500).json({ error: err.message });
   }
 };
