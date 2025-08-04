@@ -1,5 +1,6 @@
 const express = require('express');
 const { authenticateToken } = require('../middleware/auth');
+const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
 const hospitalController = require('../controllers/hospitalController');
 const router = express.Router();
 
@@ -11,84 +12,84 @@ router.post('/admin/:hospitalId/reject', authenticateToken, hospitalController.r
 router.put('/admin/:hospitalId/status', authenticateToken, hospitalController.updateApprovalStatus);
 
 // Get hospital by UID (for login) - MUST BE BEFORE GENERIC :id ROUTES
-router.get('/uid/:uid', authenticateToken, hospitalController.getHospitalProfile);
+router.get('/uid/:uid', firebaseAuthMiddleware, hospitalController.getHospitalProfile);
 
 // Hospital approval status check
-router.get('/:uid/approval-status', authenticateToken, hospitalController.getHospitalApprovalStatus);
+router.get('/:uid/approval-status', firebaseAuthMiddleware, hospitalController.getHospitalApprovalStatus);
 
 // Profile
-router.get('/:id', authenticateToken, hospitalController.getHospitalProfile);
-router.put('/:id', authenticateToken, hospitalController.updateHospitalProfile);
+router.get('/:id', firebaseAuthMiddleware, hospitalController.getHospitalProfile);
+router.put('/:id', firebaseAuthMiddleware, hospitalController.updateHospitalProfile);
 
 // Doctors
-router.get('/:id/doctors', authenticateToken, hospitalController.getDoctors);
-router.post('/:id/doctors', authenticateToken, hospitalController.addDoctor);
-router.delete('/:id/doctors/:doctorId', authenticateToken, hospitalController.removeDoctor);
+router.get('/:id/doctors', firebaseAuthMiddleware, hospitalController.getDoctors);
+router.post('/:id/doctors', firebaseAuthMiddleware, hospitalController.addDoctor);
+router.delete('/:id/doctors/:doctorId', firebaseAuthMiddleware, hospitalController.removeDoctor);
 
 // Departments
-router.get('/:id/departments', authenticateToken, hospitalController.getDepartments);
-router.post('/:id/departments', authenticateToken, hospitalController.addDepartment);
-router.delete('/:id/departments/:deptName', authenticateToken, hospitalController.removeDepartment);
+router.get('/:id/departments', firebaseAuthMiddleware, hospitalController.getDepartments);
+router.post('/:id/departments', firebaseAuthMiddleware, hospitalController.addDepartment);
+router.delete('/:id/departments/:deptName', firebaseAuthMiddleware, hospitalController.removeDepartment);
 
 // Appointments
-router.get('/:id/appointments', authenticateToken, hospitalController.getAppointments);
-router.post('/:id/appointments', authenticateToken, hospitalController.createAppointment);
-router.put('/:id/appointments/:appointmentId', authenticateToken, hospitalController.updateAppointment);
+router.get('/:id/appointments', firebaseAuthMiddleware, hospitalController.getAppointments);
+router.post('/:id/appointments', firebaseAuthMiddleware, hospitalController.createAppointment);
+router.put('/:id/appointments/:appointmentId', firebaseAuthMiddleware, hospitalController.updateAppointment);
 
 // Admissions
-router.get('/:id/admissions', authenticateToken, hospitalController.getAdmissions);
-router.post('/:id/admissions', authenticateToken, hospitalController.admitPatient);
-router.put('/:id/admissions/:admissionId', authenticateToken, hospitalController.updateAdmission);
+router.get('/:id/admissions', firebaseAuthMiddleware, hospitalController.getAdmissions);
+router.post('/:id/admissions', firebaseAuthMiddleware, hospitalController.admitPatient);
+router.put('/:id/admissions/:admissionId', firebaseAuthMiddleware, hospitalController.updateAdmission);
 
 // Pharmacy
-router.get('/:id/pharmacy', authenticateToken, hospitalController.getPharmacyItems);
-router.post('/:id/pharmacy', authenticateToken, hospitalController.addPharmacyItem);
-router.put('/:id/pharmacy/:itemId', authenticateToken, hospitalController.updatePharmacyItem);
-router.delete('/:id/pharmacy/:itemId', authenticateToken, hospitalController.removePharmacyItem);
+router.get('/:id/pharmacy', firebaseAuthMiddleware, hospitalController.getPharmacyItems);
+router.post('/:id/pharmacy', firebaseAuthMiddleware, hospitalController.addPharmacyItem);
+router.put('/:id/pharmacy/:itemId', firebaseAuthMiddleware, hospitalController.updatePharmacyItem);
+router.delete('/:id/pharmacy/:itemId', firebaseAuthMiddleware, hospitalController.removePharmacyItem);
 
 // Lab
-router.get('/:id/lab-tests', authenticateToken, hospitalController.getLabTests);
-router.post('/:id/lab-tests', authenticateToken, hospitalController.addLabTest);
-router.put('/:id/lab-tests/:testId', authenticateToken, hospitalController.updateLabTest);
-router.delete('/:id/lab-tests/:testId', authenticateToken, hospitalController.removeLabTest);
+router.get('/:id/lab-tests', firebaseAuthMiddleware, hospitalController.getLabTests);
+router.post('/:id/lab-tests', firebaseAuthMiddleware, hospitalController.addLabTest);
+router.put('/:id/lab-tests/:testId', firebaseAuthMiddleware, hospitalController.updateLabTest);
+router.delete('/:id/lab-tests/:testId', firebaseAuthMiddleware, hospitalController.removeLabTest);
 
 // QR Records
-router.get('/:id/qr-records', authenticateToken, hospitalController.getQrRecords);
+router.get('/:id/qr-records', firebaseAuthMiddleware, hospitalController.getQrRecords);
 
 // Analytics
-router.get('/:id/analytics', authenticateToken, hospitalController.getAnalytics);
+router.get('/:id/analytics', firebaseAuthMiddleware, hospitalController.getAnalytics);
 
 // Reports
-router.get('/:id/reports', authenticateToken, hospitalController.getReports);
+router.get('/:id/reports', firebaseAuthMiddleware, hospitalController.getReports);
 
 // Chat
-router.get('/:id/chat', authenticateToken, hospitalController.getChatMessages);
-router.post('/:id/chat', authenticateToken, hospitalController.sendChatMessage);
+router.get('/:id/chat', firebaseAuthMiddleware, hospitalController.getChatMessages);
+router.post('/:id/chat', firebaseAuthMiddleware, hospitalController.sendChatMessage);
 
 // Shifts
-router.get('/:id/shifts', authenticateToken, hospitalController.getShifts);
-router.post('/:id/shifts', authenticateToken, hospitalController.createShift);
-router.put('/:id/shifts/:shiftId', authenticateToken, hospitalController.updateShift);
-router.delete('/:id/shifts/:shiftId', authenticateToken, hospitalController.deleteShift);
+router.get('/:id/shifts', firebaseAuthMiddleware, hospitalController.getShifts);
+router.post('/:id/shifts', firebaseAuthMiddleware, hospitalController.createShift);
+router.put('/:id/shifts/:shiftId', firebaseAuthMiddleware, hospitalController.updateShift);
+router.delete('/:id/shifts/:shiftId', firebaseAuthMiddleware, hospitalController.deleteShift);
 
 // Billing
-router.get('/:id/billing', authenticateToken, hospitalController.getBilling);
-router.post('/:id/billing', authenticateToken, hospitalController.createBillingEntry);
+router.get('/:id/billing', firebaseAuthMiddleware, hospitalController.getBilling);
+router.post('/:id/billing', firebaseAuthMiddleware, hospitalController.createBillingEntry);
 
 // Documents
-router.get('/:id/documents', authenticateToken, hospitalController.getDocuments);
-router.post('/:id/documents', authenticateToken, hospitalController.uploadDocument);
+router.get('/:id/documents', firebaseAuthMiddleware, hospitalController.getDocuments);
+router.post('/:id/documents', firebaseAuthMiddleware, hospitalController.uploadDocument);
 
 // Notifications
-router.get('/:id/notifications', authenticateToken, hospitalController.getNotifications);
+router.get('/:id/notifications', firebaseAuthMiddleware, hospitalController.getNotifications);
 
 // Settings
-router.put('/:id/settings', authenticateToken, hospitalController.updateSettings);
+router.put('/:id/settings', firebaseAuthMiddleware, hospitalController.updateSettings);
 
 // Hospital registration
-router.post('/register', authenticateToken, hospitalController.registerHospital);
+router.post('/register', firebaseAuthMiddleware, hospitalController.registerHospital);
 
 // Fetch all hospitals
-router.get('/', authenticateToken, hospitalController.getAllHospitals);
+router.get('/', firebaseAuthMiddleware, hospitalController.getAllHospitals);
 
 module.exports = router; 
