@@ -1,5 +1,5 @@
 const express = require('express');
-const { firebaseAuthMiddleware } = require('../middleware/firebaseAuthMiddleware');
+const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
 const doctorController = require('../controllers/doctorController');
 const router = express.Router();
 
@@ -12,18 +12,6 @@ router.get('/', firebaseAuthMiddleware, doctorController.getAllDoctors);
 // Get pending approvals
 router.get('/pending-approvals', firebaseAuthMiddleware, doctorController.getPendingApprovals);
 
-// Get doctor by UID (for login)
-router.get('/uid/:uid', firebaseAuthMiddleware, doctorController.getDoctorByUID);
-
-// Get doctor by ID
-router.get('/:id', firebaseAuthMiddleware, doctorController.getDoctorById);
-
-// Update doctor
-router.put('/:id', firebaseAuthMiddleware, doctorController.updateDoctor);
-
-// Delete doctor
-router.delete('/:id', firebaseAuthMiddleware, doctorController.deleteDoctor);
-
 // Get doctors by hospital
 router.get('/hospital/:hospitalId', firebaseAuthMiddleware, doctorController.getDoctorsByHospital);
 
@@ -33,8 +21,20 @@ router.get('/specialization/:specialization', firebaseAuthMiddleware, doctorCont
 // Search doctors
 router.get('/search', firebaseAuthMiddleware, doctorController.searchDoctors);
 
-// Approval workflow
+// Get doctor by UID (for login) - must come before /:id
+router.get('/uid/:uid', firebaseAuthMiddleware, doctorController.getDoctorByUID);
+
+// Approval workflow - must come before /:id
 router.post('/:id/approve', firebaseAuthMiddleware, doctorController.approveDoctor);
 router.post('/:id/reject', firebaseAuthMiddleware, doctorController.rejectDoctor);
+
+// Get doctor by ID (generic route - must come last)
+router.get('/:id', firebaseAuthMiddleware, doctorController.getDoctorById);
+
+// Update doctor
+router.put('/:id', firebaseAuthMiddleware, doctorController.updateDoctor);
+
+// Delete doctor
+router.delete('/:id', firebaseAuthMiddleware, doctorController.deleteDoctor);
 
 module.exports = router; 
