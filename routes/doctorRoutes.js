@@ -1,39 +1,40 @@
 const express = require('express');
-const { authenticateToken } = require('../middleware/auth');
+const { firebaseAuthMiddleware } = require('../middleware/firebaseAuthMiddleware');
 const doctorController = require('../controllers/doctorController');
 const router = express.Router();
 
-// Profile
-router.get('/:id', authenticateToken, doctorController.getDoctorProfile);
-router.put('/:id', authenticateToken, doctorController.updateDoctorProfile);
+// Registration
+router.post('/register', firebaseAuthMiddleware, doctorController.registerDoctor);
 
-// Appointments
-router.get('/:id/appointments', authenticateToken, doctorController.getAppointments);
-router.put('/:id/appointments/:appointmentId', authenticateToken, doctorController.updateAppointment);
+// Get all doctors
+router.get('/', firebaseAuthMiddleware, doctorController.getAllDoctors);
 
-// Patients
-router.get('/:id/patients', authenticateToken, doctorController.getPatients);
-router.get('/:id/patient/:patientId', authenticateToken, doctorController.getPatientInfo);
+// Get pending approvals
+router.get('/pending-approvals', firebaseAuthMiddleware, doctorController.getPendingApprovals);
 
-// Prescriptions
-router.get('/:id/prescriptions', authenticateToken, doctorController.getPrescriptions);
-router.post('/:id/prescriptions', authenticateToken, doctorController.createPrescription);
-router.get('/:id/prescriptions/:prescriptionId', authenticateToken, doctorController.getPrescriptionDetails);
+// Get doctor by UID (for login)
+router.get('/uid/:uid', firebaseAuthMiddleware, doctorController.getDoctorByUID);
 
-// Reports
-router.get('/:id/reports', authenticateToken, doctorController.getReports);
-router.post('/:id/reports', authenticateToken, doctorController.uploadReport);
-router.get('/:id/reports/:reportId', authenticateToken, doctorController.getReportDetails);
+// Get doctor by ID
+router.get('/:id', firebaseAuthMiddleware, doctorController.getDoctorById);
 
-// Availability
-router.get('/:id/availability', authenticateToken, doctorController.getAvailability);
-router.post('/:id/availability', authenticateToken, doctorController.addAvailabilitySlot);
-router.delete('/:id/availability/:slotId', authenticateToken, doctorController.removeAvailabilitySlot);
+// Update doctor
+router.put('/:id', firebaseAuthMiddleware, doctorController.updateDoctor);
 
-// Notifications
-router.get('/:id/notifications', authenticateToken, doctorController.getNotifications);
+// Delete doctor
+router.delete('/:id', firebaseAuthMiddleware, doctorController.deleteDoctor);
 
-// Settings
-router.put('/:id/settings', authenticateToken, doctorController.updateSettings);
+// Get doctors by hospital
+router.get('/hospital/:hospitalId', firebaseAuthMiddleware, doctorController.getDoctorsByHospital);
+
+// Get doctors by specialization
+router.get('/specialization/:specialization', firebaseAuthMiddleware, doctorController.getDoctorsBySpecialization);
+
+// Search doctors
+router.get('/search', firebaseAuthMiddleware, doctorController.searchDoctors);
+
+// Approval workflow
+router.post('/:id/approve', firebaseAuthMiddleware, doctorController.approveDoctor);
+router.post('/:id/reject', firebaseAuthMiddleware, doctorController.rejectDoctor);
 
 module.exports = router; 

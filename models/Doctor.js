@@ -1,102 +1,139 @@
 const mongoose = require('mongoose');
 
-const doctorSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: true,
-    trim: true
+const DoctorSchema = new mongoose.Schema({
+  uid: { type: String, required: true, unique: true },
+  fullName: { type: String, required: true },
+  email: { type: String, required: true, unique: true },
+  mobileNumber: { type: String, required: true },
+  altPhoneNumber: String,
+  gender: { type: String, required: true, enum: ['Male', 'Female', 'Other'] },
+  dateOfBirth: { type: Date, required: true },
+  address: { type: String, required: true },
+  city: { type: String, required: true },
+  state: { type: String, required: true },
+  pincode: { type: String, required: true },
+  geoCoordinates: { lat: Number, lng: Number },
+  
+  // Professional Information
+  medicalRegistrationNumber: { type: String, required: true, unique: true },
+  specialization: { type: String, required: true },
+  experienceYears: { type: Number, required: true },
+  consultationFee: { type: Number, required: true },
+  education: String,
+  bio: String,
+  
+  // Employment Details
+  affiliatedHospitals: [{ type: String }],
+  currentHospital: String,
+  workingHours: {
+    start: String,
+    end: String,
+    days: [String]
   },
-  specialization: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  hospitalId: {
-    type: String,
-    required: true,
-    index: true
-  },
-  email: {
-    type: String,
-    required: true,
-    unique: true,
-    lowercase: true,
-    trim: true
-  },
-  phone: {
-    type: String,
-    trim: true
-  },
-  licenseNumber: {
-    type: String,
-    required: true,
-    unique: true,
-    trim: true
-  },
-  experience: {
-    type: Number,
-    default: 0
-  },
-  education: {
-    type: String,
-    trim: true
-  },
-  bio: {
-    type: String,
-    trim: true
-  },
-  status: {
-    type: String,
-    enum: ['active', 'inactive', 'on_leave'],
-    default: 'active'
-  },
-  imageUrl: {
-    type: String
+  
+  // Certificates and Documents
+  licenseDocumentUrl: { type: String, required: true },
+  profileImageUrl: String,
+  
+  // System Fields
+  status: { type: String, enum: ['active', 'inactive', 'pending'], default: 'pending' },
+  isApproved: { type: Boolean, default: false },
+  approvalStatus: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+  approvedBy: String,
+  approvedAt: Date,
+  approvalNotes: String,
+  rejectedBy: String,
+  rejectedAt: Date,
+  rejectionReason: String,
+  
+  // QR Code and Arc ID
+  arcId: { type: String, unique: true },
+  qrCode: String,
+  
+  // Timestamps
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+});
+
+// Pre-save hook to generate arcId if not provided
+DoctorSchema.pre('save', function(next) {
+  if (!this.arcId) {
+    this.arcId = 'DOC' + Date.now().toString().slice(-8);
   }
-}, {
-  timestamps: true
-});
-
-// Indexes for better query performance
-doctorSchema.index({ hospitalId: 1, specialization: 1 });
-doctorSchema.index({ status: 1, specialization: 1 });
-doctorSchema.index({ licenseNumber: 1 });
-
-// Virtual for full name
-doctorSchema.virtual('fullName').get(function() {
-  return this.name;
-});
-
-// Virtual for availability status
-doctorSchema.virtual('isAvailable').get(function() {
-  return this.status === 'active';
+  this.updatedAt = new Date();
+  next();
 });
 
 // Static method to find doctors by hospital
-doctorSchema.statics.findByHospital = function(hospitalId) {
-  return this.find({ hospitalId, status: 'active' }).sort({ name: 1 });
+DoctorSchema.statics.findByHospital = function(hospitalId) {
+  return this.find({ 
+    $or: [
+      { currentHospital: hospitalId },
+      { affiliatedHospitals: hospitalId }
+    ],
+    status: 'active',
+    isApproved: true 
+  }).sort({ fullName: 1 });
 };
 
 // Static method to find doctors by specialization
-doctorSchema.statics.findBySpecialization = function(specialization) {
-  return this.find({ specialization, status: 'active' }).sort({ name: 1 });
+DoctorSchema.statics.findBySpecialization = function(specialization) {
+  return this.find({ 
+    specialization, 
+    status: 'active',
+    isApproved: true 
+  }).sort({ fullName: 1 });
 };
 
 // Static method to find active doctors
-doctorSchema.statics.findActive = function() {
-  return this.find({ status: 'active' }).sort({ name: 1 });
+DoctorSchema.statics.findActive = function() {
+  return this.find({ 
+    status: 'active',
+    isApproved: true 
+  }).sort({ fullName: 1 });
 };
 
 // Static method to search doctors
-doctorSchema.statics.search = function(searchTerm) {
+DoctorSchema.statics.search = function(searchTerm) {
   return this.find({
     status: 'active',
+    isApproved: true,
     $or: [
-      { name: { $regex: searchTerm, $options: 'i' } },
+      { fullName: { $regex: searchTerm, $options: 'i' } },
       { specialization: { $regex: searchTerm, $options: 'i' } },
       { education: { $regex: searchTerm, $options: 'i' } }
     ]
-  }).sort({ name: 1 });
+  }).sort({ fullName: 1 });
 };
 
-module.exports = mongoose.model('Doctor', doctorSchema); 
+// Static method to get pending approvals
+DoctorSchema.statics.getPendingApprovals = function() {
+  return this.find({ 
+    approvalStatus: 'pending' 
+  }).sort({ createdAt: 1 });
+};
+
+// Static method to approve doctor
+DoctorSchema.statics.approveDoctor = function(doctorId, approvedBy, notes = '') {
+  return this.findByIdAndUpdate(doctorId, {
+    isApproved: true,
+    approvalStatus: 'approved',
+    approvedBy,
+    approvedAt: new Date(),
+    approvalNotes: notes,
+    status: 'active'
+  }, { new: true });
+};
+
+// Static method to reject doctor
+DoctorSchema.statics.rejectDoctor = function(doctorId, rejectedBy, reason = '') {
+  return this.findByIdAndUpdate(doctorId, {
+    isApproved: false,
+    approvalStatus: 'rejected',
+    rejectedBy,
+    rejectedAt: new Date(),
+    rejectionReason: reason
+  }, { new: true });
+};
+
+module.exports = mongoose.model('Doctor', DoctorSchema); 
