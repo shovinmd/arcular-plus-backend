@@ -1,19 +1,10 @@
 const Doctor = require('../models/Doctor');
-const { validationResult } = require('express-validator');
 
 // Register new doctor
 const registerDoctor = async (req, res) => {
   try {
     console.log('🏥 Doctor registration request:', req.body);
     
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        errors: errors.array()
-      });
-    }
-
     const {
       uid,
       fullName,
