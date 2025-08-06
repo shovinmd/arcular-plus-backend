@@ -60,6 +60,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/arc-staff', arcStaffRoutes);
 app.use('/api/nurses', nurseRoutes);
 app.use('/api/pharmacies', pharmacyRoutes);
+app.use('/api/labs', labRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
