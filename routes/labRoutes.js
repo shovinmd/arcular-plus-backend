@@ -1,38 +1,23 @@
 const express = require('express');
-const auth = require('../middleware/auth');
-const labController = require('../controllers/labController');
 const router = express.Router();
+const labController = require('../controllers/labController');
+const { authenticateToken } = require('../middleware/auth');
 
-// Profile
-router.get('/:id', auth, labController.getLabProfile);
-router.put('/:id', auth, labController.updateLabProfile);
+// Public routes
+router.post('/register', labController.registerLab);
+router.get('/all', labController.getAllLabs);
+router.get('/city/:city', labController.getLabsByCity);
+router.get('/service/:service', labController.getLabsByService);
 
-// Test Management
-router.get('/:id/tests', auth, labController.getTests);
-router.post('/:id/tests', auth, labController.createTest);
-router.put('/:id/tests/:testId', auth, labController.updateTest);
-router.delete('/:id/tests/:testId', auth, labController.deleteTest);
+// Protected routes
+router.get('/:id', authenticateToken, labController.getLabById);
+router.get('/uid/:uid', authenticateToken, labController.getLabByUID);
+router.put('/:id', authenticateToken, labController.updateLab);
+router.delete('/:id', authenticateToken, labController.deleteLab);
 
-// Sample Collection
-router.get('/:id/samples', auth, labController.getSamples);
-router.post('/:id/samples', auth, labController.addSample);
-
-// Test Results
-router.get('/:id/results', auth, labController.getResults);
-router.post('/:id/results', auth, labController.addResult);
-
-// Patient Communication
-router.get('/:id/patient/:patientId', auth, labController.getPatientInfo);
-router.post('/:id/patient/:patientId/message', auth, labController.sendPatientMessage);
-
-// Chat
-router.get('/:id/chat', auth, labController.getChatMessages);
-router.post('/:id/chat', auth, labController.sendChatMessage);
-
-// Notifications
-router.get('/:id/notifications', auth, labController.getNotifications);
-
-// Settings
-router.put('/:id/settings', auth, labController.updateSettings);
+// Admin routes
+router.get('/admin/pending', authenticateToken, labController.getPendingApprovals);
+router.post('/admin/approve/:id', authenticateToken, labController.approveLab);
+router.post('/admin/reject/:id', authenticateToken, labController.rejectLab);
 
 module.exports = router; 

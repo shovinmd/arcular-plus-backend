@@ -2,7 +2,12 @@ const mongoose = require('mongoose');
 
 const nurseSchema = new mongoose.Schema({
   // Basic Information
-  name: {
+  uid: {
+    type: String,
+    required: true,
+    unique: true
+  },
+  fullName: {
     type: String,
     required: true,
     trim: true
@@ -14,82 +19,46 @@ const nurseSchema = new mongoose.Schema({
     lowercase: true,
     trim: true
   },
-  phone: {
+  mobileNumber: {
     type: String,
     required: true,
     trim: true
-  },
-  alternatePhone: {
-    type: String,
-    trim: true
-  },
-  dateOfBirth: {
-    type: Date,
-    required: true
   },
   gender: {
     type: String,
     enum: ['Male', 'Female', 'Other'],
     required: true
   },
+  dateOfBirth: {
+    type: Date,
+    required: true
+  },
   
   // Professional Information
+  qualification: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  experienceYears: {
+    type: Number,
+    required: true,
+    min: 0
+  },
   licenseNumber: {
     type: String,
     required: true,
     unique: true,
     trim: true
   },
-  registrationNumber: {
+  licenseDocumentUrl: {
     type: String,
-    required: true,
-    unique: true,
-    trim: true
+    required: true
   },
-  specialization: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  experience: {
-    type: Number,
-    default: 0
-  },
-  education: {
+  hospitalAffiliation: {
     type: String,
     required: true,
     trim: true
-  },
-  qualification: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  
-  // Employment Details
-  hospitalId: {
-    type: String,
-    required: true,
-    index: true
-  },
-  department: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  designation: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  joiningDate: {
-    type: Date,
-    default: Date.now
-  },
-  shift: {
-    type: String,
-    enum: ['Morning', 'Evening', 'Night', 'Flexible'],
-    default: 'Morning'
   },
   
   // Address Information
@@ -114,20 +83,16 @@ const nurseSchema = new mongoose.Schema({
     trim: true
   },
   
-  // Professional Certificates
-  certificateUrl: {
+  // Profile and System
+  profileImageUrl: {
     type: String,
-    trim: true
-  },
-  licenseDocumentUrl: {
-    type: String,
-    trim: true
+    required: true
   },
   
-  // Status and Approval
+  // Approval Status
   status: {
     type: String,
-    enum: ['active', 'inactive', 'on_leave', 'suspended'],
+    enum: ['active', 'inactive', 'suspended'],
     default: 'active'
   },
   isApproved: {
@@ -139,30 +104,36 @@ const nurseSchema = new mongoose.Schema({
     enum: ['pending', 'approved', 'rejected'],
     default: 'pending'
   },
-  
-  // Additional Information
-  bio: {
+  approvedBy: {
     type: String,
-    trim: true
+    ref: 'ArcStaff'
   },
-  imageUrl: {
+  approvedAt: {
+    type: Date
+  },
+  approvalNotes: {
+    type: String
+  },
+  rejectedBy: {
     type: String,
-    trim: true
+    ref: 'ArcStaff'
   },
-  emergencyContact: {
-    name: String,
-    phone: String,
-    relation: String
+  rejectedAt: {
+    type: Date
   },
-  
-  // Firebase Integration
-  uid: {
-    type: String,
-    required: true,
-    unique: true
+  rejectionReason: {
+    type: String
   },
   
-  // Timestamps
+  // System Fields
+  arcId: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
+  qrCode: {
+    type: String
+  },
   createdAt: {
     type: Date,
     default: Date.now
@@ -171,66 +142,54 @@ const nurseSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   }
-}, {
-  timestamps: true
 });
 
-// Indexes for better query performance
-nurseSchema.index({ hospitalId: 1, department: 1 });
-nurseSchema.index({ status: 1, specialization: 1 });
-nurseSchema.index({ licenseNumber: 1 });
-nurseSchema.index({ registrationNumber: 1 });
-nurseSchema.index({ uid: 1 });
-
-// Virtual for full name
-nurseSchema.virtual('fullName').get(function() {
-  return this.name;
+// Pre-save hook to generate arcId and update timestamp
+nurseSchema.pre('save', function(next) {
+  if (!this.arcId) {
+    this.arcId = 'NUR' + Date.now().toString().slice(-8);
+  }
+  this.updatedAt = new Date();
+  next();
 });
 
-// Virtual for availability status
-nurseSchema.virtual('isAvailable').get(function() {
-  return this.status === 'active' && this.isApproved;
-});
-
-// Static method to find nurses by hospital
-nurseSchema.statics.findByHospital = function(hospitalId) {
-  return this.find({ hospitalId, status: 'active', isApproved: true }).sort({ name: 1 });
+// Static methods
+nurseSchema.statics.findByHospital = function(hospitalName) {
+  return this.find({ 
+    hospitalAffiliation: new RegExp(hospitalName, 'i'),
+    isApproved: true 
+  });
 };
 
-// Static method to find nurses by department
-nurseSchema.statics.findByDepartment = function(department) {
-  return this.find({ department, status: 'active', isApproved: true }).sort({ name: 1 });
+nurseSchema.statics.findByQualification = function(qualification) {
+  return this.find({ 
+    qualification: new RegExp(qualification, 'i'),
+    isApproved: true 
+  });
 };
 
-// Static method to find active nurses
-nurseSchema.statics.findActive = function() {
-  return this.find({ status: 'active', isApproved: true }).sort({ name: 1 });
+nurseSchema.statics.getPendingApprovals = function() {
+  return this.find({ approvalStatus: 'pending' });
 };
 
-// Static method to find pending approvals
-nurseSchema.statics.findPendingApprovals = function() {
-  return this.find({ approvalStatus: 'pending' }).sort({ createdAt: 1 });
-};
-
-// Static method to search nurses
-nurseSchema.statics.search = function(searchTerm) {
-  return this.find({
-    status: 'active',
+nurseSchema.statics.approveNurse = function(nurseId, approvedBy, notes = '') {
+  return this.findByIdAndUpdate(nurseId, {
     isApproved: true,
-    $or: [
-      { name: { $regex: searchTerm, $options: 'i' } },
-      { specialization: { $regex: searchTerm, $options: 'i' } },
-      { department: { $regex: searchTerm, $options: 'i' } },
-      { education: { $regex: searchTerm, $options: 'i' } }
-    ]
-  }).sort({ name: 1 });
+    approvalStatus: 'approved',
+    approvedBy,
+    approvedAt: new Date(),
+    approvalNotes: notes
+  });
 };
 
-// Method to update approval status
-nurseSchema.methods.updateApprovalStatus = function(status) {
-  this.approvalStatus = status;
-  this.isApproved = status === 'approved';
-  return this.save();
+nurseSchema.statics.rejectNurse = function(nurseId, rejectedBy, reason = '') {
+  return this.findByIdAndUpdate(nurseId, {
+    isApproved: false,
+    approvalStatus: 'rejected',
+    rejectedBy,
+    rejectedAt: new Date(),
+    rejectionReason: reason
+  });
 };
 
 module.exports = mongoose.model('Nurse', nurseSchema); 

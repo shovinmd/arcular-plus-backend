@@ -1,13 +1,13 @@
 const mongoose = require('mongoose');
 
-const pharmacySchema = new mongoose.Schema({
+const labSchema = new mongoose.Schema({
   // Basic Information
   uid: {
     type: String,
     required: true,
     unique: true
   },
-  pharmacyName: {
+  labName: {
     type: String,
     required: true,
     trim: true
@@ -17,11 +17,6 @@ const pharmacySchema = new mongoose.Schema({
     required: true,
     unique: true,
     lowercase: true,
-    trim: true
-  },
-  ownerName: {
-    type: String,
-    required: true,
     trim: true
   },
   mobileNumber: {
@@ -42,11 +37,16 @@ const pharmacySchema = new mongoose.Schema({
     required: true
   },
   
-  // Business Information
-  drugsAvailable: [{
+  // Services and Owner
+  servicesProvided: [{
     type: String,
-    trim: true
+    required: true
   }],
+  ownerName: {
+    type: String,
+    required: true,
+    trim: true
+  },
   
   // Address Information
   address: {
@@ -132,32 +132,32 @@ const pharmacySchema = new mongoose.Schema({
 });
 
 // Pre-save hook to generate arcId and update timestamp
-pharmacySchema.pre('save', function(next) {
+labSchema.pre('save', function(next) {
   if (!this.arcId) {
-    this.arcId = 'PHA' + Date.now().toString().slice(-8);
+    this.arcId = 'LAB' + Date.now().toString().slice(-8);
   }
   this.updatedAt = new Date();
   next();
 });
 
 // Static methods
-pharmacySchema.statics.findByCity = function(city) {
+labSchema.statics.findByCity = function(city) {
   return this.find({ city: new RegExp(city, 'i'), isApproved: true });
 };
 
-pharmacySchema.statics.findByDrug = function(drugName) {
+labSchema.statics.findByService = function(service) {
   return this.find({ 
-    drugsAvailable: { $in: [new RegExp(drugName, 'i')] },
+    servicesProvided: { $in: [new RegExp(service, 'i')] },
     isApproved: true 
   });
 };
 
-pharmacySchema.statics.getPendingApprovals = function() {
+labSchema.statics.getPendingApprovals = function() {
   return this.find({ approvalStatus: 'pending' });
 };
 
-pharmacySchema.statics.approvePharmacy = function(pharmacyId, approvedBy, notes = '') {
-  return this.findByIdAndUpdate(pharmacyId, {
+labSchema.statics.approveLab = function(labId, approvedBy, notes = '') {
+  return this.findByIdAndUpdate(labId, {
     isApproved: true,
     approvalStatus: 'approved',
     approvedBy,
@@ -166,8 +166,8 @@ pharmacySchema.statics.approvePharmacy = function(pharmacyId, approvedBy, notes 
   });
 };
 
-pharmacySchema.statics.rejectPharmacy = function(pharmacyId, rejectedBy, reason = '') {
-  return this.findByIdAndUpdate(pharmacyId, {
+labSchema.statics.rejectLab = function(labId, rejectedBy, reason = '') {
+  return this.findByIdAndUpdate(labId, {
     isApproved: false,
     approvalStatus: 'rejected',
     rejectedBy,
@@ -176,4 +176,4 @@ pharmacySchema.statics.rejectPharmacy = function(pharmacyId, rejectedBy, reason 
   });
 };
 
-module.exports = mongoose.model('Pharmacy', pharmacySchema); 
+module.exports = mongoose.model('Lab', labSchema); 

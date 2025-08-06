@@ -1,143 +1,93 @@
 const Nurse = require('../models/Nurse');
-const User = require('../models/User');
 
 // Register a new nurse
 const registerNurse = async (req, res) => {
   try {
-    const firebaseUser = req.user;
     const {
-      name,
+      uid,
+      fullName,
       email,
-      phone,
-      alternatePhone,
-      dateOfBirth,
+      mobileNumber,
       gender,
-      licenseNumber,
-      registrationNumber,
-      specialization,
-      experience,
-      education,
+      dateOfBirth,
       qualification,
-      hospitalId,
-      department,
-      designation,
-      shift,
+      experienceYears,
+      licenseNumber,
+      licenseDocumentUrl,
+      hospitalAffiliation,
       address,
       city,
       state,
       pincode,
-      certificateUrl,
-      licenseDocumentUrl,
-      bio,
-      emergencyContact
+      profileImageUrl
     } = req.body;
+
+    // Validate required fields
+    const requiredFields = {
+      uid, fullName, email, mobileNumber, gender, dateOfBirth,
+      qualification, experienceYears, licenseNumber, licenseDocumentUrl,
+      hospitalAffiliation, address, city, state, pincode, profileImageUrl
+    };
+
+    const missingFields = Object.keys(requiredFields).filter(
+      field => !requiredFields[field]
+    );
+
+    if (missingFields.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Missing required fields: ${missingFields.join(', ')}`
+      });
+    }
 
     // Check if nurse already exists
     const existingNurse = await Nurse.findOne({
       $or: [
-        { email: email.toLowerCase() },
+        { email },
         { licenseNumber },
-        { registrationNumber },
-        { uid: firebaseUser.uid }
+        { uid }
       ]
     });
 
     if (existingNurse) {
       return res.status(400).json({
         success: false,
-        message: 'Nurse already exists with this email, license number, or registration number'
+        message: 'Nurse with this email, license number, or UID already exists'
       });
     }
 
     // Create new nurse
     const nurse = new Nurse({
-      uid: firebaseUser.uid,
-      name,
-      email: email.toLowerCase(),
-      phone,
-      alternatePhone,
-      dateOfBirth: new Date(dateOfBirth),
+      uid,
+      fullName,
+      email,
+      mobileNumber,
       gender,
-      licenseNumber,
-      registrationNumber,
-      specialization,
-      experience: parseInt(experience) || 0,
-      education,
+      dateOfBirth,
       qualification,
-      hospitalId,
-      department,
-      designation,
-      shift,
+      experienceYears,
+      licenseNumber,
+      licenseDocumentUrl,
+      hospitalAffiliation,
       address,
       city,
       state,
       pincode,
-      certificateUrl,
-      licenseDocumentUrl,
-      bio,
-      emergencyContact,
-      isApproved: false,
-      approvalStatus: 'pending'
+      profileImageUrl
     });
 
     await nurse.save();
 
-    // Also create/update user record
-    const userData = {
-      uid: firebaseUser.uid,
-      fullName: name,
-      email: email.toLowerCase(),
-      mobileNumber: phone,
-      alternateMobile: alternatePhone,
-      gender,
-      dateOfBirth: new Date(dateOfBirth),
-      address,
-      city,
-      state,
-      pincode,
-      type: 'nurse',
-      // Nurse-specific fields
-      medicalRegistrationNumber: registrationNumber,
-      specialization,
-      experienceYears: parseInt(experience) || 0,
-      certificateUrl
-    };
-
-    await User.findOneAndUpdate(
-      { uid: firebaseUser.uid },
-      userData,
-      { upsert: true, new: true }
-    );
-
     res.status(201).json({
       success: true,
-      message: 'Nurse registered successfully. Pending approval.',
+      message: 'Nurse registered successfully',
       data: nurse
     });
-
   } catch (error) {
-    console.error('Error registering nurse:', error);
+    console.error('Nurse registration error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to register nurse',
-      error: error.message
-    });
-  }
-};
-
-// Get all nurses
-const getAllNurses = async (req, res) => {
-  try {
-    const nurses = await Nurse.find().sort({ createdAt: -1 });
-    res.status(200).json({
-      success: true,
-      data: nurses
-    });
-  } catch (error) {
-    console.error('Error fetching nurses:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch nurses',
       error: error.message
     });
   }
@@ -153,22 +103,21 @@ const getNurseById = async (req, res) => {
         message: 'Nurse not found'
       });
     }
-    res.status(200).json({
+    res.json({
       success: true,
       data: nurse
     });
   } catch (error) {
-    console.error('Error fetching nurse:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch nurse',
+      message: 'Failed to get nurse',
       error: error.message
     });
   }
 };
 
 // Get nurse by UID
-const getNurseByUid = async (req, res) => {
+const getNurseByUID = async (req, res) => {
   try {
     const nurse = await Nurse.findOne({ uid: req.params.uid });
     if (!nurse) {
@@ -177,15 +126,31 @@ const getNurseByUid = async (req, res) => {
         message: 'Nurse not found'
       });
     }
-    res.status(200).json({
+    res.json({
       success: true,
       data: nurse
     });
   } catch (error) {
-    console.error('Error fetching nurse:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch nurse',
+      message: 'Failed to get nurse',
+      error: error.message
+    });
+  }
+};
+
+// Get all nurses
+const getAllNurses = async (req, res) => {
+  try {
+    const nurses = await Nurse.find({ isApproved: true });
+    res.json({
+      success: true,
+      data: nurses
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get nurses',
       error: error.message
     });
   }
@@ -196,8 +161,8 @@ const updateNurse = async (req, res) => {
   try {
     const nurse = await Nurse.findByIdAndUpdate(
       req.params.id,
-      req.body,
-      { new: true, runValidators: true }
+      { ...req.body, updatedAt: new Date() },
+      { new: true }
     );
     if (!nurse) {
       return res.status(404).json({
@@ -205,13 +170,12 @@ const updateNurse = async (req, res) => {
         message: 'Nurse not found'
       });
     }
-    res.status(200).json({
+    res.json({
       success: true,
       message: 'Nurse updated successfully',
       data: nurse
     });
   } catch (error) {
-    console.error('Error updating nurse:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to update nurse',
@@ -230,12 +194,11 @@ const deleteNurse = async (req, res) => {
         message: 'Nurse not found'
       });
     }
-    res.status(200).json({
+    res.json({
       success: true,
       message: 'Nurse deleted successfully'
     });
   } catch (error) {
-    console.error('Error deleting nurse:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to delete nurse',
@@ -247,34 +210,32 @@ const deleteNurse = async (req, res) => {
 // Get nurses by hospital
 const getNursesByHospital = async (req, res) => {
   try {
-    const nurses = await Nurse.findByHospital(req.params.hospitalId);
-    res.status(200).json({
+    const nurses = await Nurse.findByHospital(req.params.hospitalName);
+    res.json({
       success: true,
       data: nurses
     });
   } catch (error) {
-    console.error('Error fetching nurses by hospital:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch nurses',
+      message: 'Failed to get nurses by hospital',
       error: error.message
     });
   }
 };
 
-// Get nurses by department
-const getNursesByDepartment = async (req, res) => {
+// Get nurses by qualification
+const getNursesByQualification = async (req, res) => {
   try {
-    const nurses = await Nurse.findByDepartment(req.params.department);
-    res.status(200).json({
+    const nurses = await Nurse.findByQualification(req.params.qualification);
+    res.json({
       success: true,
       data: nurses
     });
   } catch (error) {
-    console.error('Error fetching nurses by department:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch nurses',
+      message: 'Failed to get nurses by qualification',
       error: error.message
     });
   }
@@ -283,16 +244,15 @@ const getNursesByDepartment = async (req, res) => {
 // Get pending approvals
 const getPendingApprovals = async (req, res) => {
   try {
-    const nurses = await Nurse.findPendingApprovals();
-    res.status(200).json({
+    const nurses = await Nurse.getPendingApprovals();
+    res.json({
       success: true,
       data: nurses
     });
   } catch (error) {
-    console.error('Error fetching pending approvals:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch pending approvals',
+      message: 'Failed to get pending approvals',
       error: error.message
     });
   }
@@ -301,25 +261,20 @@ const getPendingApprovals = async (req, res) => {
 // Approve nurse
 const approveNurse = async (req, res) => {
   try {
-    const nurse = await Nurse.findById(req.params.id);
+    const { notes } = req.body;
+    const nurse = await Nurse.approveNurse(req.params.id, req.user.uid, notes);
     if (!nurse) {
       return res.status(404).json({
         success: false,
         message: 'Nurse not found'
       });
     }
-
-    nurse.approvalStatus = 'approved';
-    nurse.isApproved = true;
-    await nurse.save();
-
-    res.status(200).json({
+    res.json({
       success: true,
       message: 'Nurse approved successfully',
       data: nurse
     });
   } catch (error) {
-    console.error('Error approving nurse:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to approve nurse',
@@ -331,25 +286,20 @@ const approveNurse = async (req, res) => {
 // Reject nurse
 const rejectNurse = async (req, res) => {
   try {
-    const nurse = await Nurse.findById(req.params.id);
+    const { reason } = req.body;
+    const nurse = await Nurse.rejectNurse(req.params.id, req.user.uid, reason);
     if (!nurse) {
       return res.status(404).json({
         success: false,
         message: 'Nurse not found'
       });
     }
-
-    nurse.approvalStatus = 'rejected';
-    nurse.isApproved = false;
-    await nurse.save();
-
-    res.status(200).json({
+    res.json({
       success: true,
       message: 'Nurse rejected successfully',
       data: nurse
     });
   } catch (error) {
-    console.error('Error rejecting nurse:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to reject nurse',
@@ -358,43 +308,16 @@ const rejectNurse = async (req, res) => {
   }
 };
 
-// Search nurses
-const searchNurses = async (req, res) => {
-  try {
-    const { q } = req.query;
-    if (!q) {
-      return res.status(400).json({
-        success: false,
-        message: 'Search query is required'
-      });
-    }
-
-    const nurses = await Nurse.search(q);
-    res.status(200).json({
-      success: true,
-      data: nurses
-    });
-  } catch (error) {
-    console.error('Error searching nurses:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to search nurses',
-      error: error.message
-    });
-  }
-};
-
 module.exports = {
   registerNurse,
-  getAllNurses,
   getNurseById,
-  getNurseByUid,
+  getNurseByUID,
+  getAllNurses,
   updateNurse,
   deleteNurse,
   getNursesByHospital,
-  getNursesByDepartment,
+  getNursesByQualification,
   getPendingApprovals,
   approveNurse,
-  rejectNurse,
-  searchNurses
+  rejectNurse
 }; 
