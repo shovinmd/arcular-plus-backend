@@ -24,6 +24,7 @@ const adminRoutes = require('./routes/adminRoutes');
 const arcStaffRoutes = require('./routes/arcStaffRoutes');
 const nurseRoutes = require('./routes/nurseRoutes');
 const pharmacyRoutes = require('./routes/pharmacyRoutes');
+const labRoutes = require('./routes/labRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
