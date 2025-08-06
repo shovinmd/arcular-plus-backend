@@ -3,25 +3,21 @@ const router = express.Router();
 const nurseController = require('../controllers/nurseController');
 const { authenticateToken } = require('../middleware/auth');
 
-// Apply authentication middleware to all routes
-router.use(authenticateToken);
-
-// Nurse registration and management
+// Public routes
 router.post('/register', nurseController.registerNurse);
-router.get('/', nurseController.getAllNurses);
-router.get('/:id', nurseController.getNurseById);
-router.get('/uid/:uid', nurseController.getNurseByUid);
-router.put('/:id', nurseController.updateNurse);
-router.delete('/:id', nurseController.deleteNurse);
+router.get('/all', nurseController.getAllNurses);
+router.get('/hospital/:hospitalName', nurseController.getNursesByHospital);
+router.get('/qualification/:qualification', nurseController.getNursesByQualification);
 
-// Search and filter routes
-router.get('/hospital/:hospitalId', nurseController.getNursesByHospital);
-router.get('/department/:department', nurseController.getNursesByDepartment);
-router.get('/search', nurseController.searchNurses);
+// Protected routes
+router.get('/:id', authenticateToken, nurseController.getNurseById);
+router.get('/uid/:uid', authenticateToken, nurseController.getNurseByUID);
+router.put('/:id', authenticateToken, nurseController.updateNurse);
+router.delete('/:id', authenticateToken, nurseController.deleteNurse);
 
-// Approval routes
-router.get('/admin/pending', nurseController.getPendingApprovals);
-router.put('/admin/:id/approve', nurseController.approveNurse);
-router.put('/admin/:id/reject', nurseController.rejectNurse);
+// Admin routes
+router.get('/admin/pending', authenticateToken, nurseController.getPendingApprovals);
+router.post('/admin/approve/:id', authenticateToken, nurseController.approveNurse);
+router.post('/admin/reject/:id', authenticateToken, nurseController.rejectNurse);
 
 module.exports = router; 
