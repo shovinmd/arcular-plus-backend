@@ -135,10 +135,18 @@ const registerDoctor = async (req, res) => {
 const getAllDoctors = async (req, res) => {
   try {
     const doctors = await Doctor.findActive();
+    
+    // Add type field to each doctor
+    const doctorsWithType = doctors.map(doctor => {
+      const doctorData = doctor.toObject();
+      doctorData.type = 'doctor';
+      return doctorData;
+    });
+    
     res.json({
       success: true,
-      data: doctors,
-      count: doctors.length
+      data: doctorsWithType,
+      count: doctorsWithType.length
     });
   } catch (error) {
     console.error('Error fetching doctors:', error);
@@ -159,9 +167,14 @@ const getDoctorById = async (req, res) => {
         error: 'Doctor not found'
       });
     }
+    
+    // Convert to plain object and add type field
+    const doctorData = doctor.toObject();
+    doctorData.type = 'doctor';
+    
     res.json({
       success: true,
-      data: doctor
+      data: doctorData
     });
   } catch (error) {
     console.error('Error fetching doctor:', error);
@@ -187,9 +200,14 @@ const getDoctorByUID = async (req, res) => {
     }
     
     console.log('✅ Found doctor:', doctor.fullName);
+    
+    // Convert to plain object and add type field
+    const doctorData = doctor.toObject();
+    doctorData.type = 'doctor';
+    
     res.json({
       success: true,
-      data: doctor
+      data: doctorData
     });
   } catch (error) {
     console.error('Error fetching doctor by UID:', error);
