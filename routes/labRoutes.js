@@ -1,23 +1,35 @@
 const express = require('express');
 const router = express.Router();
 const labController = require('../controllers/labController');
-const { authenticateToken } = require('../middleware/auth');
+const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
 
-// Public routes
-router.post('/register', labController.registerLab);
-router.get('/all', labController.getAllLabs);
-router.get('/city/:city', labController.getLabsByCity);
-router.get('/service/:service', labController.getLabsByService);
+// Registration
+router.post('/register', firebaseAuthMiddleware, labController.registerLab);
 
-// Protected routes
-router.get('/:id', authenticateToken, labController.getLabById);
-router.get('/uid/:uid', authenticateToken, labController.getLabByUID);
-router.put('/:id', authenticateToken, labController.updateLab);
-router.delete('/:id', authenticateToken, labController.deleteLab);
+// Get all labs
+router.get('/', firebaseAuthMiddleware, labController.getAllLabs);
+
+// Get labs by city
+router.get('/city/:city', firebaseAuthMiddleware, labController.getLabsByCity);
+
+// Get labs by service
+router.get('/service/:service', firebaseAuthMiddleware, labController.getLabsByService);
+
+// Get lab by UID (for login) - must come before /:id
+router.get('/uid/:uid', firebaseAuthMiddleware, labController.getLabByUID);
+
+// Get lab by ID (generic route - must come last)
+router.get('/:id', firebaseAuthMiddleware, labController.getLabById);
+
+// Update lab
+router.put('/:id', firebaseAuthMiddleware, labController.updateLab);
+
+// Delete lab
+router.delete('/:id', firebaseAuthMiddleware, labController.deleteLab);
 
 // Admin routes
-router.get('/admin/pending', authenticateToken, labController.getPendingApprovals);
-router.post('/admin/approve/:id', authenticateToken, labController.approveLab);
-router.post('/admin/reject/:id', authenticateToken, labController.rejectLab);
+router.get('/pending-approvals', firebaseAuthMiddleware, labController.getPendingApprovals);
+router.post('/:id/approve', firebaseAuthMiddleware, labController.approveLab);
+router.post('/:id/reject', firebaseAuthMiddleware, labController.rejectLab);
 
 module.exports = router; 
