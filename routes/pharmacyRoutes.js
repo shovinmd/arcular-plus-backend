@@ -1,23 +1,35 @@
 const express = require('express');
 const router = express.Router();
 const pharmacyController = require('../controllers/pharmacyController');
-const { authenticateToken } = require('../middleware/auth');
+const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
 
-// Public routes
-router.post('/register', pharmacyController.registerPharmacy);
-router.get('/all', pharmacyController.getAllPharmacies);
-router.get('/city/:city', pharmacyController.getPharmaciesByCity);
-router.get('/drug/:drugName', pharmacyController.getPharmaciesByDrug);
+// Registration
+router.post('/register', firebaseAuthMiddleware, pharmacyController.registerPharmacy);
 
-// Protected routes
-router.get('/:id', authenticateToken, pharmacyController.getPharmacyById);
-router.get('/uid/:uid', authenticateToken, pharmacyController.getPharmacyByUID);
-router.put('/:id', authenticateToken, pharmacyController.updatePharmacy);
-router.delete('/:id', authenticateToken, pharmacyController.deletePharmacy);
+// Get all pharmacies
+router.get('/', firebaseAuthMiddleware, pharmacyController.getAllPharmacies);
+
+// Get pharmacies by city
+router.get('/city/:city', firebaseAuthMiddleware, pharmacyController.getPharmaciesByCity);
+
+// Get pharmacies by drug
+router.get('/drug/:drugName', firebaseAuthMiddleware, pharmacyController.getPharmaciesByDrug);
+
+// Get pharmacy by UID (for login) - must come before /:id
+router.get('/uid/:uid', firebaseAuthMiddleware, pharmacyController.getPharmacyByUID);
+
+// Get pharmacy by ID (generic route - must come last)
+router.get('/:id', firebaseAuthMiddleware, pharmacyController.getPharmacyById);
+
+// Update pharmacy
+router.put('/:id', firebaseAuthMiddleware, pharmacyController.updatePharmacy);
+
+// Delete pharmacy
+router.delete('/:id', firebaseAuthMiddleware, pharmacyController.deletePharmacy);
 
 // Admin routes
-router.get('/admin/pending', authenticateToken, pharmacyController.getPendingApprovals);
-router.post('/admin/approve/:id', authenticateToken, pharmacyController.approvePharmacy);
-router.post('/admin/reject/:id', authenticateToken, pharmacyController.rejectPharmacy);
+router.get('/pending-approvals', firebaseAuthMiddleware, pharmacyController.getPendingApprovals);
+router.post('/:id/approve', firebaseAuthMiddleware, pharmacyController.approvePharmacy);
+router.post('/:id/reject', firebaseAuthMiddleware, pharmacyController.rejectPharmacy);
 
 module.exports = router; 

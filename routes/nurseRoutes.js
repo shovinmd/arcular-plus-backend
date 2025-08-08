@@ -1,23 +1,35 @@
 const express = require('express');
 const router = express.Router();
 const nurseController = require('../controllers/nurseController');
-const { authenticateToken } = require('../middleware/auth');
+const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
 
-// Public routes
-router.post('/register', nurseController.registerNurse);
-router.get('/all', nurseController.getAllNurses);
-router.get('/hospital/:hospitalName', nurseController.getNursesByHospital);
-router.get('/qualification/:qualification', nurseController.getNursesByQualification);
+// Registration
+router.post('/register', firebaseAuthMiddleware, nurseController.registerNurse);
 
-// Protected routes
-router.get('/:id', authenticateToken, nurseController.getNurseById);
-router.get('/uid/:uid', authenticateToken, nurseController.getNurseByUID);
-router.put('/:id', authenticateToken, nurseController.updateNurse);
-router.delete('/:id', authenticateToken, nurseController.deleteNurse);
+// Get all nurses
+router.get('/', firebaseAuthMiddleware, nurseController.getAllNurses);
+
+// Get nurses by hospital
+router.get('/hospital/:hospitalName', firebaseAuthMiddleware, nurseController.getNursesByHospital);
+
+// Get nurses by qualification
+router.get('/qualification/:qualification', firebaseAuthMiddleware, nurseController.getNursesByQualification);
+
+// Get nurse by UID (for login) - must come before /:id
+router.get('/uid/:uid', firebaseAuthMiddleware, nurseController.getNurseByUID);
+
+// Get nurse by ID (generic route - must come last)
+router.get('/:id', firebaseAuthMiddleware, nurseController.getNurseById);
+
+// Update nurse
+router.put('/:id', firebaseAuthMiddleware, nurseController.updateNurse);
+
+// Delete nurse
+router.delete('/:id', firebaseAuthMiddleware, nurseController.deleteNurse);
 
 // Admin routes
-router.get('/admin/pending', authenticateToken, nurseController.getPendingApprovals);
-router.post('/admin/approve/:id', authenticateToken, nurseController.approveNurse);
-router.post('/admin/reject/:id', authenticateToken, nurseController.rejectNurse);
+router.get('/pending-approvals', firebaseAuthMiddleware, nurseController.getPendingApprovals);
+router.post('/:id/approve', firebaseAuthMiddleware, nurseController.approveNurse);
+router.post('/:id/reject', firebaseAuthMiddleware, nurseController.rejectNurse);
 
 module.exports = router; 
