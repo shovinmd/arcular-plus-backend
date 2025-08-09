@@ -71,10 +71,12 @@ const registerPharmacy = async (req, res) => {
 
     await pharmacy.save();
 
+    const pharmacyData = pharmacy.toObject();
+    pharmacyData.type = 'pharmacy';
     res.status(201).json({
       success: true,
       message: 'Pharmacy registered successfully',
-      data: pharmacy
+      data: pharmacyData
     });
   } catch (error) {
     console.error('Pharmacy registration error:', error);
@@ -96,9 +98,11 @@ const getPharmacyById = async (req, res) => {
         message: 'Pharmacy not found'
       });
     }
+    const data = pharmacy.toObject();
+    data.type = 'pharmacy';
     res.json({
       success: true,
-      data: pharmacy
+      data
     });
   } catch (error) {
     res.status(500).json({
@@ -119,9 +123,11 @@ const getPharmacyByUID = async (req, res) => {
         message: 'Pharmacy not found'
       });
     }
+    const data = pharmacy.toObject();
+    data.type = 'pharmacy';
     res.json({
       success: true,
-      data: pharmacy
+      data
     });
   } catch (error) {
     res.status(500).json({
@@ -136,9 +142,10 @@ const getPharmacyByUID = async (req, res) => {
 const getAllPharmacies = async (req, res) => {
   try {
     const pharmacies = await Pharmacy.find({ isApproved: true });
+    const withType = pharmacies.map(p => { const d = p.toObject(); d.type = 'pharmacy'; return d; });
     res.json({
       success: true,
-      data: pharmacies
+      data: withType
     });
   } catch (error) {
     res.status(500).json({

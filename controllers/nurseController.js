@@ -103,9 +103,12 @@ const getNurseById = async (req, res) => {
         message: 'Nurse not found'
       });
     }
+    // Add explicit type for client routing
+    const nurseData = nurse.toObject();
+    nurseData.type = 'nurse';
     res.json({
       success: true,
-      data: nurse
+      data: nurseData
     });
   } catch (error) {
     res.status(500).json({
@@ -126,9 +129,12 @@ const getNurseByUID = async (req, res) => {
         message: 'Nurse not found'
       });
     }
+    // Add explicit type for client routing
+    const nurseData = nurse.toObject();
+    nurseData.type = 'nurse';
     res.json({
       success: true,
-      data: nurse
+      data: nurseData
     });
   } catch (error) {
     res.status(500).json({
@@ -143,9 +149,14 @@ const getNurseByUID = async (req, res) => {
 const getAllNurses = async (req, res) => {
   try {
     const nurses = await Nurse.find({ isApproved: true });
+    const nursesWithType = nurses.map(n => {
+      const data = n.toObject();
+      data.type = 'nurse';
+      return data;
+    });
     res.json({
       success: true,
-      data: nurses
+      data: nursesWithType
     });
   } catch (error) {
     res.status(500).json({
