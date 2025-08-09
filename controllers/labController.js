@@ -73,10 +73,12 @@ const registerLab = async (req, res) => {
 
     await lab.save();
 
+    const labData = lab.toObject();
+    labData.type = 'lab';
     res.status(201).json({
       success: true,
       message: 'Lab registered successfully',
-      data: lab
+      data: labData
     });
   } catch (error) {
     console.error('Lab registration error:', error);
@@ -98,9 +100,11 @@ const getLabById = async (req, res) => {
         message: 'Lab not found'
       });
     }
+    const labData = lab.toObject();
+    labData.type = 'lab';
     res.json({
       success: true,
-      data: lab
+      data: labData
     });
   } catch (error) {
     res.status(500).json({
@@ -121,9 +125,11 @@ const getLabByUID = async (req, res) => {
         message: 'Lab not found'
       });
     }
+    const labData = lab.toObject();
+    labData.type = 'lab';
     res.json({
       success: true,
-      data: lab
+      data: labData
     });
   } catch (error) {
     res.status(500).json({
@@ -138,9 +144,10 @@ const getLabByUID = async (req, res) => {
 const getAllLabs = async (req, res) => {
   try {
     const labs = await Lab.find({ isApproved: true });
+    const labsWithType = labs.map(l => { const d = l.toObject(); d.type = 'lab'; return d; });
     res.json({
       success: true,
-      data: labs
+      data: labsWithType
     });
   } catch (error) {
     res.status(500).json({
