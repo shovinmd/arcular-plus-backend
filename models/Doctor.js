@@ -16,6 +16,7 @@ const DoctorSchema = new mongoose.Schema({
   
   // Professional Information
   medicalRegistrationNumber: { type: String, required: true, unique: true },
+  licenseNumber: { type: String, required: true, unique: true },
   specialization: { type: String, required: true },
   experienceYears: { type: Number, required: true },
   consultationFee: { type: Number, required: true },

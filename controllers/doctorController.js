@@ -1,9 +1,15 @@
 const Doctor = require('../models/Doctor');
 
+// Log the Doctor schema to debug
+console.log('🔍 Doctor schema fields:', Object.keys(Doctor.schema.paths));
+console.log('🔍 Doctor schema licenseNumber path:', Doctor.schema.path('licenseNumber'));
+
 // Register new doctor
 const registerDoctor = async (req, res) => {
   try {
     console.log('🏥 Doctor registration request:', req.body);
+    console.log('🔍 Extracted licenseNumber:', req.body.licenseNumber);
+    console.log('🔍 Extracted licenseNumber type:', typeof req.body.licenseNumber);
     
     const {
       uid,
@@ -19,6 +25,7 @@ const registerDoctor = async (req, res) => {
       pincode,
       geoCoordinates,
       medicalRegistrationNumber,
+      licenseNumber,
       specialization,
       experienceYears,
       consultationFee,
@@ -35,7 +42,7 @@ const registerDoctor = async (req, res) => {
     const requiredFields = [
       'uid', 'fullName', 'email', 'mobileNumber', 'gender', 'dateOfBirth',
       'address', 'city', 'state', 'pincode', 'medicalRegistrationNumber',
-      'specialization', 'experienceYears', 'consultationFee', 'licenseDocumentUrl'
+      'licenseNumber', 'specialization', 'experienceYears', 'consultationFee', 'licenseDocumentUrl'
     ];
 
     const missingFields = requiredFields.filter(field => !req.body[field]);
@@ -52,6 +59,15 @@ const registerDoctor = async (req, res) => {
       return res.status(400).json({
         success: false,
         error: 'Doctor with this medical registration number already exists'
+      });
+    }
+
+    // Check if doctor with same license number exists
+    const existingLicenseDoctor = await Doctor.findOne({ licenseNumber });
+    if (existingLicenseDoctor) {
+      return res.status(400).json({
+        success: false,
+        error: 'Doctor with this license number already exists'
       });
     }
 
@@ -88,6 +104,7 @@ const registerDoctor = async (req, res) => {
       pincode,
       geoCoordinates,
       medicalRegistrationNumber,
+      licenseNumber,
       specialization,
       experienceYears: parseInt(experienceYears),
       consultationFee: parseFloat(consultationFee),
@@ -104,6 +121,22 @@ const registerDoctor = async (req, res) => {
       status: 'active'
     });
 
+    console.log('🔍 Doctor object being created:', doctor);
+    console.log('🔍 Doctor licenseNumber field:', doctor.licenseNumber);
+
+    // Ensure licenseNumber is not null
+    if (!licenseNumber || licenseNumber.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        error: 'License number is required and cannot be empty'
+      });
+    }
+
+    // Set the licenseNumber explicitly to ensure it's not null
+    doctor.licenseNumber = licenseNumber;
+    
+    console.log('🔍 Final doctor licenseNumber before save:', doctor.licenseNumber);
+
     await doctor.save();
 
     console.log('✅ Doctor registered successfully:', doctor._id);
@@ -117,6 +150,7 @@ const registerDoctor = async (req, res) => {
         fullName: doctor.fullName,
         email: doctor.email,
         medicalRegistrationNumber: doctor.medicalRegistrationNumber,
+        licenseNumber: doctor.licenseNumber,
         specialization: doctor.specialization,
         isApproved: doctor.isApproved,
         approvalStatus: doctor.approvalStatus
