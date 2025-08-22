@@ -291,4 +291,95 @@ router.get('/test/user-model', async (req, res) => {
   }
 });
 
+// Get user medications with details
+router.get('/:uid/medications-with-details', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    const { uid } = req.params;
+    const user = await User.findOne({ uid });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const medications = await require('../models/Medication').find({ userId: uid });
+    const medicationsWithDetails = medications.map(medication => ({
+      id: medication._id,
+      name: medication.name,
+      dose: medication.dose,
+      frequency: medication.frequency,
+      type: medication.type,
+      isTaken: medication.isTaken,
+      prescribedDate: medication.prescribedDate,
+      endDate: medication.endDate,
+      doctorName: medication.doctorName,
+      notes: medication.notes,
+    }));
+
+    res.json(medicationsWithDetails);
+  } catch (error) {
+    console.error('Error fetching medications with details:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get user lab reports with details
+router.get('/:uid/lab-reports-with-details', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    const { uid } = req.params;
+    const user = await User.findOne({ uid });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const labReports = await require('../models/LabReport').find({ userId: uid });
+    const reportsWithDetails = labReports.map(report => ({
+      id: report._id,
+      testName: report.testName,
+      testType: report.testType,
+      reportDate: report.reportDate,
+      result: report.result,
+      normalRange: report.normalRange,
+      unit: report.unit,
+      labName: report.labName,
+      doctorName: report.doctorName,
+      notes: report.notes,
+      fileUrl: report.fileUrl,
+    }));
+
+    res.json(reportsWithDetails);
+  } catch (error) {
+    console.error('Error fetching lab reports with details:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get user prescriptions with details
+router.get('/:uid/prescriptions-with-details', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    const { uid } = req.params;
+    const user = await User.findOne({ uid });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const prescriptions = await require('../models/Prescription').find({ userId: uid });
+    const prescriptionsWithDetails = prescriptions.map(prescription => ({
+      id: prescription._id,
+      doctorName: prescription.doctorName,
+      doctorSpecialty: prescription.doctorSpecialty,
+      prescriptionDate: prescription.prescriptionDate,
+      diagnosis: prescription.diagnosis,
+      medications: prescription.medications,
+      instructions: prescription.instructions,
+      followUpDate: prescription.followUpDate,
+      status: prescription.status,
+      notes: prescription.notes,
+    }));
+
+    res.json(prescriptionsWithDetails);
+  } catch (error) {
+    console.error('Error fetching prescriptions with details:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router; 

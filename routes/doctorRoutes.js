@@ -22,8 +22,12 @@ router.get('/', firebaseAuthMiddleware, async (req, res) => {
         profileImageUrl: doctor.profileImageUrl,
         email: doctor.email,
         mobileNumber: doctor.mobileNumber,
-        hospital: doctor.hospital,
+        hospitalAffiliation: doctor.hospitalAffiliation || doctor.hospital,
+        affiliatedHospitals: doctor.affiliatedHospitals || [],
         rating: doctor.rating || 4.5,
+        about: doctor.about || '',
+        qualification: doctor.qualification || 'MBBS',
+        medicalRegistrationNumber: doctor.medicalRegistrationNumber || '',
       })),
       ...doctorsFromUser.map(doctor => ({
         uid: doctor.uid,
@@ -34,8 +38,12 @@ router.get('/', firebaseAuthMiddleware, async (req, res) => {
         profileImageUrl: doctor.profileImageUrl,
         email: doctor.email,
         mobileNumber: doctor.mobileNumber,
-        hospital: doctor.hospital,
+        hospitalAffiliation: doctor.hospitalAffiliation || doctor.hospital,
+        affiliatedHospitals: doctor.affiliatedHospitals || [],
         rating: doctor.rating || 4.5,
+        about: doctor.about || '',
+        qualification: doctor.qualification || 'MBBS',
+        medicalRegistrationNumber: doctor.medicalRegistrationNumber || '',
       }))
     ];
 
@@ -103,16 +111,66 @@ router.get('/:doctorId/profile', firebaseAuthMiddleware, async (req, res) => {
       profileImageUrl: doctor.profileImageUrl,
       email: doctor.email,
       mobileNumber: doctor.mobileNumber,
-      hospital: doctor.hospital,
+      hospitalAffiliation: doctor.hospitalAffiliation || doctor.hospital,
+      affiliatedHospitals: doctor.affiliatedHospitals || [],
       rating: doctor.rating || 4.5,
-      bio: doctor.bio || '',
+      bio: doctor.bio || doctor.about || '',
       education: doctor.education || [],
       certifications: doctor.certifications || [],
+      qualification: doctor.qualification || 'MBBS',
+      medicalRegistrationNumber: doctor.medicalRegistrationNumber || '',
     };
 
     res.json(doctorProfile);
   } catch (error) {
     console.error('Error fetching doctor profile:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get doctors by hospital
+router.get('/hospital/:hospitalName', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    const { hospitalName } = req.params;
+    
+    // Find doctors affiliated with the hospital
+    const doctorsFromDoctor = await Doctor.find({
+      $or: [
+        { hospitalAffiliation: { $regex: hospitalName, $options: 'i' } },
+        { affiliatedHospitals: { $regex: hospitalName, $options: 'i' } }
+      ]
+    });
+    
+    const doctorsFromUser = await User.find({
+      userType: 'doctor',
+      $or: [
+        { hospitalAffiliation: { $regex: hospitalName, $options: 'i' } },
+        { affiliatedHospitals: { $regex: hospitalName, $options: 'i' } }
+      ]
+    });
+
+    const allDoctors = [
+      ...doctorsFromDoctor.map(doctor => ({
+        uid: doctor.uid,
+        fullName: doctor.name || doctor.fullName,
+        specialization: doctor.specialization,
+        experienceYears: doctor.experienceYears || 0,
+        consultationFee: doctor.consultationFee || 0,
+        hospitalAffiliation: doctor.hospitalAffiliation || doctor.hospital,
+      })),
+      ...doctorsFromUser.map(doctor => ({
+        uid: doctor.uid,
+        fullName: doctor.fullName,
+        specialization: doctor.specialization || 'General',
+        experienceYears: doctor.experienceYears || 0,
+        consultationFee: doctor.consultationFee || 0,
+        hospitalAffiliation: doctor.hospitalAffiliation || doctor.hospital,
+      }))
+    ];
+
+    res.json(allDoctors);
+  } catch (error) {
+    console.error('Error fetching doctors by hospital:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
