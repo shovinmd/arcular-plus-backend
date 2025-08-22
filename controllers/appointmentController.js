@@ -76,7 +76,24 @@ const createAppointment = async (req, res) => {
 
     await appointment.save();
 
-    // Send confirmation email
+    // Create notification for the doctor
+    try {
+      const Notification = require('../models/Notification');
+      const doctorNotification = new Notification({
+        userId: doctorId,
+        title: 'New Appointment Request',
+        message: `You have a new appointment request from a patient for ${new Date(dateTime).toLocaleDateString()} at ${new Date(dateTime).toLocaleTimeString()}`,
+        type: 'appointment',
+        isRead: false,
+        actionUrl: `/appointments/${appointment._id}`,
+        createdAt: new Date(),
+      });
+      await doctorNotification.save();
+    } catch (notificationError) {
+      console.error('Error creating doctor notification:', notificationError);
+    }
+
+    // Send confirmation email to patient
     if (patientEmail) {
       const mailOptions = {
         from: 'shovinmicheldavid1285@gmail.com',
