@@ -103,6 +103,20 @@ exports.registerHospital = async (req, res) => {
     console.log('🏥 Hospital registration request received');
     console.log('📋 Request body:', JSON.stringify(req.body, null, 2));
     
+    // Map documents from RegistrationService format to expected format
+    const { documents } = req.body;
+    if (documents) {
+      if (documents.hospital_license) {
+        req.body.licenseDocumentUrl = documents.hospital_license;
+      }
+      if (documents.registration_certificate) {
+        req.body.registrationCertificateUrl = documents.registration_certificate;
+      }
+      if (documents.building_permit) {
+        req.body.buildingPermitUrl = documents.building_permit;
+      }
+    }
+    
     // Validate required fields with proper handling
     const missingFields = validateRequiredFields(req.body);
     if (missingFields.length > 0) {

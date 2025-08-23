@@ -1,6 +1,58 @@
 const ArcStaff = require('../models/ArcStaff');
 const User = require('../models/User');
 
+// Register new Arc Staff (self-registration)
+const registerArcStaff = async (req, res) => {
+  try {
+    console.log('👨‍💼 Arc Staff registration request received');
+    console.log('📋 Request body:', JSON.stringify(req.body, null, 2));
+
+    // Map documents from RegistrationService format to expected format
+    const { documents } = req.body;
+    if (documents) {
+      if (documents.identity_proof) {
+        req.body.identityProofUrl = documents.identity_proof;
+      }
+      if (documents.employment_letter) {
+        req.body.employmentLetterUrl = documents.employment_letter;
+      }
+    }
+
+    const userData = req.body;
+    const { uid } = userData;
+
+    // Check if arc staff already exists
+    const existingStaff = await User.findOne({ uid });
+    if (existingStaff) {
+      return res.status(400).json({ error: 'Arc Staff already registered' });
+    }
+
+    // Create new arc staff user
+    const newStaff = new User({
+      ...userData,
+      userType: 'arcstaff',
+      status: userData.status || 'pending',
+      registrationDate: new Date(),
+    });
+
+    const savedStaff = await newStaff.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Arc Staff registration successful',
+      data: savedStaff,
+      arcId: savedStaff.arcId,
+    });
+  } catch (error) {
+    console.error('Arc Staff registration error:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Arc Staff registration failed',
+      details: error.message 
+    });
+  }
+};
+
 // Create new Arc Staff (by admin)
 const createArcStaff = async (req, res) => {
   try {
@@ -439,6 +491,7 @@ const getArcStaffProfile = async (req, res) => {
 };
 
 module.exports = {
+  registerArcStaff,
   createArcStaff,
   getAllArcStaff,
   getArcStaffById,

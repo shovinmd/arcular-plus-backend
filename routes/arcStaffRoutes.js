@@ -3,6 +3,9 @@ const router = express.Router();
 const arcStaffController = require('../controllers/arcStaffController');
 const authenticateToken = require('../middleware/firebaseAuthMiddleware');
 
+// Registration route
+router.post('/register', authenticateToken, arcStaffController.registerArcStaff);
+
 // Admin routes (create, manage staff)
 router.post('/create', authenticateToken, arcStaffController.createArcStaff);
 router.get('/all', authenticateToken, arcStaffController.getAllArcStaff);

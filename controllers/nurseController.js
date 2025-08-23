@@ -1,94 +1,57 @@
 const Nurse = require('../models/Nurse');
+const User = require('../models/User');
 
 // Register a new nurse
 const registerNurse = async (req, res) => {
   try {
-    const {
-      uid,
-      fullName,
-      email,
-      mobileNumber,
-      gender,
-      dateOfBirth,
-      qualification,
-      experienceYears,
-      licenseNumber,
-      licenseDocumentUrl,
-      hospitalAffiliation,
-      address,
-      city,
-      state,
-      pincode,
-      profileImageUrl
-    } = req.body;
+    console.log('👩‍⚕️ Nurse registration request received');
+    console.log('📋 Request body:', JSON.stringify(req.body, null, 2));
 
-    // Validate required fields
-    const requiredFields = {
-      uid, fullName, email, mobileNumber, gender, dateOfBirth,
-      qualification, experienceYears, licenseNumber, licenseDocumentUrl,
-      hospitalAffiliation, address, city, state, pincode, profileImageUrl
-    };
-
-    const missingFields = Object.keys(requiredFields).filter(
-      field => !requiredFields[field]
-    );
-
-    if (missingFields.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: `Missing required fields: ${missingFields.join(', ')}`
-      });
+    // Map documents from RegistrationService format to expected format
+    const { documents } = req.body;
+    if (documents) {
+      if (documents.nursing_degree) {
+        req.body.nursingDegreeUrl = documents.nursing_degree;
+      }
+      if (documents.license_certificate) {
+        req.body.licenseDocumentUrl = documents.license_certificate;
+      }
+      if (documents.identity_proof) {
+        req.body.identityProofUrl = documents.identity_proof;
+      }
     }
+
+    const userData = req.body;
+    const { uid } = userData;
 
     // Check if nurse already exists
-    const existingNurse = await Nurse.findOne({
-      $or: [
-        { email },
-        { licenseNumber },
-        { uid }
-      ]
-    });
-
+    const existingNurse = await User.findOne({ uid });
     if (existingNurse) {
-      return res.status(400).json({
-        success: false,
-        message: 'Nurse with this email, license number, or UID already exists'
-      });
+      return res.status(400).json({ error: 'Nurse already registered' });
     }
 
-    // Create new nurse
-    const nurse = new Nurse({
-      uid,
-      fullName,
-      email,
-      mobileNumber,
-      gender,
-      dateOfBirth,
-      qualification,
-      experienceYears,
-      licenseNumber,
-      licenseDocumentUrl,
-      hospitalAffiliation,
-      address,
-      city,
-      state,
-      pincode,
-      profileImageUrl
+    // Create new nurse user
+    const newNurse = new User({
+      ...userData,
+      userType: 'nurse',
+      status: userData.status || 'pending',
+      registrationDate: new Date(),
     });
 
-    await nurse.save();
+    const savedNurse = await newNurse.save();
 
     res.status(201).json({
       success: true,
-      message: 'Nurse registered successfully',
-      data: nurse
+      message: 'Nurse registration successful',
+      data: savedNurse,
+      arcId: savedNurse.arcId,
     });
   } catch (error) {
     console.error('Nurse registration error:', error);
-    res.status(500).json({
+    res.status(500).json({ 
       success: false,
-      message: 'Failed to register nurse',
-      error: error.message
+      error: 'Nurse registration failed',
+      details: error.message 
     });
   }
 };

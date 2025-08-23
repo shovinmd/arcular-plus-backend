@@ -4,6 +4,44 @@ const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
 const Doctor = require('../models/Doctor');
 const User = require('../models/User');
 
+// Doctor registration
+router.post('/register', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    const userData = req.body;
+    const { uid } = userData;
+
+    // Check if doctor already exists
+    const existingDoctor = await User.findOne({ uid });
+    if (existingDoctor) {
+      return res.status(400).json({ error: 'Doctor already registered' });
+    }
+
+    // Create new doctor user
+    const newDoctor = new User({
+      ...userData,
+      userType: 'doctor',
+      status: userData.status || 'pending',
+      registrationDate: new Date(),
+    });
+
+    const savedDoctor = await newDoctor.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Doctor registration successful',
+      data: savedDoctor,
+      arcId: savedDoctor.arcId,
+    });
+  } catch (error) {
+    console.error('Doctor registration error:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Doctor registration failed',
+      details: error.message 
+    });
+  }
+});
+
 // Get all doctors
 router.get('/', firebaseAuthMiddleware, async (req, res) => {
   try {

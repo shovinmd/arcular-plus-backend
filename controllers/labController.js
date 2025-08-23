@@ -1,91 +1,57 @@
 const Lab = require('../models/Lab');
+const User = require('../models/User');
 
 // Register a new lab
 const registerLab = async (req, res) => {
   try {
-    const {
-      uid,
-      labName,
-      email,
-      mobileNumber,
-      licenseNumber,
-      licenseDocumentUrl,
-      servicesProvided,
-      ownerName,
-      address,
-      city,
-      state,
-      pincode,
-      profileImageUrl
-    } = req.body;
+    console.log('🧪 Lab registration request received');
+    console.log('📋 Request body:', JSON.stringify(req.body, null, 2));
 
-    // Validate required fields
-    const requiredFields = {
-      uid, labName, email, mobileNumber, licenseNumber, 
-      licenseDocumentUrl, servicesProvided, ownerName,
-      address, city, state, pincode, profileImageUrl
-    };
-
-    const missingFields = Object.keys(requiredFields).filter(
-      field => !requiredFields[field] || 
-      (Array.isArray(requiredFields[field]) && requiredFields[field].length === 0)
-    );
-
-    if (missingFields.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: `Missing required fields: ${missingFields.join(', ')}`
-      });
+    // Map documents from RegistrationService format to expected format
+    const { documents } = req.body;
+    if (documents) {
+      if (documents.lab_license) {
+        req.body.licenseDocumentUrl = documents.lab_license;
+      }
+      if (documents.accreditation_certificate) {
+        req.body.accreditationCertificateUrl = documents.accreditation_certificate;
+      }
+      if (documents.equipment_certificate) {
+        req.body.equipmentCertificateUrl = documents.equipment_certificate;
+      }
     }
+
+    const userData = req.body;
+    const { uid } = userData;
 
     // Check if lab already exists
-    const existingLab = await Lab.findOne({
-      $or: [
-        { email },
-        { licenseNumber },
-        { uid }
-      ]
-    });
-
+    const existingLab = await User.findOne({ uid });
     if (existingLab) {
-      return res.status(400).json({
-        success: false,
-        message: 'Lab with this email, license number, or UID already exists'
-      });
+      return res.status(400).json({ error: 'Lab already registered' });
     }
 
-    // Create new lab
-    const lab = new Lab({
-      uid,
-      labName,
-      email,
-      mobileNumber,
-      licenseNumber,
-      licenseDocumentUrl,
-      servicesProvided,
-      ownerName,
-      address,
-      city,
-      state,
-      pincode,
-      profileImageUrl
+    // Create new lab user
+    const newLab = new User({
+      ...userData,
+      userType: 'lab',
+      status: userData.status || 'pending',
+      registrationDate: new Date(),
     });
 
-    await lab.save();
+    const savedLab = await newLab.save();
 
-    const labData = lab.toObject();
-    labData.type = 'lab';
     res.status(201).json({
       success: true,
-      message: 'Lab registered successfully',
-      data: labData
+      message: 'Lab registration successful',
+      data: savedLab,
+      arcId: savedLab.arcId,
     });
   } catch (error) {
     console.error('Lab registration error:', error);
-    res.status(500).json({
+    res.status(500).json({ 
       success: false,
-      message: 'Failed to register lab',
-      error: error.message
+      error: 'Lab registration failed',
+      details: error.message 
     });
   }
 };

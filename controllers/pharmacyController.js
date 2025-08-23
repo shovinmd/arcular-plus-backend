@@ -1,89 +1,57 @@
 const Pharmacy = require('../models/Pharmacy');
+const User = require('../models/User');
 
 // Register a new pharmacy
 const registerPharmacy = async (req, res) => {
   try {
-    const {
-      uid,
-      pharmacyName,
-      email,
-      ownerName,
-      mobileNumber,
-      licenseNumber,
-      licenseDocumentUrl,
-      drugsAvailable,
-      address,
-      city,
-      state,
-      pincode,
-      profileImageUrl
-    } = req.body;
+    console.log('💊 Pharmacy registration request received');
+    console.log('📋 Request body:', JSON.stringify(req.body, null, 2));
 
-    // Validate required fields
-    const requiredFields = {
-      uid, pharmacyName, email, ownerName, mobileNumber,
-      licenseNumber, licenseDocumentUrl, address, city, state, pincode, profileImageUrl
-    };
-
-    const missingFields = Object.keys(requiredFields).filter(
-      field => !requiredFields[field]
-    );
-
-    if (missingFields.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: `Missing required fields: ${missingFields.join(', ')}`
-      });
+    // Map documents from RegistrationService format to expected format
+    const { documents } = req.body;
+    if (documents) {
+      if (documents.pharmacy_license) {
+        req.body.licenseDocumentUrl = documents.pharmacy_license;
+      }
+      if (documents.drug_license) {
+        req.body.drugLicenseUrl = documents.drug_license;
+      }
+      if (documents.premises_certificate) {
+        req.body.premisesCertificateUrl = documents.premises_certificate;
+      }
     }
+
+    const userData = req.body;
+    const { uid } = userData;
 
     // Check if pharmacy already exists
-    const existingPharmacy = await Pharmacy.findOne({
-      $or: [
-        { email },
-        { licenseNumber },
-        { uid }
-      ]
-    });
-
+    const existingPharmacy = await User.findOne({ uid });
     if (existingPharmacy) {
-      return res.status(400).json({
-        success: false,
-        message: 'Pharmacy with this email, license number, or UID already exists'
-      });
+      return res.status(400).json({ error: 'Pharmacy already registered' });
     }
 
-    // Create new pharmacy
-    const pharmacy = new Pharmacy({
-      uid,
-      pharmacyName,
-      email,
-      ownerName,
-      mobileNumber,
-      licenseNumber,
-      licenseDocumentUrl,
-      drugsAvailable: drugsAvailable || [],
-      address,
-      city,
-      state,
-      pincode,
-      profileImageUrl
+    // Create new pharmacy user
+    const newPharmacy = new User({
+      ...userData,
+      userType: 'pharmacy',
+      status: userData.status || 'pending',
+      registrationDate: new Date(),
     });
 
-    await pharmacy.save();
+    const savedPharmacy = await newPharmacy.save();
 
-    const pharmacyData = pharmacy.toObject();
-    pharmacyData.type = 'pharmacy';
     res.status(201).json({
       success: true,
-      message: 'Pharmacy registered successfully',
-      data: pharmacyData
+      message: 'Pharmacy registration successful',
+      data: savedPharmacy,
+      arcId: savedPharmacy.arcId,
     });
   } catch (error) {
     console.error('Pharmacy registration error:', error);
-    res.status(500).json({
+    res.status(500).json({ 
       success: false,
-      message: 'Failed to register pharmacy',
-      error: error.message
+      error: 'Pharmacy registration failed',
+      details: error.message 
     });
   }
 };
