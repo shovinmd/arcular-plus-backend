@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staff Dashboard - Arcular Plus</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+            color: white;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logout-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 36px;
+            font-weight: bold;
+            color: #764ba2;
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .pending-approvals {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            margin-bottom: 30px;
+        }
+
+        .pending-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .pending-icon {
+            width: 24px;
+            height: 24px;
+            background: #764ba2;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+        }
+
+        .pending-filters {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            border: 2px solid #e1e5e9;
+            background: white;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+
+        .filter-btn.active {
+            background: #764ba2;
+            color: white;
+            border-color: #764ba2;
+        }
+
+        .filter-btn:hover {
+            border-color: #764ba2;
+        }
+
+        .pending-list {
+            display: grid;
+            gap: 15px;
+        }
+
+        .pending-item {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 4px solid #764ba2;
+        }
+
+        .pending-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .pending-info h3 {
+            color: #333;
+            margin-bottom: 5px;
+            font-size: 16px;
+        }
+
+        .pending-type {
+            color: #666;
+            font-size: 14px;
+            background: #e9ecef;
+            padding: 4px 8px;
+            border-radius: 12px;
+            display: inline-block;
+        }
+
+        .pending-date {
+            color: #999;
+            font-size: 12px;
+        }
+
+        .pending-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .action-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: transform 0.2s ease;
+        }
+
+        .approve-btn {
+            background: #28a745;
+            color: white;
+        }
+
+        .reject-btn {
+            background: #dc3545;
+            color: white;
+        }
+
+        .review-btn {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .no-pending {
+            text-align: center;
+            color: #666;
+            padding: 40px;
+            font-size: 16px;
+        }
+
+        .loading {
+            text-align: center;
+            color: #666;
+            padding: 40px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <div class="logo">Arcular Plus Staff</div>
+            <div class="user-info">
+                <span id="staffEmail">staff@arcular.com</span>
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="totalPending">0</div>
+                <div class="stat-label">Total Pending</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="hospitalsPending">0</div>
+                <div class="stat-label">Hospitals</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="doctorsPending">0</div>
+                <div class="stat-label">Doctors</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="otherPending">0</div>
+                <div class="stat-label">Others</div>
+            </div>
+        </div>
+
+        <div class="pending-approvals">
+            <div class="pending-title">
+                <div class="pending-icon">📋</div>
+                Pending Approvals
+            </div>
+            
+            <div class="pending-filters">
+                <button class="filter-btn active" data-filter="all">All</button>
+                <button class="filter-btn" data-filter="hospital">Hospitals</button>
+                <button class="filter-btn" data-filter="doctor">Doctors</button>
+                <button class="filter-btn" data-filter="nurse">Nurses</button>
+                <button class="filter-btn" data-filter="pharmacy">Pharmacies</button>
+                <button class="filter-btn" data-filter="lab">Labs</button>
+            </div>
+
+            <div class="pending-list" id="pendingList">
+                <div class="loading">Loading pending approvals...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allPendingUsers = [];
+        let currentFilter = 'all';
+
+        // Check if staff is logged in
+        async function checkAuth() {
+            try {
+                const response = await fetch('/staff/pending', {
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    window.location.href = '/staff/login';
+                    return;
+                }
+            } catch (error) {
+                console.error('Auth check failed:', error);
+                window.location.href = '/staff/login';
+            }
+        }
+
+        // Load pending approvals
+        async function loadPendingApprovals() {
+            try {
+                const response = await fetch('/staff/pending', {
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        allPendingUsers = data.data;
+                        updateStats();
+                        displayPendingApprovals();
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load pending approvals:', error);
+            }
+        }
+
+        // Update statistics
+        function updateStats() {
+            const totalPending = allPendingUsers.length;
+            const hospitalsPending = allPendingUsers.filter(u => u.userType === 'hospital').length;
+            const doctorsPending = allPendingUsers.filter(u => u.userType === 'doctor').length;
+            const otherPending = totalPending - hospitalsPending - doctorsPending;
+
+            document.getElementById('totalPending').textContent = totalPending;
+            document.getElementById('hospitalsPending').textContent = hospitalsPending;
+            document.getElementById('doctorsPending').textContent = doctorsPending;
+            document.getElementById('otherPending').textContent = otherPending;
+        }
+
+        // Display pending approvals
+        function displayPendingApprovals() {
+            const pendingList = document.getElementById('pendingList');
+            
+            let filteredUsers = allPendingUsers;
+            if (currentFilter !== 'all') {
+                filteredUsers = allPendingUsers.filter(u => u.userType === currentFilter);
+            }
+
+            if (filteredUsers.length === 0) {
+                pendingList.innerHTML = '<div class="no-pending">No pending approvals found</div>';
+                return;
+            }
+
+            pendingList.innerHTML = filteredUsers.map(user => `
+                <div class="pending-item">
+                    <div class="pending-header">
+                        <div class="pending-info">
+                            <h3>${user.fullName}</h3>
+                            <span class="pending-type">${user.userType.charAt(0).toUpperCase() + user.userType.slice(1)}</span>
+                        </div>
+                        <div class="pending-date">${new Date(user.registrationDate).toLocaleDateString()}</div>
+                    </div>
+                    
+                    <div class="pending-actions">
+                        <button class="action-btn approve-btn" onclick="approveUser('${user.userType}', '${user._id}')">
+                            ✅ Approve
+                        </button>
+                        <button class="action-btn reject-btn" onclick="rejectUser('${user.userType}', '${user._id}')">
+                            ❌ Reject
+                        </button>
+                        <button class="action-btn review-btn" onclick="requestDocuments('${user.userType}', '${user._id}')">
+                            📋 Request Docs
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Filter functionality
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('filter-btn')) {
+                // Remove active class from all buttons
+                document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+                
+                // Add active class to clicked button
+                e.target.classList.add('active');
+                
+                // Update filter and display
+                currentFilter = e.target.dataset.filter;
+                displayPendingApprovals();
+            }
+        });
+
+        // Approve user
+        async function approveUser(userType, userId) {
+            if (!confirm('Are you sure you want to approve this user?')) return;
+
+            try {
+                const response = await fetch(`/staff/approve/${userType}/${userId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ notes: 'Approved by staff' }),
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    alert('User approved successfully!');
+                    loadPendingApprovals();
+                } else {
+                    alert('Failed to approve user');
+                }
+            } catch (error) {
+                console.error('Approve error:', error);
+                alert('Error approving user');
+            }
+        }
+
+        // Reject user
+        async function rejectUser(userType, userId) {
+            const reason = prompt('Please provide a reason for rejection:');
+            if (!reason) return;
+
+            try {
+                const response = await fetch(`/staff/reject/${userType}/${userId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ reason }),
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    alert('User rejected successfully!');
+                    loadPendingApprovals();
+                } else {
+                    alert('Failed to reject user');
+                }
+            } catch (error) {
+                console.error('Reject error:', error);
+                alert('Error rejecting user');
+            }
+        }
+
+        // Request documents
+        async function requestDocuments(userType, userId) {
+            const missingDocs = prompt('Please list missing documents (comma separated):');
+            const notes = prompt('Additional notes:');
+            
+            if (!missingDocs) return;
+
+            try {
+                const response = await fetch(`/staff/request-documents/${userType}/${userId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        missingDocuments: missingDocs.split(',').map(doc => doc.trim()),
+                        notes: notes || ''
+                    }),
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    alert('Document request sent successfully!');
+                    loadPendingApprovals();
+                } else {
+                    alert('Failed to send document request');
+                }
+            } catch (error) {
+                console.error('Document request error:', error);
+                alert('Error sending document request');
+            }
+        }
+
+        // Logout
+        function logout() {
+            fetch('/staff/logout', {
+                method: 'POST',
+                credentials: 'include'
+            }).finally(() => {
+                window.location.href = '/staff/login';
+            });
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', () => {
+            checkAuth();
+            loadPendingApprovals();
+            
+            // Refresh data every 30 seconds
+            setInterval(() => {
+                loadPendingApprovals();
+            }, 30000);
+        });
+    </script>
+</body>
+</html>
