@@ -44,6 +44,10 @@ const ArcStaffSchema = new mongoose.Schema({
   
   // Created by admin
   createdBy: String, // Admin UID
+  
+  // Profile completion status
+  profileComplete: { type: Boolean, default: false },
+  updatedAt: { type: Date, default: Date.now }
 });
 
 // Add static method to find staff by UID

@@ -6,7 +6,7 @@ class AdminWebController {
   
   // Get admin login page
   getLoginPage(req, res) {
-    res.sendFile(path.join(__dirname, '../../Arcular Pluse Webpage/Superadmin/superadmin_login.html'));
+    res.sendFile(path.join(__dirname, '../../Arcular Pluse Webpage/Superadmin/index.html'));
   }
 
   // Admin login - Firebase authentication is handled on the frontend
@@ -52,6 +52,7 @@ class AdminWebController {
           role: 'super_admin',
           status: 'active',
           isApproved: true,
+          profileComplete: false,
           canApproveHospitals: true,
           canApproveDoctors: true,
           canApproveNurses: true,
@@ -73,6 +74,7 @@ class AdminWebController {
         adminUser.role = 'super_admin';
         adminUser.status = 'active';
         adminUser.isApproved = true;
+        adminUser.profileComplete = false;
         adminUser.canApproveHospitals = true;
         adminUser.canApproveDoctors = true;
         adminUser.canApproveNurses = true;
@@ -368,6 +370,115 @@ class AdminWebController {
       monthlyRegistrations,
       userTypeDistribution
     };
+  }
+
+  // Update admin profile
+  async updateAdminProfile(req, res) {
+    try {
+      console.log('🔐 Admin profile update request received:', req.body);
+      
+      const { uid, email, fullName, phone, department, designation, address } = req.body;
+      
+      if (!uid || !email) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'UID and email are required' 
+        });
+      }
+
+      // Find and update admin user in ArcStaff collection
+      const ArcStaff = require('../models/ArcStaff');
+      const adminUser = await ArcStaff.findOne({ uid });
+
+      if (!adminUser) {
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Admin user not found' 
+        });
+      }
+
+      // Update profile fields
+      adminUser.fullName = fullName;
+      adminUser.mobileNumber = phone;
+      adminUser.department = department;
+      adminUser.designation = designation;
+      adminUser.address = address;
+      adminUser.profileComplete = true;
+      adminUser.updatedAt = new Date();
+
+      await adminUser.save();
+      console.log('✅ Admin profile updated successfully:', email);
+
+      res.json({ 
+        success: true, 
+        message: 'Profile updated successfully',
+        data: {
+          uid: adminUser.uid,
+          email: adminUser.email,
+          fullName: adminUser.fullName,
+          mobileNumber: adminUser.mobileNumber,
+          department: adminUser.department,
+          designation: adminUser.designation,
+          address: adminUser.address,
+          profileComplete: adminUser.profileComplete
+        }
+      });
+
+    } catch (error) {
+      console.error('❌ Update admin profile error:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to update profile',
+        error: error.message 
+      });
+    }
+  }
+
+  // Get admin profile
+  async getAdminProfile(req, res) {
+    try {
+      const { uid } = req.params;
+      
+      if (!uid) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'UID is required' 
+        });
+      }
+
+      // Find admin user in ArcStaff collection
+      const ArcStaff = require('../models/ArcStaff');
+      const adminUser = await ArcStaff.findOne({ uid });
+
+      if (!adminUser) {
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Admin user not found' 
+        });
+      }
+
+      res.json({ 
+        success: true, 
+        data: {
+          uid: adminUser.uid,
+          email: adminUser.email,
+          fullName: adminUser.fullName,
+          mobileNumber: adminUser.mobileNumber,
+          department: adminUser.department,
+          designation: adminUser.designation,
+          address: adminUser.address,
+          profileComplete: adminUser.profileComplete || false
+        }
+      });
+
+    } catch (error) {
+      console.error('❌ Get admin profile error:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to get profile',
+        error: error.message 
+      });
+    }
   }
 }
 
