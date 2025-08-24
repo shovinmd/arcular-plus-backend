@@ -105,17 +105,42 @@ exports.registerHospital = async (req, res) => {
     
     // Map documents from RegistrationService format to expected format
     const { documents } = req.body;
+    console.log('📋 Documents received:', documents);
+    console.log('📋 Documents type:', typeof documents);
+    console.log('📋 Documents keys:', documents ? Object.keys(documents) : 'No documents');
+    
     if (documents) {
       if (documents.hospital_license) {
         req.body.licenseDocumentUrl = documents.hospital_license;
+        console.log('✅ Mapped hospital_license to licenseDocumentUrl:', documents.hospital_license);
+      } else {
+        console.log('❌ hospital_license not found in documents');
+        // Try to find licenseDocumentUrl in the main body as fallback
+        if (req.body.licenseDocumentUrl) {
+          console.log('✅ Found licenseDocumentUrl in main body as fallback');
+        } else {
+          console.log('❌ No licenseDocumentUrl found anywhere');
+        }
       }
       if (documents.registration_certificate) {
         req.body.registrationCertificateUrl = documents.registration_certificate;
+        console.log('✅ Mapped registration_certificate to registrationCertificateUrl');
       }
       if (documents.building_permit) {
         req.body.buildingPermitUrl = documents.building_permit;
+        console.log('✅ Mapped building_permit to buildingPermitUrl');
+      }
+    } else {
+      console.log('❌ No documents object found in request body');
+      // Try to find licenseDocumentUrl in the main body as fallback
+      if (req.body.licenseDocumentUrl) {
+        console.log('✅ Found licenseDocumentUrl in main body as fallback');
+      } else {
+        console.log('❌ No licenseDocumentUrl found anywhere');
       }
     }
+    
+    console.log('📋 Request body after document mapping:', JSON.stringify(req.body, null, 2));
     
     // Validate required fields with proper handling
     const missingFields = validateRequiredFields(req.body);
