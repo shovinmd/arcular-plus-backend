@@ -7,7 +7,7 @@ class AdminWebController {
   
   // Get admin login page
   getLoginPage(req, res) {
-    res.sendFile(path.join(__dirname, '../public/admin/login.html'));
+    res.sendFile(path.join(__dirname, '../../Arcular Pluse Webpage/Superadmin/superadmin_login.html'));
   }
 
   // Admin login
@@ -44,7 +44,7 @@ class AdminWebController {
       // Get system statistics
       const stats = await this.getSystemStats();
       
-      res.sendFile(path.join(__dirname, '../public/admin/dashboard.html'));
+      res.sendFile(path.join(__dirname, '../../Arcular Pluse Webpage/Superadmin/index.html'));
     } catch (error) {
       console.error('Dashboard error:', error);
       res.status(500).json({ success: false, message: 'Failed to load dashboard' });
@@ -162,20 +162,20 @@ class AdminWebController {
     }
   }
 
-  // Get create staff page
+  // Get create staff page - redirects to dashboard since functionality is built-in
   getCreateStaffPage(req, res) {
     if (!req.session.adminLoggedIn) {
       return res.redirect('/admin/login');
     }
-    res.sendFile(path.join(__dirname, '../public/admin/create_staff.html'));
+    res.redirect('/admin/dashboard');
   }
 
-  // Get edit staff page
+  // Get edit staff page - redirects to dashboard since functionality is built-in
   getEditStaffPage(req, res) {
     if (!req.session.adminLoggedIn) {
       return res.redirect('/admin/login');
     }
-    res.sendFile(path.join(__dirname, '../public/admin/edit_staff.html'));
+    res.redirect('/admin/dashboard');
   }
 
   // Get system overview

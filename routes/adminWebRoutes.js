@@ -6,12 +6,14 @@ const router = express.Router();
 router.get('/login', adminController.getLoginPage);
 router.post('/login', adminController.login);
 router.get('/dashboard', adminController.getDashboard);
-router.get('/staff', adminController.getStaffList);
-router.post('/staff', adminController.createStaff);
-router.put('/staff/:id', adminController.updateStaff);
-router.delete('/staff/:id', adminController.deleteStaff);
 
-// Staff management
+// API endpoints for staff management (matching existing frontend)
+router.get('/api/admin/staff', adminController.getStaffList);
+router.post('/api/admin/staff', adminController.createStaff);
+router.put('/api/admin/staff/:id', adminController.updateStaff);
+router.delete('/api/admin/staff/:id', adminController.deleteStaff);
+
+// Staff management pages (redirects to dashboard)
 router.get('/staff/create', adminController.getCreateStaffPage);
 router.get('/staff/:id/edit', adminController.getEditStaffPage);
 

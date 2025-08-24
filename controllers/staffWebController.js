@@ -8,7 +8,7 @@ class StaffWebController {
   
   // Get staff login page
   getLoginPage(req, res) {
-    res.sendFile(path.join(__dirname, '../public/staff/login.html'));
+    res.sendFile(path.join(__dirname, '../../Arcular Pluse Webpage/ARCstaff/login.html'));
   }
 
   // Staff login
@@ -53,7 +53,7 @@ class StaffWebController {
         return res.redirect('/staff/login');
       }
 
-      res.sendFile(path.join(__dirname, '../public/staff/dashboard.html'));
+      res.sendFile(path.join(__dirname, '../../Arcular Pluse Webpage/ARCstaff/index.html'));
     } catch (error) {
       console.error('Dashboard error:', error);
       res.status(500).json({ success: false, message: 'Failed to load dashboard' });
