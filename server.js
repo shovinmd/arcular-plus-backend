@@ -136,9 +136,21 @@ app.get('/api/test-firebase', async (req, res) => {
     res.status(500).json({ 
       error: 'Firebase Admin test failed',
       message: error.message,
-      firebaseApps: admin.apps.length
+      firebaseApps: admin.apps.length,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
+});
+
+// Simple Firebase Admin status endpoint
+app.get('/api/firebase-status', (req, res) => {
+  res.json({
+    status: 'OK',
+    firebaseApps: admin.apps.length,
+    firebaseInitialized: admin.apps.length > 0,
+    projectId: admin.apps[0]?.options?.projectId || 'Unknown',
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Error handling middleware
