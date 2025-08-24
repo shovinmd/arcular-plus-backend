@@ -9,7 +9,7 @@ const session = require('express-session');
 require('dotenv').config();
 
 // Import Firebase Admin (already initialized in firebase.js)
-const admin = require('./firebase');
+const { admin, testFirebaseConnection, isStorageAvailable } = require('./firebase');
 
 // Import routes
 const userRoutes = require('./routes/userRoutes');
@@ -115,23 +115,24 @@ app.get('/api/health', (req, res) => {
 // Test Firebase Admin endpoint
 app.get('/api/test-firebase', async (req, res) => {
   try {
-    if (admin.apps.length === 0) {
-      return res.status(500).json({ 
-        error: 'Firebase Admin not initialized',
-        apps: admin.apps.length
+    const testResult = await testFirebaseConnection();
+    
+    if (testResult.success) {
+      res.json({ 
+        status: 'OK', 
+        message: testResult.message,
+        firebaseApps: admin.apps.length,
+        canListUsers: true,
+        userCount: testResult.userCount
+      });
+    } else {
+      res.status(500).json({ 
+        error: 'Firebase Admin test failed',
+        message: testResult.error,
+        suggestion: testResult.suggestion,
+        firebaseApps: admin.apps.length
       });
     }
-    
-    // Test if we can list users (this will fail if not properly configured)
-    const listUsersResult = await admin.auth().listUsers(1);
-    
-    res.json({ 
-      status: 'OK', 
-      message: 'Firebase Admin is working',
-      firebaseApps: admin.apps.length,
-      canListUsers: true,
-      userCount: listUsersResult.users.length
-    });
   } catch (error) {
     res.status(500).json({ 
       error: 'Firebase Admin test failed',
@@ -149,8 +150,36 @@ app.get('/api/firebase-status', (req, res) => {
     firebaseApps: admin.apps.length,
     firebaseInitialized: admin.apps.length > 0,
     projectId: admin.apps[0]?.options?.projectId || 'Unknown',
+    storageAvailable: isStorageAvailable(),
     timestamp: new Date().toISOString()
   });
+});
+
+// Test Firebase Storage endpoint
+app.get('/api/test-firebase-storage', (req, res) => {
+  try {
+    if (!isStorageAvailable()) {
+      return res.status(500).json({
+        error: 'Firebase Storage not available',
+        message: 'Firebase Storage is not configured or available',
+        suggestion: 'Check Firebase project settings and ensure Storage is enabled'
+      });
+    }
+    
+    const bucket = admin.storage().bucket();
+    res.json({
+      status: 'OK',
+      message: 'Firebase Storage is working',
+      bucketName: bucket.name,
+      storageAvailable: true
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: 'Firebase Storage test failed',
+      message: error.message,
+      storageAvailable: false
+    });
+  }
 });
 
 // Error handling middleware

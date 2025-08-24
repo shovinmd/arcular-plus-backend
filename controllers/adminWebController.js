@@ -1,4 +1,4 @@
-const admin = require('../firebase');
+const { admin } = require('../firebase');
 const path = require('path');
 
 // Admin web interface controller

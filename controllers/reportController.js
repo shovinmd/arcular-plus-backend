@@ -3,8 +3,22 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
 const { validationResult } = require('express-validator');
-const admin = require('../firebase');
-const bucket = admin.storage().bucket();
+const { admin, isStorageAvailable } = require('../firebase');
+
+// Initialize Firebase Storage bucket only if needed
+let bucket;
+if (isStorageAvailable()) {
+  try {
+    bucket = admin.storage().bucket();
+    console.log('✅ Firebase Storage initialized successfully');
+  } catch (error) {
+    console.warn('⚠️ Firebase Storage bucket creation failed:', error.message);
+    bucket = null;
+  }
+} else {
+  console.warn('⚠️ Firebase Storage not available - check project configuration');
+  bucket = null;
+}
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -81,14 +95,68 @@ const getReportsByUser = async (req, res) => {
 // Upload report file
 const uploadReport = async (req, res) => {
   if (!req.file) return res.status(400).send('No file uploaded.');
-  const blob = bucket.file(Date.now() + '-' + req.file.originalname);
-  const blobStream = blob.createWriteStream();
-  blobStream.on('error', err => res.status(500).send(err));
-  blobStream.on('finish', async () => {
-    const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
-    res.status(200).json({ url: publicUrl });
-  });
-  blobStream.end(req.file.buffer);
+  
+  // Check if Firebase Storage is available
+  if (!bucket) {
+    // Fallback to local file storage
+    try {
+      const fileName = Date.now() + '-' + req.file.originalname;
+      const filePath = path.join(__dirname, '..', 'uploads', fileName);
+      
+      // Ensure uploads directory exists
+      await fs.mkdir(path.dirname(filePath), { recursive: true });
+      
+      // Move file to uploads directory
+      await fs.rename(req.file.path, filePath);
+      
+      const localUrl = `/uploads/${fileName}`;
+      res.status(200).json({ 
+        success: true,
+        url: localUrl,
+        message: 'File uploaded to local storage successfully',
+        storage: 'local'
+      });
+    } catch (error) {
+      console.error('Local upload error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to upload file to local storage'
+      });
+    }
+    return;
+  }
+  
+  // Use Firebase Storage
+  try {
+    const blob = bucket.file(Date.now() + '-' + req.file.originalname);
+    const blobStream = blob.createWriteStream();
+    
+    blobStream.on('error', err => {
+      console.error('Firebase Storage upload error:', err);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to upload file to Firebase Storage'
+      });
+    });
+    
+    blobStream.on('finish', async () => {
+      const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+      res.status(200).json({ 
+        success: true,
+        url: publicUrl,
+        message: 'File uploaded to Firebase Storage successfully',
+        storage: 'firebase'
+      });
+    });
+    
+    blobStream.end(req.file.buffer);
+  } catch (error) {
+    console.error('Firebase upload error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to upload file to Firebase Storage'
+    });
+  }
 };
 
 // Delete report

@@ -1,5 +1,5 @@
 // node_backend/middleware/firebaseAuthMiddleware.js
-const admin = require('../firebase');
+const { admin } = require('../firebase');
 
 module.exports = async function (req, res, next) {
   const authHeader = req.headers.authorization;

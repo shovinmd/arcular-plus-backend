@@ -1,5 +1,5 @@
 // node_backend/middleware/auth.js
-const admin = require('../firebase');
+const { admin } = require('../firebase');
 const Staff = require('../models/Staff');
 
 // Middleware: Authenticate Firebase ID token

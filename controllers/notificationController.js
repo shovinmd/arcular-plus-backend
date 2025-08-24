@@ -1,5 +1,5 @@
 const Notification = require('../models/Notification');
-const admin = require('../firebase');
+const { admin } = require('../firebase');
 
 // In-memory store for demo; replace with DB in production
 const userDeviceTokens = {};

@@ -1,5 +1,5 @@
 const Staff = require('../models/Staff');
-const admin = require('../firebase'); // Firebase Admin SDK
+const { admin } = require('../firebase'); // Firebase Admin SDK
 
 // Create ARC staff (super admin only)
 exports.createStaff = async (req, res) => {

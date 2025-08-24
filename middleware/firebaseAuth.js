@@ -1,4 +1,4 @@
-const admin = require('../firebase');
+const { admin } = require('../firebase');
 
 // Firebase authentication middleware
 const verifyFirebaseToken = async (req, res, next) => {
