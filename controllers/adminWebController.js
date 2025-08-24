@@ -126,7 +126,7 @@ class AdminWebController {
     try {
       // Authentication is handled by middleware
       const ArcStaff = require('../models/ArcStaff');
-      const staff = await ArcStaff.find({ userType: 'arc_staff' }).select('-password');
+      const staff = await ArcStaff.find({ userType: { $in: ['arc_staff', 'staff'] } }).select('-password');
       
       // Transform data to match frontend expectations
       const transformedStaff = staff.map(s => ({
@@ -194,7 +194,7 @@ class AdminWebController {
         isApproved: true,
         profileComplete: true,
         registrationDate: new Date(),
-        createdBy: req.user ? req.user.uid : 'system'
+        createdBy: req.firebaseUid || req.user?.uid || 'system'
       });
 
       await newStaff.save();
