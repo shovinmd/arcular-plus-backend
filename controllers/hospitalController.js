@@ -1,54 +1,17 @@
 const Hospital = require('../models/Hospital');
 const { v4: uuidv4 } = require('uuid');
 const QRCode = require('qrcode');
-const nodemailer = require('nodemailer');
+const { 
+  sendRegistrationConfirmation, 
+  sendApprovalEmail, 
+  sendWelcomeEmail 
+} = require('../services/emailService');
 
 const REQUIRED_HOSPITAL_FIELDS = [
   'fullName', 'email', 'mobileNumber', 'hospitalName', 'registrationNumber', 'hospitalType', 'address', 'city', 'state', 'pincode', 'numberOfBeds', 'departments', 'licenseDocumentUrl'
 ];
 
-// Email configuration
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER || 'your-email@gmail.com',
-    pass: process.env.EMAIL_PASS || 'your-app-password'
-  }
-});
-
-// Send approval email
-const sendApprovalEmail = async (hospitalEmail, hospitalName, isApproved, reason = '') => {
-  try {
-    const subject = isApproved ? 'Hospital Registration Approved' : 'Hospital Registration Update';
-    const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center;">
-          <h1>Arcular Plus</h1>
-          <h2>${subject}</h2>
-        </div>
-        <div style="padding: 20px;">
-          <p>Dear ${hospitalName},</p>
-          ${isApproved ? 
-            '<p>Congratulations! Your hospital registration has been approved. You can now access your hospital dashboard and start using all features.</p>' :
-            `<p>We regret to inform you that your hospital registration requires additional information.</p>
-             <p><strong>Reason:</strong> ${reason}</p>
-             <p>Please update your registration details and resubmit for approval.</p>`
-          }
-          <p>Best regards,<br>Arcular Plus Team</p>
-        </div>
-      </div>
-    `;
-    
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER || 'your-email@gmail.com',
-      to: hospitalEmail,
-      subject: subject,
-      html: html
-    });
-  } catch (error) {
-    console.error('Error sending approval email:', error);
-  }
-};
+// Email service imported from centralized service
 
 // Helper function to validate required fields
 const validateRequiredFields = (body) => {
@@ -188,6 +151,18 @@ exports.registerHospital = async (req, res) => {
       console.log('✅ Existing hospital updated:', hospital.hospitalName);
     }
     
+    // Send registration confirmation email
+    try {
+      await sendRegistrationConfirmation(
+        hospital.email || req.body.email, 
+        hospital.hospitalName || req.body.hospitalName, 
+        'hospital'
+      );
+      console.log('✅ Registration confirmation email sent');
+    } catch (emailError) {
+      console.error('❌ Error sending registration confirmation email:', emailError);
+    }
+    
     res.json(hospital);
   } catch (err) {
     console.error('❌ Hospital registration error:', err);
@@ -257,7 +232,15 @@ exports.approveHospital = async (req, res) => {
     await hospital.save();
     
     // Send approval email
-    await sendApprovalEmail(hospital.email, hospital.hospitalName, true);
+    await sendApprovalEmail(hospital.email, hospital.hospitalName, true, '');
+    
+    // Send welcome email
+    try {
+      await sendWelcomeEmail(hospital.email, hospital.hospitalName, 'hospital');
+      console.log('✅ Welcome email sent to hospital');
+    } catch (emailError) {
+      console.error('❌ Error sending welcome email:', emailError);
+    }
     
     res.json({ 
       message: 'Hospital approved successfully',

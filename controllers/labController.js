@@ -1,5 +1,6 @@
 const Lab = require('../models/Lab');
 const User = require('../models/User');
+const { sendRegistrationConfirmation } = require('../services/emailService');
 
 // Register a new lab
 const registerLab = async (req, res) => {
@@ -39,6 +40,18 @@ const registerLab = async (req, res) => {
     });
 
     const savedLab = await newLab.save();
+
+    // Send registration confirmation email
+    try {
+      await sendRegistrationConfirmation(
+        savedLab.email, 
+        savedLab.fullName, 
+        'lab'
+      );
+      console.log('✅ Registration confirmation email sent to lab');
+    } catch (emailError) {
+      console.error('❌ Error sending registration confirmation email:', emailError);
+    }
 
     res.status(201).json({
       success: true,

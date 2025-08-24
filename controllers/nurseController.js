@@ -1,5 +1,6 @@
 const Nurse = require('../models/Nurse');
 const User = require('../models/User');
+const { sendRegistrationConfirmation } = require('../services/emailService');
 
 // Register a new nurse
 const registerNurse = async (req, res) => {
@@ -39,6 +40,18 @@ const registerNurse = async (req, res) => {
     });
 
     const savedNurse = await newNurse.save();
+
+    // Send registration confirmation email
+    try {
+      await sendRegistrationConfirmation(
+        savedNurse.email, 
+        savedNurse.fullName, 
+        'nurse'
+      );
+      console.log('✅ Registration confirmation email sent to nurse');
+    } catch (emailError) {
+      console.error('❌ Error sending registration confirmation email:', emailError);
+    }
 
     res.status(201).json({
       success: true,

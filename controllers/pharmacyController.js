@@ -1,5 +1,6 @@
 const Pharmacy = require('../models/Pharmacy');
 const User = require('../models/User');
+const { sendRegistrationConfirmation } = require('../services/emailService');
 
 // Register a new pharmacy
 const registerPharmacy = async (req, res) => {
@@ -39,6 +40,18 @@ const registerPharmacy = async (req, res) => {
     });
 
     const savedPharmacy = await newPharmacy.save();
+
+    // Send registration confirmation email
+    try {
+      await sendRegistrationConfirmation(
+        savedPharmacy.email, 
+        savedPharmacy.fullName, 
+        'pharmacy'
+      );
+      console.log('✅ Registration confirmation email sent to pharmacy');
+    } catch (emailError) {
+      console.error('❌ Error sending registration confirmation email:', emailError);
+    }
 
     res.status(201).json({
       success: true,

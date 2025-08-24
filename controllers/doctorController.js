@@ -1,4 +1,5 @@
 const Doctor = require('../models/Doctor');
+const { sendRegistrationConfirmation } = require('../services/emailService');
 
 // Log the Doctor schema to debug
 console.log('🔍 Doctor schema fields:', Object.keys(Doctor.schema.paths));
@@ -140,6 +141,18 @@ const registerDoctor = async (req, res) => {
     await doctor.save();
 
     console.log('✅ Doctor registered successfully:', doctor._id);
+
+    // Send registration confirmation email
+    try {
+      await sendRegistrationConfirmation(
+        doctor.email, 
+        doctor.fullName, 
+        'doctor'
+      );
+      console.log('✅ Registration confirmation email sent to doctor');
+    } catch (emailError) {
+      console.error('❌ Error sending registration confirmation email:', emailError);
+    }
 
     res.status(201).json({
       success: true,
