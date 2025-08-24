@@ -130,10 +130,15 @@ class AdminWebController {
       
       // Transform data to match frontend expectations
       const transformedStaff = staff.map(s => ({
-        firebaseUid: s.uid,
-        name: s.fullName,
+        uid: s.uid,
+        fullName: s.fullName,
         email: s.email,
+        mobileNumber: s.mobileNumber,
         role: s.role || 'arcstaff',
+        department: s.department,
+        designation: s.designation,
+        address: s.address,
+        status: s.status,
         createdAt: s.registrationDate || s.createdAt
       }));
       
@@ -148,7 +153,24 @@ class AdminWebController {
   async createStaff(req, res) {
     try {
       // Authentication is handled by middleware
-      const { email, password, fullName, phone, role } = req.body;
+      const { email, password, fullName, phone, role, department, designation, address } = req.body;
+
+      if (!fullName || !email || !password || !role) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Full name, email, password, and role are required' 
+        });
+      }
+
+      // Check if staff already exists
+      const ArcStaff = require('../models/ArcStaff');
+      const existingStaff = await ArcStaff.findOne({ email });
+      if (existingStaff) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Staff member with this email already exists' 
+        });
+      }
 
       // Create Firebase user
       const userRecord = await admin.auth().createUser({
@@ -158,25 +180,39 @@ class AdminWebController {
       });
 
       // Create staff user in MongoDB
-      const ArcStaff = require('../models/ArcStaff');
       const newStaff = new ArcStaff({
         uid: userRecord.uid,
         email,
         fullName,
         mobileNumber: phone,
         userType: 'arc_staff',
-        role: role || 'staff',
+        role: role || 'arcstaff',
+        department,
+        designation,
+        address,
         status: 'active',
         isApproved: true,
+        profileComplete: true,
         registrationDate: new Date(),
+        createdBy: req.user ? req.user.uid : 'system'
       });
 
       await newStaff.save();
 
+      console.log('✅ Staff created successfully:', email);
+
       res.json({ 
         success: true, 
         message: 'Staff created successfully',
-        data: { uid: userRecord.uid, email, fullName }
+        data: { 
+          uid: userRecord.uid, 
+          email, 
+          fullName,
+          role: newStaff.role,
+          department: newStaff.department,
+          designation: newStaff.designation,
+          status: newStaff.status
+        }
       });
     } catch (error) {
       console.error('Create staff error:', error);
@@ -195,8 +231,12 @@ class AdminWebController {
       const staff = await ArcStaff.findOneAndUpdate(
         { uid: id },
         { 
-          fullName: updateData.name,
+          fullName: updateData.fullName,
+          mobileNumber: updateData.phone,
           role: updateData.role,
+          department: updateData.department,
+          designation: updateData.designation,
+          address: updateData.address,
           updatedAt: new Date() 
         },
         { new: true }
