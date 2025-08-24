@@ -13,7 +13,17 @@ const ArcStaffSchema = new mongoose.Schema({
   state: String,
   pincode: String,
   type: { type: String, default: 'arc_staff' },
-  role: String, // arc_staff, supervisor, manager
+  userType: { type: String, default: 'arc_staff' }, // arc_staff, super_admin
+  role: String, // arc_staff, supervisor, manager, super_admin
+  status: { type: String, default: 'active' }, // active, inactive, suspended
+  isApproved: { type: Boolean, default: true },
+  approvalStatus: { type: String, default: 'approved' }, // pending, approved, rejected
+  approvedBy: String,
+  approvedAt: Date,
+  rejectedBy: String,
+  rejectedAt: Date,
+  rejectionReason: String,
+  registrationDate: { type: Date, default: Date.now },
   createdAt: { type: Date, default: Date.now },
   
   // Staff Specific Information
@@ -60,6 +70,11 @@ ArcStaffSchema.methods.canApprove = function(userType) {
   
   const permission = permissionMap[userType.toLowerCase()];
   return permission ? this[permission] : false;
+};
+
+// Method to check if user is super admin
+ArcStaffSchema.methods.isSuperAdmin = function() {
+  return this.userType === 'super_admin' && this.role === 'super_admin';
 };
 
 // Generate staff ID before saving

@@ -24,9 +24,12 @@ class AdminWebController {
   // Verify admin and create admin record if needed
   async verifyAdmin(req, res) {
     try {
+      console.log('🔐 Admin verification request received:', req.body);
+      
       const { email, uid, displayName } = req.body;
       
       if (!email || !uid) {
+        console.log('❌ Missing required fields:', { email, uid });
         return res.status(400).json({ 
           success: false, 
           message: 'Email and UID are required' 
@@ -37,9 +40,11 @@ class AdminWebController {
       const ArcStaff = require('../models/ArcStaff');
       let adminUser = await ArcStaff.findOne({ uid });
 
+      console.log('🔍 Existing admin user found:', adminUser ? 'Yes' : 'No');
+
       if (!adminUser) {
         // Create new admin user in MongoDB
-        adminUser = new ArcStaff({
+        const adminData = {
           uid,
           email,
           fullName: displayName || email.split('@')[0],
@@ -53,12 +58,17 @@ class AdminWebController {
           canApprovePharmacies: true,
           canApproveLabs: true,
           registrationDate: new Date(),
-        });
-
+        };
+        
+        console.log('📝 Creating new admin with data:', adminData);
+        
+        adminUser = new ArcStaff(adminData);
         await adminUser.save();
         console.log('✅ New super admin created in MongoDB:', email);
       } else {
         // Update existing user to ensure they have admin privileges
+        console.log('📝 Updating existing user to super admin');
+        
         adminUser.userType = 'super_admin';
         adminUser.role = 'super_admin';
         adminUser.status = 'active';
@@ -73,7 +83,7 @@ class AdminWebController {
         console.log('✅ Existing user updated to super admin:', email);
       }
 
-      res.json({ 
+      const responseData = {
         success: true, 
         message: 'Admin verified successfully',
         data: {
@@ -82,10 +92,13 @@ class AdminWebController {
           fullName: adminUser.fullName,
           role: adminUser.role
         }
-      });
+      };
+      
+      console.log('✅ Admin verification successful, sending response:', responseData);
+      res.json(responseData);
 
     } catch (error) {
-      console.error('Verify admin error:', error);
+      console.error('❌ Verify admin error:', error);
       res.status(500).json({ 
         success: false, 
         message: 'Failed to verify admin',
