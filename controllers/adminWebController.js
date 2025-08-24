@@ -37,13 +37,8 @@ class AdminWebController {
   // Get admin dashboard
   async getDashboard(req, res) {
     try {
-      if (!req.session.adminLoggedIn) {
-        return res.redirect('/admin/login');
-      }
-
-      // Get system statistics
-      const stats = await this.getSystemStats();
-      
+      // Authentication is handled by middleware for API calls
+      // For page serving, we'll allow access and let the frontend handle auth
       res.sendFile(path.join(__dirname, '../../Arcular Pluse Webpage/Superadmin/index.html'));
     } catch (error) {
       console.error('Dashboard error:', error);
@@ -54,12 +49,19 @@ class AdminWebController {
   // Get staff list
   async getStaffList(req, res) {
     try {
-      if (!req.session.adminLoggedIn) {
-        return res.status(401).json({ success: false, message: 'Unauthorized' });
-      }
-
+      // Authentication is handled by middleware
       const staff = await User.find({ userType: 'arc_staff' }).select('-password');
-      res.json({ success: true, data: staff });
+      
+      // Transform data to match frontend expectations
+      const transformedStaff = staff.map(s => ({
+        firebaseUid: s.uid,
+        name: s.fullName,
+        email: s.email,
+        role: s.role || 'arcstaff',
+        createdAt: s.registrationDate || s.createdAt
+      }));
+      
+      res.json(transformedStaff);
     } catch (error) {
       console.error('Get staff error:', error);
       res.status(500).json({ success: false, message: 'Failed to get staff list' });
@@ -69,10 +71,7 @@ class AdminWebController {
   // Create new staff member
   async createStaff(req, res) {
     try {
-      if (!req.session.adminLoggedIn) {
-        return res.status(401).json({ success: false, message: 'Unauthorized' });
-      }
-
+      // Authentication is handled by middleware
       const { email, password, fullName, phone, role } = req.body;
 
       // Create Firebase user
@@ -111,16 +110,17 @@ class AdminWebController {
   // Update staff member
   async updateStaff(req, res) {
     try {
-      if (!req.session.adminLoggedIn) {
-        return res.status(401).json({ success: false, message: 'Unauthorized' });
-      }
-
-      const { id } = req.params;
+      // Authentication is handled by middleware
+      const { id } = req.params; // This is the Firebase UID
       const updateData = req.body;
 
-      const staff = await User.findByIdAndUpdate(
-        id,
-        { ...updateData, updatedAt: new Date() },
+      const staff = await User.findOneAndUpdate(
+        { uid: id },
+        { 
+          fullName: updateData.name,
+          role: updateData.role,
+          updatedAt: new Date() 
+        },
         { new: true }
       );
 
@@ -128,7 +128,7 @@ class AdminWebController {
         return res.status(404).json({ success: false, message: 'Staff not found' });
       }
 
-      res.json({ success: true, message: 'Staff updated successfully', data: staff });
+      res.json({ success: true, message: 'Staff updated successfully' });
     } catch (error) {
       console.error('Update staff error:', error);
       res.status(500).json({ success: false, message: 'Failed to update staff' });
@@ -138,12 +138,9 @@ class AdminWebController {
   // Delete staff member
   async deleteStaff(req, res) {
     try {
-      if (!req.session.adminLoggedIn) {
-        return res.status(401).json({ success: false, message: 'Unauthorized' });
-      }
-
-      const { id } = req.params;
-      const staff = await User.findById(id);
+      // Authentication is handled by middleware
+      const { id } = req.params; // This is the Firebase UID
+      const staff = await User.findOne({ uid: id });
 
       if (!staff) {
         return res.status(404).json({ success: false, message: 'Staff not found' });
@@ -153,7 +150,7 @@ class AdminWebController {
       await admin.auth().deleteUser(staff.uid);
 
       // Delete from MongoDB
-      await User.findByIdAndDelete(id);
+      await User.findByIdAndDelete(staff._id);
 
       res.json({ success: true, message: 'Staff deleted successfully' });
     } catch (error) {
@@ -181,10 +178,7 @@ class AdminWebController {
   // Get system overview
   async getSystemOverview(req, res) {
     try {
-      if (!req.session.adminLoggedIn) {
-        return res.status(401).json({ success: false, message: 'Unauthorized' });
-      }
-
+      // Authentication is handled by middleware
       const stats = await this.getSystemStats();
       res.json({ success: true, data: stats });
     } catch (error) {
@@ -196,10 +190,7 @@ class AdminWebController {
   // Get analytics
   async getAnalytics(req, res) {
     try {
-      if (!req.session.adminLoggedIn) {
-        return res.status(401).json({ success: false, message: 'Unauthorized' });
-      }
-
+      // Authentication is handled by middleware
       // Get analytics data
       const analytics = await this.getAnalyticsData();
       res.json({ success: true, data: analytics });

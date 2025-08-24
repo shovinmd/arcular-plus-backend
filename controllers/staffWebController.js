@@ -49,10 +49,8 @@ class StaffWebController {
   // Get staff dashboard
   async getDashboard(req, res) {
     try {
-      if (!req.session.staffLoggedIn) {
-        return res.redirect('/staff/login');
-      }
-
+      // Authentication is handled by middleware for API calls
+      // For page serving, we'll allow access and let the frontend handle auth
       res.sendFile(path.join(__dirname, '../../Arcular Pluse Webpage/ARCstaff/index.html'));
     } catch (error) {
       console.error('Dashboard error:', error);
@@ -63,10 +61,7 @@ class StaffWebController {
   // Get pending approvals
   async getPendingApprovals(req, res) {
     try {
-      if (!req.session.staffLoggedIn) {
-        return res.status(401).json({ success: false, message: 'Unauthorized' });
-      }
-
+      // Authentication is handled by middleware
       const pendingUsers = await User.find({ 
         status: 'pending',
         userType: { $in: ['hospital', 'doctor', 'nurse', 'pharmacy', 'lab'] }
@@ -82,10 +77,7 @@ class StaffWebController {
   // Get pending approvals by user type
   async getPendingByType(req, res) {
     try {
-      if (!req.session.staffLoggedIn) {
-        return res.status(401).json({ success: false, message: 'Unauthorized' });
-      }
-
+      // Authentication is handled by middleware
       const { userType } = req.params;
       const pendingUsers = await User.find({ 
         userType,
@@ -102,10 +94,7 @@ class StaffWebController {
   // Approve user
   async approveUser(req, res) {
     try {
-      if (!req.session.staffLoggedIn) {
-        return res.status(401).json({ success: false, message: 'Unauthorized' });
-      }
-
+      // Authentication is handled by middleware
       const { userType, userId } = req.params;
       const { notes } = req.body;
 
@@ -118,7 +107,7 @@ class StaffWebController {
       user.isApproved = true;
       user.approvalStatus = 'approved';
       user.status = 'active';
-      user.approvedBy = req.session.staffUid;
+      user.approvedBy = req.firebaseUid;
       user.approvedAt = new Date();
       user.approvalNotes = notes;
 
@@ -146,10 +135,7 @@ class StaffWebController {
   // Reject user
   async rejectUser(req, res) {
     try {
-      if (!req.session.staffLoggedIn) {
-        return res.status(401).json({ success: false, message: 'Unauthorized' });
-      }
-
+      // Authentication is handled by middleware
       const { userType, userId } = req.params;
       const { reason } = req.body;
 
@@ -162,7 +148,7 @@ class StaffWebController {
       user.isApproved = false;
       user.approvalStatus = 'rejected';
       user.status = 'inactive';
-      user.rejectedBy = req.session.staffUid;
+      user.rejectedBy = req.firebaseUid;
       user.rejectedAt = new Date();
       user.rejectionReason = reason;
 
@@ -190,10 +176,7 @@ class StaffWebController {
   // Request additional documents
   async requestDocuments(req, res) {
     try {
-      if (!req.session.staffLoggedIn) {
-        return res.status(401).json({ success: false, message: 'Unauthorized' });
-      }
-
+      // Authentication is handled by middleware
       const { userType, userId } = req.params;
       const { missingDocuments, notes } = req.body;
 
@@ -232,10 +215,7 @@ class StaffWebController {
   // Get users by type
   async getUsersByType(req, res) {
     try {
-      if (!req.session.staffLoggedIn) {
-        return res.status(401).json({ success: false, message: 'Unauthorized' });
-      }
-
+      // Authentication is handled by middleware
       const { userType } = req.params;
       const users = await User.find({ userType }).select('-password');
 
@@ -249,10 +229,7 @@ class StaffWebController {
   // Get user details
   async getUserDetails(req, res) {
     try {
-      if (!req.session.staffLoggedIn) {
-        return res.status(401).json({ success: false, message: 'Unauthorized' });
-      }
-
+      // Authentication is handled by middleware
       const { userType, userId } = req.params;
       const user = await User.findById(userId).select('-password');
 
@@ -270,10 +247,7 @@ class StaffWebController {
   // Get user documents
   async getUserDocuments(req, res) {
     try {
-      if (!req.session.staffLoggedIn) {
-        return res.status(401).json({ success: false, message: 'Unauthorized' });
-      }
-
+      // Authentication is handled by middleware
       const { userType, userId } = req.params;
       const user = await User.findById(userId);
 
@@ -312,7 +286,7 @@ class StaffWebController {
           break;
         case 'lab':
           documents = {
-            license: user.licenseDocumentUrl,
+            license: user.licenseUrl,
             accreditationCertificate: user.accreditationCertificateUrl,
             equipmentCertificate: user.equipmentCertificateUrl
           };
@@ -329,10 +303,7 @@ class StaffWebController {
   // Verify documents
   async verifyDocuments(req, res) {
     try {
-      if (!req.session.staffLoggedIn) {
-        return res.status(401).json({ success: false, message: 'Unauthorized' });
-      }
-
+      // Authentication is handled by middleware
       const { userType, userId } = req.params;
       const { verificationStatus, notes } = req.body;
 
@@ -344,7 +315,7 @@ class StaffWebController {
       // Update document verification status
       user.documentVerificationStatus = verificationStatus;
       user.documentVerificationNotes = notes;
-      user.documentVerifiedBy = req.session.staffUid;
+      user.documentVerifiedBy = req.firebaseUid;
       user.documentVerifiedAt = new Date();
       user.updatedAt = new Date();
 
