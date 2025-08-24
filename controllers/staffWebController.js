@@ -1,4 +1,4 @@
-const admin = require('firebase-admin');
+const admin = require('../firebase');
 const User = require('../models/User');
 const path = require('path');
 const { sendApprovalEmail, sendDocumentReviewNotification } = require('../services/emailService');
