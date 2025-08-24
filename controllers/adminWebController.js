@@ -10,24 +10,12 @@ class AdminWebController {
     res.sendFile(path.join(__dirname, '../../Arcular Pluse Webpage/Superadmin/superadmin_login.html'));
   }
 
-  // Admin login
+  // Admin login - Firebase authentication is handled on the frontend
   async login(req, res) {
     try {
-      const { email, password } = req.body;
-      
-      // Verify admin credentials (you can store these in environment variables)
-      const adminEmail = process.env.ADMIN_EMAIL || 'admin@arcular.com';
-      const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
-      
-      if (email === adminEmail && password === adminPassword) {
-        // Create session or JWT token
-        req.session.adminLoggedIn = true;
-        req.session.adminEmail = email;
-        
-        res.json({ success: true, message: 'Login successful' });
-      } else {
-        res.status(401).json({ success: false, message: 'Invalid credentials' });
-      }
+      // This endpoint is not needed since Firebase handles authentication on the frontend
+      // The frontend will send Firebase ID tokens to protected API endpoints
+      res.status(501).json({ success: false, message: 'Use Firebase authentication on frontend' });
     } catch (error) {
       console.error('Admin login error:', error);
       res.status(500).json({ success: false, message: 'Login failed' });
@@ -161,17 +149,13 @@ class AdminWebController {
 
   // Get create staff page - redirects to dashboard since functionality is built-in
   getCreateStaffPage(req, res) {
-    if (!req.session.adminLoggedIn) {
-      return res.redirect('/admin/login');
-    }
+    // Authentication is handled by middleware for API calls
     res.redirect('/admin/dashboard');
   }
 
   // Get edit staff page - redirects to dashboard since functionality is built-in
   getEditStaffPage(req, res) {
-    if (!req.session.adminLoggedIn) {
-      return res.redirect('/admin/login');
-    }
+    // Authentication is handled by middleware for API calls
     res.redirect('/admin/dashboard');
   }
 

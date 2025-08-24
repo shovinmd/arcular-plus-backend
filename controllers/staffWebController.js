@@ -11,35 +11,12 @@ class StaffWebController {
     res.sendFile(path.join(__dirname, '../../Arcular Pluse Webpage/ARCstaff/login.html'));
   }
 
-  // Staff login
+  // Staff login - Firebase authentication is handled on the frontend
   async login(req, res) {
     try {
-      const { email, password } = req.body;
-      
-      // Verify staff credentials using Firebase
-      try {
-        const userRecord = await admin.auth().getUserByEmail(email);
-        
-        // Check if user exists in MongoDB and is staff
-        const staff = await User.findOne({ 
-          uid: userRecord.uid, 
-          userType: 'arc_staff',
-          isApproved: true 
-        });
-
-        if (staff) {
-          // Create session
-          req.session.staffLoggedIn = true;
-          req.session.staffUid = userRecord.uid;
-          req.session.staffEmail = email;
-          
-          res.json({ success: true, message: 'Login successful' });
-        } else {
-          res.status(401).json({ success: false, message: 'Unauthorized access' });
-        }
-      } catch (firebaseError) {
-        res.status(401).json({ success: false, message: 'Invalid credentials' });
-      }
+      // This endpoint is not needed since Firebase handles authentication on the frontend
+      // The frontend will send Firebase ID tokens to protected API endpoints
+      res.status(501).json({ success: false, message: 'Use Firebase authentication on frontend' });
     } catch (error) {
       console.error('Staff login error:', error);
       res.status(500).json({ success: false, message: 'Login failed' });
@@ -330,6 +307,144 @@ class StaffWebController {
       console.error('Verify documents error:', error);
       res.status(500).json({ success: false, message: 'Failed to verify documents' });
     }
+  }
+
+  // Get pending stakeholders (matching frontend expectations)
+  async getPendingStakeholders(req, res) {
+    try {
+      // Authentication is handled by middleware
+      const pendingUsers = await User.find({ 
+        status: 'pending',
+        userType: { $in: ['hospital', 'doctor', 'nurse', 'pharmacy', 'lab'] }
+      }).select('-password');
+
+      // Transform data to match frontend expectations
+      const transformedStakeholders = pendingUsers.map(user => ({
+        _id: user._id,
+        name: user.fullName,
+        fullName: user.fullName,
+        email: user.email,
+        type: user.userType,
+        status: user.status,
+        documents: this.extractDocuments(user),
+        submittedAt: user.registrationDate || user.createdAt
+      }));
+
+      res.json(transformedStakeholders);
+    } catch (error) {
+      console.error('Get pending stakeholders error:', error);
+      res.status(500).json({ success: false, message: 'Failed to get pending stakeholders' });
+    }
+  }
+
+  // Approve stakeholder (matching frontend expectations)
+  async approveStakeholder(req, res) {
+    try {
+      // Authentication is handled by middleware
+      const { id } = req.params;
+
+      const user = await User.findById(id);
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'User not found' });
+      }
+
+      // Update user status
+      user.isApproved = true;
+      user.approvalStatus = 'approved';
+      user.status = 'active';
+      user.approvedBy = req.firebaseUid;
+      user.approvedAt = new Date();
+
+      await user.save();
+
+      // Send approval email
+      try {
+        await sendApprovalEmail(user.email, user.fullName, user.userType, true, '');
+        console.log('✅ Approval email sent to user');
+      } catch (emailError) {
+        console.error('❌ Error sending approval email:', emailError);
+      }
+
+      res.json({ 
+        success: true, 
+        message: 'Stakeholder approved successfully'
+      });
+    } catch (error) {
+      console.error('Approve stakeholder error:', error);
+      res.status(500).json({ success: false, message: 'Failed to approve stakeholder' });
+    }
+  }
+
+  // Reject stakeholder (matching frontend expectations)
+  async rejectStakeholder(req, res) {
+    try {
+      // Authentication is handled by middleware
+      const { id } = req.params;
+      const { reason } = req.body;
+
+      const user = await User.findById(id);
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'User not found' });
+      }
+
+      // Update user status
+      user.isApproved = false;
+      user.approvalStatus = 'rejected';
+      user.status = 'inactive';
+      user.rejectedBy = req.firebaseUid;
+      user.rejectedAt = new Date();
+      user.rejectionReason = reason || 'Application rejected';
+
+      await user.save();
+
+      // Send rejection email
+      try {
+        await sendApprovalEmail(user.email, user.fullName, user.userType, false, reason || 'Application rejected');
+        console.log('✅ Rejection email sent to user');
+      } catch (emailError) {
+        console.error('❌ Error sending rejection email:', emailError);
+      }
+
+      res.json({ 
+        success: true, 
+        message: 'Stakeholder rejected successfully'
+      });
+    } catch (error) {
+      console.error('Reject stakeholder error:', error);
+      res.status(500).json({ success: false, message: 'Failed to reject stakeholder' });
+    }
+  }
+
+  // Helper method to extract documents for frontend
+  extractDocuments(user) {
+    const documents = [];
+    
+    switch (user.userType) {
+      case 'hospital':
+        if (user.licenseDocumentUrl) documents.push({ name: 'License', url: user.licenseDocumentUrl });
+        if (user.registrationDocumentUrl) documents.push({ name: 'Registration', url: user.registrationDocumentUrl });
+        break;
+      case 'doctor':
+        if (user.licenseDocumentUrl) documents.push({ name: 'Medical License', url: user.licenseDocumentUrl });
+        if (user.medicalRegistrationDocumentUrl) documents.push({ name: 'Medical Registration', url: user.medicalRegistrationDocumentUrl });
+        break;
+      case 'nurse':
+        if (user.licenseDocumentUrl) documents.push({ name: 'Nursing License', url: user.licenseDocumentUrl });
+        if (user.nursingRegistrationDocumentUrl) documents.push({ name: 'Nursing Registration', url: user.nursingRegistrationDocumentUrl });
+        break;
+      case 'pharmacy':
+        if (user.licenseDocumentUrl) documents.push({ name: 'Pharmacy License', url: user.licenseDocumentUrl });
+        if (user.drugLicenseUrl) documents.push({ name: 'Drug License', url: user.drugLicenseUrl });
+        if (user.premisesCertificateUrl) documents.push({ name: 'Premises Certificate', url: user.premisesCertificateUrl });
+        break;
+      case 'lab':
+        if (user.licenseUrl) documents.push({ name: 'Lab License', url: user.licenseUrl });
+        if (user.accreditationCertificateUrl) documents.push({ name: 'Accreditation Certificate', url: user.accreditationCertificateUrl });
+        if (user.equipmentCertificateUrl) documents.push({ name: 'Equipment Certificate', url: user.equipmentCertificateUrl });
+        break;
+    }
+    
+    return documents;
   }
 }
 
