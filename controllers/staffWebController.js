@@ -35,6 +35,82 @@ class StaffWebController {
     }
   }
 
+  // Verify staff access (for login)
+  async verifyStaff(req, res) {
+    try {
+      console.log('🔍 Staff verification request:', {
+        email: req.body.email,
+        uid: req.body.uid,
+        firebaseUid: req.firebaseUid
+      });
+
+      // Check if staff exists in MongoDB
+      const ArcStaff = require('../models/ArcStaff');
+      const staff = await ArcStaff.findOne({ 
+        email: req.body.email,
+        uid: req.body.uid,
+        userType: { $in: ['arc_staff', 'super_admin'] },
+        isApproved: true
+      });
+
+      if (!staff) {
+        console.log('❌ Staff not found or not approved:', req.body.email);
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Staff account not found or not approved. Please contact administrator.' 
+        });
+      }
+
+      console.log('✅ Staff verified successfully:', {
+        email: staff.email,
+        userType: staff.userType,
+        name: staff.fullName
+      });
+
+      res.json({
+        success: true,
+        message: 'Staff access verified',
+        data: {
+          email: staff.email,
+          uid: staff.firebaseUid,
+          userType: staff.userType,
+          fullName: staff.fullName,
+          isApproved: staff.isApproved
+        }
+      });
+
+    } catch (error) {
+      console.error('❌ Staff verification error:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to verify staff access' 
+      });
+    }
+  }
+
+  // Test endpoint to check staff accounts (remove in production)
+  async testStaffAccounts(req, res) {
+    try {
+      const ArcStaff = require('../models/ArcStaff');
+      const allStaff = await ArcStaff.find({}).select('email uid userType fullName isApproved');
+      
+      console.log('📊 All staff accounts:', allStaff);
+      
+      res.json({
+        success: true,
+        message: 'Staff accounts found',
+        count: allStaff.length,
+        data: allStaff
+      });
+    } catch (error) {
+      console.error('❌ Test staff accounts error:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to get staff accounts' 
+      });
+    }
+  }
+
   // Get pending approvals
   async getPendingApprovals(req, res) {
     try {

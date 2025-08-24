@@ -8,6 +8,12 @@ router.get('/login', staffController.getLoginPage);
 router.post('/login', staffController.login);
 router.get('/dashboard', staffController.getDashboard);
 
+// Staff verification endpoint (for login)
+router.post('/api/staff/verify', verifyFirebaseToken, staffController.verifyStaff);
+
+// Test endpoint to check staff accounts (remove in production)
+router.get('/api/staff/test', staffController.testStaffAccounts);
+
 // Stakeholder management endpoints (matching existing frontend)
 router.get('/api/stakeholders/pending', verifyFirebaseToken, verifyStaffRole, staffController.getPendingStakeholders);
 router.post('/api/stakeholders/:id/approve', verifyFirebaseToken, verifyStaffRole, staffController.approveStakeholder);
