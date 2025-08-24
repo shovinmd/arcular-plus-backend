@@ -1,5 +1,5 @@
 const Nurse = require('../models/Nurse');
-const { sendRegistrationConfirmation } = require('../services/emailService');
+const { sendRegistrationConfirmation, sendApprovalEmail } = require('../services/emailService');
 
 // Register a new nurse
 const registerNurse = async (req, res) => {
@@ -256,6 +256,15 @@ const approveNurse = async (req, res) => {
         message: 'Nurse not found'
       });
     }
+
+    // Send approval email
+    try {
+      await sendApprovalEmail(nurse.email, nurse.fullName, 'nurse', true, notes);
+      console.log('✅ Approval email sent to nurse');
+    } catch (emailError) {
+      console.error('❌ Error sending approval email:', emailError);
+    }
+
     res.json({
       success: true,
       message: 'Nurse approved successfully',
@@ -281,6 +290,15 @@ const rejectNurse = async (req, res) => {
         message: 'Nurse not found'
       });
     }
+
+    // Send rejection email
+    try {
+      await sendApprovalEmail(nurse.email, nurse.fullName, 'nurse', false, reason);
+      console.log('✅ Rejection email sent to nurse');
+    } catch (emailError) {
+      console.error('❌ Error sending rejection email:', emailError);
+    }
+
     res.json({
       success: true,
       message: 'Nurse rejected successfully',

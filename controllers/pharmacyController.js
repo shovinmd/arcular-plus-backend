@@ -1,5 +1,5 @@
 const Pharmacy = require('../models/Pharmacy');
-const { sendRegistrationConfirmation } = require('../services/emailService');
+const { sendRegistrationConfirmation, sendApprovalEmail } = require('../services/emailService');
 
 // Register a new pharmacy
 const registerPharmacy = async (req, res) => {
@@ -250,6 +250,15 @@ const approvePharmacy = async (req, res) => {
         message: 'Pharmacy not found'
       });
     }
+
+    // Send approval email
+    try {
+      await sendApprovalEmail(pharmacy.email, pharmacy.fullName, 'pharmacy', true, notes);
+      console.log('✅ Approval email sent to pharmacy');
+    } catch (emailError) {
+      console.error('❌ Error sending approval email:', emailError);
+    }
+
     res.json({
       success: true,
       message: 'Pharmacy approved successfully',
@@ -275,6 +284,15 @@ const rejectPharmacy = async (req, res) => {
         message: 'Pharmacy not found'
       });
     }
+
+    // Send rejection email
+    try {
+      await sendApprovalEmail(pharmacy.email, pharmacy.fullName, 'pharmacy', false, reason);
+      console.log('✅ Rejection email sent to pharmacy');
+    } catch (emailError) {
+      console.error('❌ Error sending rejection email:', emailError);
+    }
+
     res.json({
       success: true,
       message: 'Pharmacy rejected successfully',

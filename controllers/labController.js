@@ -1,5 +1,5 @@
 const Lab = require('../models/Lab');
-const { sendRegistrationConfirmation } = require('../services/emailService');
+const { sendRegistrationConfirmation, sendApprovalEmail } = require('../services/emailService');
 
 // Register a new lab
 const registerLab = async (req, res) => {
@@ -250,6 +250,15 @@ const approveLab = async (req, res) => {
         message: 'Lab not found'
       });
     }
+
+    // Send approval email
+    try {
+      await sendApprovalEmail(lab.email, lab.fullName, 'lab', true, notes);
+      console.log('✅ Approval email sent to lab');
+    } catch (emailError) {
+      console.error('❌ Error sending approval email:', emailError);
+    }
+
     res.json({
       success: true,
       message: 'Lab approved successfully',
@@ -275,6 +284,15 @@ const rejectLab = async (req, res) => {
         message: 'Lab not found'
       });
     }
+
+    // Send rejection email
+    try {
+      await sendApprovalEmail(lab.email, lab.fullName, 'lab', false, reason);
+      console.log('✅ Rejection email sent to lab');
+    } catch (emailError) {
+      console.error('❌ Error sending rejection email:', emailError);
+    }
+
     res.json({
       success: true,
       message: 'Lab rejected successfully',

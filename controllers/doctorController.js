@@ -1,5 +1,5 @@
 const Doctor = require('../models/Doctor');
-const { sendRegistrationConfirmation } = require('../services/emailService');
+const { sendRegistrationConfirmation, sendApprovalEmail } = require('../services/emailService');
 
 // Log the Doctor schema to debug
 console.log('🔍 Doctor schema fields:', Object.keys(Doctor.schema.paths));
@@ -422,6 +422,14 @@ const approveDoctor = async (req, res) => {
         error: 'Doctor not found'
       });
     }
+
+    // Send approval email
+    try {
+      await sendApprovalEmail(doctor.email, doctor.fullName, 'doctor', true, notes);
+      console.log('✅ Approval email sent to doctor');
+    } catch (emailError) {
+      console.error('❌ Error sending approval email:', emailError);
+    }
     
     res.json({
       success: true,
@@ -450,6 +458,14 @@ const rejectDoctor = async (req, res) => {
         success: false,
         error: 'Doctor not found'
       });
+    }
+
+    // Send rejection email
+    try {
+      await sendApprovalEmail(doctor.email, doctor.fullName, 'doctor', false, reason);
+      console.log('✅ Rejection email sent to doctor');
+    } catch (emailError) {
+      console.error('❌ Error sending rejection email:', emailError);
     }
     
     res.json({
