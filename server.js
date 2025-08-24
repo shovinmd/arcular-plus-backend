@@ -40,8 +40,15 @@ app.use(helmet());
 app.use(compression());
 app.use(morgan('combined'));
 app.use(cors({
-  origin: '*', // or specify your frontend URL
+  origin: [
+    'https://arcular-plus-sup-admin-staffs-hown.vercel.app',
+    'https://arcular-plus-sup-admin-staffs-xdw9.vercel.app',
+    'http://localhost:3000',
+    'http://localhost:3001'
+  ],
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
