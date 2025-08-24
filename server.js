@@ -43,6 +43,7 @@ app.use(cors({
   origin: [
     'https://arcular-plus-sup-admin-staffs-hown.vercel.app',
     'https://arcular-plus-sup-admin-staffs-xdw9.vercel.app',
+    'https://arcular-plus-sup-admin-staffs.vercel.app/',
     'http://localhost:3000',
     'http://localhost:3001'
   ],
