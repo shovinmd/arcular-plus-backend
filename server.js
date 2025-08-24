@@ -6,7 +6,35 @@ const morgan = require('morgan');
 const compression = require('compression');
 const path = require('path');
 const session = require('express-session');
+const admin = require('firebase-admin');
 require('dotenv').config();
+
+// Initialize Firebase Admin SDK
+try {
+  // Check if Firebase Admin is already initialized
+  if (!admin.apps.length) {
+    // Initialize with service account or default credentials
+    if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+      // Use service account key from environment variable
+      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+        databaseURL: process.env.FIREBASE_DATABASE_URL || `https://${process.env.FIREBASE_PROJECT_ID}.firebaseio.com`
+      });
+    } else if (process.env.FIREBASE_PROJECT_ID) {
+      // Use default credentials (for production environments like Render)
+      admin.initializeApp({
+        projectId: process.env.FIREBASE_PROJECT_ID
+      });
+    } else {
+      // Fallback initialization
+      admin.initializeApp();
+    }
+    console.log('✅ Firebase Admin SDK initialized successfully');
+  }
+} catch (error) {
+  console.error('❌ Firebase Admin SDK initialization failed:', error);
+}
 
 // Import routes
 const userRoutes = require('./routes/userRoutes');
@@ -104,8 +132,38 @@ app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'OK', 
     message: 'Arcular+ Backend is running',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    firebaseAdmin: admin.apps.length > 0 ? 'Initialized' : 'Not Initialized'
   });
+});
+
+// Test Firebase Admin endpoint
+app.get('/api/test-firebase', async (req, res) => {
+  try {
+    if (admin.apps.length === 0) {
+      return res.status(500).json({ 
+        error: 'Firebase Admin not initialized',
+        apps: admin.apps.length
+      });
+    }
+    
+    // Test if we can list users (this will fail if not properly configured)
+    const listUsersResult = await admin.auth().listUsers(1);
+    
+    res.json({ 
+      status: 'OK', 
+      message: 'Firebase Admin is working',
+      firebaseApps: admin.apps.length,
+      canListUsers: true,
+      userCount: listUsersResult.users.length
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      error: 'Firebase Admin test failed',
+      message: error.message,
+      firebaseApps: admin.apps.length
+    });
+  }
 });
 
 // Error handling middleware

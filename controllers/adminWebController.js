@@ -152,32 +152,54 @@ class AdminWebController {
   // Create new staff member
   async createStaff(req, res) {
     try {
+      console.log('🔐 Creating new staff member...');
+      console.log('📝 Request body:', req.body);
+      
       // Authentication is handled by middleware
       const { email, password, fullName, phone, role, department, designation, address } = req.body;
 
       if (!fullName || !email || !password || !role) {
+        console.log('❌ Missing required fields:', { fullName, email, password, role });
         return res.status(400).json({ 
           success: false, 
           message: 'Full name, email, password, and role are required' 
         });
       }
 
+      console.log('🔍 Checking if staff already exists...');
+      
       // Check if staff already exists
       const ArcStaff = require('../models/ArcStaff');
       const existingStaff = await ArcStaff.findOne({ email });
       if (existingStaff) {
+        console.log('❌ Staff already exists with email:', email);
         return res.status(400).json({ 
           success: false, 
           message: 'Staff member with this email already exists' 
         });
       }
 
+      console.log('✅ No existing staff found, proceeding with creation...');
+      console.log('🔥 Creating Firebase user...');
+
       // Create Firebase user
-      const userRecord = await admin.auth().createUser({
-        email,
-        password,
-        displayName: fullName,
-      });
+      let userRecord;
+      try {
+        userRecord = await admin.auth().createUser({
+          email,
+          password,
+          displayName: fullName,
+        });
+        console.log('✅ Firebase user created successfully:', userRecord.uid);
+      } catch (firebaseError) {
+        console.error('❌ Firebase user creation failed:', firebaseError);
+        return res.status(500).json({ 
+          success: false, 
+          message: 'Failed to create Firebase user: ' + firebaseError.message 
+        });
+      }
+
+      console.log('📝 Creating MongoDB staff record...');
 
       // Create staff user in MongoDB
       const newStaff = new ArcStaff({
@@ -197,7 +219,25 @@ class AdminWebController {
         createdBy: req.firebaseUid || req.user?.uid || 'system'
       });
 
-      await newStaff.save();
+      console.log('📝 Staff data to save:', newStaff);
+
+      try {
+        await newStaff.save();
+        console.log('✅ MongoDB staff record saved successfully');
+      } catch (mongoError) {
+        console.error('❌ MongoDB save failed:', mongoError);
+        // Try to delete the Firebase user if MongoDB save fails
+        try {
+          await admin.auth().deleteUser(userRecord.uid);
+          console.log('✅ Firebase user deleted after MongoDB save failure');
+        } catch (deleteError) {
+          console.error('❌ Failed to delete Firebase user after MongoDB save failure:', deleteError);
+        }
+        return res.status(500).json({ 
+          success: false, 
+          message: 'Failed to save staff record: ' + mongoError.message 
+        });
+      }
 
       console.log('✅ Staff created successfully:', email);
 
@@ -215,8 +255,11 @@ class AdminWebController {
         }
       });
     } catch (error) {
-      console.error('Create staff error:', error);
-      res.status(500).json({ success: false, message: 'Failed to create staff' });
+      console.error('❌ Create staff error:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to create staff: ' + error.message 
+      });
     }
   }
 
