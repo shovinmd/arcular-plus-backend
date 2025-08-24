@@ -8,6 +8,9 @@ router.get('/login', adminController.getLoginPage);
 router.post('/login', adminController.login);
 router.get('/dashboard', adminController.getDashboard);
 
+// Admin verification endpoint (no middleware - creates admin record)
+router.post('/api/admin/verify', adminController.verifyAdmin);
+
 // Protected API endpoints for staff management (matching existing frontend)
 router.get('/api/admin/staff', verifyFirebaseToken, verifyAdminRole, adminController.getStaffList);
 router.post('/api/admin/staff', verifyFirebaseToken, verifyAdminRole, adminController.createStaff);

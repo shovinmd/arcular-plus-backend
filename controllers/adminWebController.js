@@ -21,6 +21,79 @@ class AdminWebController {
     }
   }
 
+  // Verify admin and create admin record if needed
+  async verifyAdmin(req, res) {
+    try {
+      const { email, uid, displayName } = req.body;
+      
+      if (!email || !uid) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Email and UID are required' 
+        });
+      }
+
+      // Check if user already exists in ArcStaff collection
+      const ArcStaff = require('../models/ArcStaff');
+      let adminUser = await ArcStaff.findOne({ uid });
+
+      if (!adminUser) {
+        // Create new admin user in MongoDB
+        adminUser = new ArcStaff({
+          uid,
+          email,
+          fullName: displayName || email.split('@')[0],
+          userType: 'super_admin',
+          role: 'super_admin',
+          status: 'active',
+          isApproved: true,
+          canApproveHospitals: true,
+          canApproveDoctors: true,
+          canApproveNurses: true,
+          canApprovePharmacies: true,
+          canApproveLabs: true,
+          registrationDate: new Date(),
+        });
+
+        await adminUser.save();
+        console.log('✅ New super admin created in MongoDB:', email);
+      } else {
+        // Update existing user to ensure they have admin privileges
+        adminUser.userType = 'super_admin';
+        adminUser.role = 'super_admin';
+        adminUser.status = 'active';
+        adminUser.isApproved = true;
+        adminUser.canApproveHospitals = true;
+        adminUser.canApproveDoctors = true;
+        adminUser.canApproveNurses = true;
+        adminUser.canApprovePharmacies = true;
+        adminUser.canApproveLabs = true;
+        
+        await adminUser.save();
+        console.log('✅ Existing user updated to super admin:', email);
+      }
+
+      res.json({ 
+        success: true, 
+        message: 'Admin verified successfully',
+        data: {
+          uid: adminUser.uid,
+          email: adminUser.email,
+          fullName: adminUser.fullName,
+          role: adminUser.role
+        }
+      });
+
+    } catch (error) {
+      console.error('Verify admin error:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to verify admin',
+        error: error.message 
+      });
+    }
+  }
+
   // Get admin dashboard
   async getDashboard(req, res) {
     try {
