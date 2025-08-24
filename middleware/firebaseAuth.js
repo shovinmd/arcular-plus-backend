@@ -45,12 +45,12 @@ const verifyAdminRole = async (req, res, next) => {
       });
     }
 
-    // Check if user exists in MongoDB and has admin role
-    const User = require('../models/User');
-    const user = await User.findOne({ 
+    // Check if user exists in ArcStaff model and has admin role
+    const ArcStaff = require('../models/ArcStaff');
+    const user = await ArcStaff.findOne({ 
       uid: req.firebaseUid,
       userType: 'admin',
-      isApproved: true
+      isApproved: true 
     });
 
     if (!user) {
@@ -81,12 +81,12 @@ const verifyStaffRole = async (req, res, next) => {
       });
     }
 
-    // Check if user exists in MongoDB and has staff role
-    const User = require('../models/User');
-    const user = await User.findOne({ 
+    // Check if user exists in ArcStaff model and has staff role
+    const ArcStaff = require('../models/ArcStaff');
+    const user = await ArcStaff.findOne({ 
       uid: req.firebaseUid,
       userType: 'arc_staff',
-      isApproved: true
+      isApproved: true 
     });
 
     if (!user) {

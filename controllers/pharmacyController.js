@@ -1,5 +1,4 @@
 const Pharmacy = require('../models/Pharmacy');
-const User = require('../models/User');
 const { sendRegistrationConfirmation } = require('../services/emailService');
 
 // Register a new pharmacy
@@ -26,16 +25,17 @@ const registerPharmacy = async (req, res) => {
     const { uid } = userData;
 
     // Check if pharmacy already exists
-    const existingPharmacy = await User.findOne({ uid });
+    const existingPharmacy = await Pharmacy.findOne({ uid });
     if (existingPharmacy) {
       return res.status(400).json({ error: 'Pharmacy already registered' });
     }
 
-    // Create new pharmacy user
-    const newPharmacy = new User({
+    // Create new pharmacy user in Pharmacy model
+    const newPharmacy = new Pharmacy({
       ...userData,
-      userType: 'pharmacy',
       status: userData.status || 'pending',
+      isApproved: false,
+      approvalStatus: 'pending',
       registrationDate: new Date(),
     });
 

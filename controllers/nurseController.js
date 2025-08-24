@@ -1,5 +1,4 @@
 const Nurse = require('../models/Nurse');
-const User = require('../models/User');
 const { sendRegistrationConfirmation } = require('../services/emailService');
 
 // Register a new nurse
@@ -26,16 +25,17 @@ const registerNurse = async (req, res) => {
     const { uid } = userData;
 
     // Check if nurse already exists
-    const existingNurse = await User.findOne({ uid });
+    const existingNurse = await Nurse.findOne({ uid });
     if (existingNurse) {
       return res.status(400).json({ error: 'Nurse already registered' });
     }
 
-    // Create new nurse user
-    const newNurse = new User({
+    // Create new nurse user in Nurse model
+    const newNurse = new Nurse({
       ...userData,
-      userType: 'nurse',
       status: userData.status || 'pending',
+      isApproved: false,
+      approvalStatus: 'pending',
       registrationDate: new Date(),
     });
 

@@ -1,5 +1,4 @@
 const Lab = require('../models/Lab');
-const User = require('../models/User');
 const { sendRegistrationConfirmation } = require('../services/emailService');
 
 // Register a new lab
@@ -26,16 +25,17 @@ const registerLab = async (req, res) => {
     const { uid } = userData;
 
     // Check if lab already exists
-    const existingLab = await User.findOne({ uid });
+    const existingLab = await Lab.findOne({ uid });
     if (existingLab) {
       return res.status(400).json({ error: 'Lab already registered' });
     }
 
-    // Create new lab user
-    const newLab = new User({
+    // Create new lab user in Lab model
+    const newLab = new Lab({
       ...userData,
-      userType: 'lab',
       status: userData.status || 'pending',
+      isApproved: false,
+      approvalStatus: 'pending',
       registrationDate: new Date(),
     });
 

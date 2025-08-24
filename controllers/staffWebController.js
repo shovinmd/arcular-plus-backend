@@ -313,19 +313,40 @@ class StaffWebController {
   async getPendingStakeholders(req, res) {
     try {
       // Authentication is handled by middleware
-      const pendingUsers = await User.find({ 
-        status: 'pending',
-        userType: { $in: ['hospital', 'doctor', 'nurse', 'pharmacy', 'lab'] }
-      }).select('-password');
+      
+      // Import all role models
+      const Hospital = require('../models/Hospital');
+      const Doctor = require('../models/Doctor');
+      const Nurse = require('../models/Nurse');
+      const Pharmacy = require('../models/Pharmacy');
+      const Lab = require('../models/Lab');
+
+      // Get pending users from each role model
+      const [pendingHospitals, pendingDoctors, pendingNurses, pendingPharmacies, pendingLabs] = await Promise.all([
+        Hospital.find({ approvalStatus: 'pending' }),
+        Doctor.find({ approvalStatus: 'pending' }),
+        Nurse.find({ approvalStatus: 'pending' }),
+        Pharmacy.find({ approvalStatus: 'pending' }),
+        Lab.find({ approvalStatus: 'pending' })
+      ]);
+
+      // Transform and combine all pending users
+      const allPendingUsers = [
+        ...pendingHospitals.map(h => ({ ...h.toObject(), type: 'hospital' })),
+        ...pendingDoctors.map(d => ({ ...d.toObject(), type: 'doctor' })),
+        ...pendingNurses.map(n => ({ ...n.toObject(), type: 'nurse' })),
+        ...pendingPharmacies.map(p => ({ ...p.toObject(), type: 'pharmacy' })),
+        ...pendingLabs.map(l => ({ ...l.toObject(), type: 'lab' }))
+      ];
 
       // Transform data to match frontend expectations
-      const transformedStakeholders = pendingUsers.map(user => ({
+      const transformedStakeholders = allPendingUsers.map(user => ({
         _id: user._id,
-        name: user.fullName,
-        fullName: user.fullName,
+        name: user.fullName || user.hospitalName || user.pharmacyName || user.labName,
+        fullName: user.fullName || user.hospitalName || user.pharmacyName || user.labName,
         email: user.email,
-        type: user.userType,
-        status: user.status,
+        type: user.type,
+        status: user.status || 'pending',
         documents: this.extractDocuments(user),
         submittedAt: user.registrationDate || user.createdAt
       }));
@@ -343,7 +364,34 @@ class StaffWebController {
       // Authentication is handled by middleware
       const { id } = req.params;
 
-      const user = await User.findById(id);
+      // Import all role models
+      const Hospital = require('../models/Hospital');
+      const Doctor = require('../models/Doctor');
+      const Nurse = require('../models/Nurse');
+      const Pharmacy = require('../models/Pharmacy');
+      const Lab = require('../models/Lab');
+
+      // Try to find the user in each model
+      let user = await Hospital.findById(id);
+      let userType = 'hospital';
+      
+      if (!user) {
+        user = await Doctor.findById(id);
+        userType = 'doctor';
+      }
+      if (!user) {
+        user = await Nurse.findById(id);
+        userType = 'nurse';
+      }
+      if (!user) {
+        user = await Pharmacy.findById(id);
+        userType = 'pharmacy';
+      }
+      if (!user) {
+        user = await Lab.findById(id);
+        userType = 'lab';
+      }
+
       if (!user) {
         return res.status(404).json({ success: false, message: 'User not found' });
       }
@@ -359,7 +407,8 @@ class StaffWebController {
 
       // Send approval email
       try {
-        await sendApprovalEmail(user.email, user.fullName, user.userType, true, '');
+        const userName = user.fullName || user.hospitalName || user.pharmacyName || user.labName;
+        await sendApprovalEmail(user.email, userName, userType, true, '');
         console.log('✅ Approval email sent to user');
       } catch (emailError) {
         console.error('❌ Error sending approval email:', emailError);
@@ -382,7 +431,34 @@ class StaffWebController {
       const { id } = req.params;
       const { reason } = req.body;
 
-      const user = await User.findById(id);
+      // Import all role models
+      const Hospital = require('../models/Hospital');
+      const Doctor = require('../models/Doctor');
+      const Nurse = require('../models/Nurse');
+      const Pharmacy = require('../models/Pharmacy');
+      const Lab = require('../models/Lab');
+
+      // Try to find the user in each model
+      let user = await Hospital.findById(id);
+      let userType = 'hospital';
+      
+      if (!user) {
+        user = await Doctor.findById(id);
+        userType = 'doctor';
+      }
+      if (!user) {
+        user = await Nurse.findById(id);
+        userType = 'nurse';
+      }
+      if (!user) {
+        user = await Pharmacy.findById(id);
+        userType = 'pharmacy';
+      }
+      if (!user) {
+        user = await Lab.findById(id);
+        userType = 'lab';
+      }
+
       if (!user) {
         return res.status(404).json({ success: false, message: 'User not found' });
       }
@@ -399,7 +475,8 @@ class StaffWebController {
 
       // Send rejection email
       try {
-        await sendApprovalEmail(user.email, user.fullName, user.userType, false, reason || 'Application rejected');
+        const userName = user.fullName || user.hospitalName || user.pharmacyName || user.labName;
+        await sendApprovalEmail(user.email, userName, userType, false, reason || 'Application rejected');
         console.log('✅ Rejection email sent to user');
       } catch (emailError) {
         console.error('❌ Error sending rejection email:', emailError);
@@ -419,7 +496,19 @@ class StaffWebController {
   extractDocuments(user) {
     const documents = [];
     
-    switch (user.userType) {
+    // Determine user type from the user object
+    let userType = user.type || user.userType;
+    
+    // If we can't determine from type, try to infer from the model
+    if (!userType) {
+      if (user.hospitalName) userType = 'hospital';
+      else if (user.medicalRegistrationNumber) userType = 'doctor';
+      else if (user.nursingRegistrationNumber) userType = 'nurse';
+      else if (user.pharmacyName) userType = 'pharmacy';
+      else if (user.labName) userType = 'lab';
+    }
+    
+    switch (userType) {
       case 'hospital':
         if (user.licenseDocumentUrl) documents.push({ name: 'License', url: user.licenseDocumentUrl });
         if (user.registrationDocumentUrl) documents.push({ name: 'Registration', url: user.registrationDocumentUrl });

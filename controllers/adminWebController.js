@@ -1,5 +1,4 @@
 const admin = require('firebase-admin');
-const User = require('../models/User');
 const path = require('path');
 
 // Admin web interface controller
@@ -38,7 +37,8 @@ class AdminWebController {
   async getStaffList(req, res) {
     try {
       // Authentication is handled by middleware
-      const staff = await User.find({ userType: 'arc_staff' }).select('-password');
+      const ArcStaff = require('../models/ArcStaff');
+      const staff = await ArcStaff.find({ userType: 'arc_staff' }).select('-password');
       
       // Transform data to match frontend expectations
       const transformedStaff = staff.map(s => ({
@@ -70,7 +70,8 @@ class AdminWebController {
       });
 
       // Create staff user in MongoDB
-      const newStaff = new User({
+      const ArcStaff = require('../models/ArcStaff');
+      const newStaff = new ArcStaff({
         uid: userRecord.uid,
         email,
         fullName,
@@ -102,7 +103,8 @@ class AdminWebController {
       const { id } = req.params; // This is the Firebase UID
       const updateData = req.body;
 
-      const staff = await User.findOneAndUpdate(
+      const ArcStaff = require('../models/ArcStaff');
+      const staff = await ArcStaff.findOneAndUpdate(
         { uid: id },
         { 
           fullName: updateData.name,
@@ -128,7 +130,8 @@ class AdminWebController {
     try {
       // Authentication is handled by middleware
       const { id } = req.params; // This is the Firebase UID
-      const staff = await User.findOne({ uid: id });
+      const ArcStaff = require('../models/ArcStaff');
+      const staff = await ArcStaff.findOne({ uid: id });
 
       if (!staff) {
         return res.status(404).json({ success: false, message: 'Staff not found' });
@@ -138,7 +141,7 @@ class AdminWebController {
       await admin.auth().deleteUser(staff.uid);
 
       // Delete from MongoDB
-      await User.findByIdAndDelete(staff._id);
+      await ArcStaff.findByIdAndDelete(staff._id);
 
       res.json({ success: true, message: 'Staff deleted successfully' });
     } catch (error) {
@@ -186,10 +189,47 @@ class AdminWebController {
 
   // Helper method to get system statistics
   async getSystemStats() {
-    const totalUsers = await User.countDocuments();
-    const pendingApprovals = await User.countDocuments({ status: 'pending' });
-    const approvedUsers = await User.countDocuments({ isApproved: true });
-    const totalStaff = await User.countDocuments({ userType: 'arc_staff' });
+    // Import all role models
+    const Hospital = require('../models/Hospital');
+    const Doctor = require('../models/Doctor');
+    const Nurse = require('../models/Nurse');
+    const Pharmacy = require('../models/Pharmacy');
+    const Lab = require('../models/Lab');
+    const ArcStaff = require('../models/ArcStaff');
+
+    // Count users from each model
+    const [totalHospitals, totalDoctors, totalNurses, totalPharmacies, totalLabs, totalStaff] = await Promise.all([
+      Hospital.countDocuments(),
+      Doctor.countDocuments(),
+      Nurse.countDocuments(),
+      Pharmacy.countDocuments(),
+      Lab.countDocuments(),
+      ArcStaff.countDocuments()
+    ]);
+
+    const totalUsers = totalHospitals + totalDoctors + totalNurses + totalPharmacies + totalLabs;
+
+    // Count pending approvals from each model
+    const [pendingHospitals, pendingDoctors, pendingNurses, pendingPharmacies, pendingLabs] = await Promise.all([
+      Hospital.countDocuments({ approvalStatus: 'pending' }),
+      Doctor.countDocuments({ approvalStatus: 'pending' }),
+      Nurse.countDocuments({ approvalStatus: 'pending' }),
+      Pharmacy.countDocuments({ approvalStatus: 'pending' }),
+      Lab.countDocuments({ approvalStatus: 'pending' })
+    ]);
+
+    const pendingApprovals = pendingHospitals + pendingDoctors + pendingNurses + pendingPharmacies + pendingLabs;
+
+    // Count approved users from each model
+    const [approvedHospitals, approvedDoctors, approvedNurses, approvedPharmacies, approvedLabs] = await Promise.all([
+      Hospital.countDocuments({ isApproved: true }),
+      Doctor.countDocuments({ isApproved: true }),
+      Nurse.countDocuments({ isApproved: true }),
+      Pharmacy.countDocuments({ isApproved: true }),
+      Lab.countDocuments({ isApproved: true })
+    ]);
+
+    const approvedUsers = approvedHospitals + approvedDoctors + approvedNurses + approvedPharmacies + approvedLabs;
 
     return {
       totalUsers,
@@ -205,13 +245,38 @@ class AdminWebController {
     const now = new Date();
     const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     
-    const monthlyRegistrations = await User.countDocuments({
-      registrationDate: { $gte: lastMonth }
-    });
+    // Import all role models
+    const Hospital = require('../models/Hospital');
+    const Doctor = require('../models/Doctor');
+    const Nurse = require('../models/Nurse');
+    const Pharmacy = require('../models/Pharmacy');
+    const Lab = require('../models/Lab');
 
-    const userTypeDistribution = await User.aggregate([
-      { $group: { _id: '$userType', count: { $sum: 1 } } }
+    // Count monthly registrations from each model
+    const [monthlyHospitals, monthlyDoctors, monthlyNurses, monthlyPharmacies, monthlyLabs] = await Promise.all([
+      Hospital.countDocuments({ registrationDate: { $gte: lastMonth } }),
+      Doctor.countDocuments({ registrationDate: { $gte: lastMonth } }),
+      Nurse.countDocuments({ registrationDate: { $gte: lastMonth } }),
+      Pharmacy.countDocuments({ registrationDate: { $gte: lastMonth } }),
+      Lab.countDocuments({ registrationDate: { $gte: lastMonth } })
     ]);
+
+    const monthlyRegistrations = monthlyHospitals + monthlyDoctors + monthlyNurses + monthlyPharmacies + monthlyLabs;
+
+    // Get user type distribution from each model
+    const totalHospitals = await Hospital.countDocuments();
+    const totalDoctors = await Doctor.countDocuments();
+    const totalNurses = await Nurse.countDocuments();
+    const totalPharmacies = await Pharmacy.countDocuments();
+    const totalLabs = await Lab.countDocuments();
+
+    const userTypeDistribution = [
+      { _id: 'hospital', count: totalHospitals },
+      { _id: 'doctor', count: totalDoctors },
+      { _id: 'nurse', count: totalNurses },
+      { _id: 'pharmacy', count: totalPharmacies },
+      { _id: 'lab', count: totalLabs }
+    ];
 
     return {
       monthlyRegistrations,
