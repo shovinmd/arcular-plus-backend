@@ -263,6 +263,40 @@ class AdminWebController {
     }
   }
 
+  // Get staff by ID (for editing)
+  async getStaffById(req, res) {
+    try {
+      // Authentication is handled by middleware
+      const { id } = req.params; // This is the Firebase UID
+      
+      const ArcStaff = require('../models/ArcStaff');
+      const staff = await ArcStaff.findOne({ uid: id }).select('-__v');
+
+      if (!staff) {
+        return res.status(404).json({ success: false, message: 'Staff not found' });
+      }
+
+      res.json({
+        success: true,
+        data: {
+          uid: staff.uid,
+          email: staff.email,
+          fullName: staff.fullName,
+          role: staff.role,
+          department: staff.department,
+          designation: staff.designation,
+          mobileNumber: staff.mobileNumber,
+          address: staff.address,
+          status: staff.status,
+          isApproved: staff.isApproved
+        }
+      });
+    } catch (error) {
+      console.error('Get staff by ID error:', error);
+      res.status(500).json({ success: false, message: 'Failed to get staff details' });
+    }
+  }
+
   // Update staff member
   async updateStaff(req, res) {
     try {
@@ -270,18 +304,26 @@ class AdminWebController {
       const { id } = req.params; // This is the Firebase UID
       const updateData = req.body;
 
+      console.log('🔧 Updating staff with UID:', id, 'Data:', updateData);
+
       const ArcStaff = require('../models/ArcStaff');
+      
+      // Build update object with available fields
+      const updateFields = {};
+      if (updateData.fullName) updateFields.fullName = updateData.fullName;
+      if (updateData.name) updateFields.fullName = updateData.name; // Handle both name and fullName
+      if (updateData.role) updateFields.role = updateData.role;
+      if (updateData.department) updateFields.department = updateData.department;
+      if (updateData.designation) updateFields.designation = updateData.designation;
+      if (updateData.mobileNumber) updateFields.mobileNumber = updateData.mobileNumber;
+      if (updateData.phone) updateFields.mobileNumber = updateData.phone; // Handle both phone and mobileNumber
+      if (updateData.address) updateFields.address = updateData.address;
+      
+      updateFields.updatedAt = new Date();
+
       const staff = await ArcStaff.findOneAndUpdate(
         { uid: id },
-        { 
-          fullName: updateData.fullName,
-          mobileNumber: updateData.phone,
-          role: updateData.role,
-          department: updateData.department,
-          designation: updateData.designation,
-          address: updateData.address,
-          updatedAt: new Date() 
-        },
+        updateFields,
         { new: true }
       );
 
@@ -289,7 +331,12 @@ class AdminWebController {
         return res.status(404).json({ success: false, message: 'Staff not found' });
       }
 
-      res.json({ success: true, message: 'Staff updated successfully' });
+      console.log('✅ Staff updated successfully:', staff.email);
+      res.json({ 
+        success: true, 
+        message: 'Staff updated successfully',
+        data: staff
+      });
     } catch (error) {
       console.error('Update staff error:', error);
       res.status(500).json({ success: false, message: 'Failed to update staff' });

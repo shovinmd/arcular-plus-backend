@@ -17,6 +17,7 @@ router.get('/api/admin/profile/:uid', adminController.getAdminProfile);
 
 // Protected API endpoints for staff management (matching existing frontend)
 router.get('/api/admin/staff', verifyFirebaseToken, verifyAdminRole, adminController.getStaffList);
+router.get('/api/admin/staff/:id', verifyFirebaseToken, verifyAdminRole, adminController.getStaffById);
 router.post('/api/admin/staff', verifyFirebaseToken, verifyAdminRole, adminController.createStaff);
 router.put('/api/admin/staff/:id', verifyFirebaseToken, verifyAdminRole, adminController.updateStaff);
 router.delete('/api/admin/staff/:id', verifyFirebaseToken, verifyAdminRole, adminController.deleteStaff);
