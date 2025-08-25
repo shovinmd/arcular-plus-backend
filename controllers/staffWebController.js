@@ -1,5 +1,4 @@
 const { admin } = require('../firebase');
-const User = require('../models/User');
 const path = require('path');
 const { sendApprovalEmail, sendDocumentReviewNotification } = require('../services/emailService');
 
@@ -229,15 +228,44 @@ class StaffWebController {
   // Get pending approvals
   async getPendingApprovals(req, res) {
     try {
-      // Authentication is handled by middleware
-      const pendingUsers = await User.find({ 
-        status: 'pending',
-        userType: { $in: ['hospital', 'doctor', 'nurse', 'pharmacy', 'lab'] }
-      }).select('-password');
+      console.log('🔍 Fetching pending approvals from all service provider models...');
+      
+      // Import all role models
+      const Hospital = require('../models/Hospital');
+      const Doctor = require('../models/Doctor');
+      const Nurse = require('../models/Nurse');
+      const Pharmacy = require('../models/Pharmacy');
+      const Lab = require('../models/Lab');
+
+      // Fetch pending users from each model
+      const [pendingHospitals, pendingDoctors, pendingNurses, pendingPharmacies, pendingLabs] = await Promise.all([
+        Hospital.find({ approvalStatus: 'pending' }).select('-__v'),
+        Doctor.find({ approvalStatus: 'pending' }).select('-__v'),
+        Nurse.find({ approvalStatus: 'pending' }).select('-__v'),
+        Pharmacy.find({ approvalStatus: 'pending' }).select('-__v'),
+        Lab.find({ approvalStatus: 'pending' }).select('-__v')
+      ]);
+
+      // Add userType to each user and combine all results
+      const pendingUsers = [
+        ...pendingHospitals.map(h => ({ ...h.toObject(), userType: 'hospital' })),
+        ...pendingDoctors.map(d => ({ ...d.toObject(), userType: 'doctor' })),
+        ...pendingNurses.map(n => ({ ...n.toObject(), userType: 'nurse' })),
+        ...pendingPharmacies.map(p => ({ ...p.toObject(), userType: 'pharmacy' })),
+        ...pendingLabs.map(l => ({ ...l.toObject(), userType: 'lab' }))
+      ];
+
+      console.log(`✅ Found ${pendingUsers.length} pending users:`, {
+        hospitals: pendingHospitals.length,
+        doctors: pendingDoctors.length,
+        nurses: pendingNurses.length,
+        pharmacies: pendingPharmacies.length,
+        labs: pendingLabs.length
+      });
 
       res.json({ success: true, data: pendingUsers });
     } catch (error) {
-      console.error('Get pending approvals error:', error);
+      console.error('❌ Get pending approvals error:', error);
       res.status(500).json({ success: false, message: 'Failed to get pending approvals' });
     }
   }
@@ -245,151 +273,107 @@ class StaffWebController {
   // Get pending approvals by user type
   async getPendingByType(req, res) {
     try {
-      // Authentication is handled by middleware
+      console.log('🔍 Fetching pending approvals for user type:', req.params.userType);
+      
       const { userType } = req.params;
-      const pendingUsers = await User.find({ 
-        userType,
-        status: 'pending'
-      }).select('-password');
+      let pendingUsers = [];
 
-      res.json({ success: true, data: pendingUsers });
+      // Import and query the appropriate model based on user type
+      switch (userType.toLowerCase()) {
+        case 'hospital':
+          const Hospital = require('../models/Hospital');
+          pendingUsers = await Hospital.find({ approvalStatus: 'pending' }).select('-__v');
+          break;
+        case 'doctor':
+          const Doctor = require('../models/Doctor');
+          pendingUsers = await Doctor.find({ approvalStatus: 'pending' }).select('-__v');
+          break;
+        case 'nurse':
+          const Nurse = require('../models/Nurse');
+          pendingUsers = await Nurse.find({ approvalStatus: 'pending' }).select('-__v');
+          break;
+        case 'pharmacy':
+          const Pharmacy = require('../models/Pharmacy');
+          pendingUsers = await Pharmacy.find({ approvalStatus: 'pending' }).select('-__v');
+          break;
+        case 'lab':
+          const Lab = require('../models/Lab');
+          pendingUsers = await Lab.find({ approvalStatus: 'pending' }).select('-__v');
+          break;
+        default:
+          return res.status(400).json({ 
+            success: false, 
+            message: 'Invalid user type. Must be one of: hospital, doctor, nurse, pharmacy, lab' 
+          });
+      }
+
+      // Add userType to each user
+      const usersWithType = pendingUsers.map(user => ({ 
+        ...user.toObject(), 
+        userType: userType.toLowerCase() 
+      }));
+
+      console.log(`✅ Found ${usersWithType.length} pending ${userType}s`);
+
+      res.json({ success: true, data: usersWithType });
     } catch (error) {
-      console.error('Get pending by type error:', error);
+      console.error('❌ Get pending by type error:', error);
       res.status(500).json({ success: false, message: 'Failed to get pending approvals' });
     }
   }
 
-  // Approve user
-  async approveUser(req, res) {
-    try {
-      // Authentication is handled by middleware
-      const { userType, userId } = req.params;
-      const { notes } = req.body;
-
-      const user = await User.findById(userId);
-      if (!user) {
-        return res.status(404).json({ success: false, message: 'User not found' });
-      }
-
-      // Update user status
-      user.isApproved = true;
-      user.approvalStatus = 'approved';
-      user.status = 'active';
-      user.approvedBy = req.firebaseUid;
-      user.approvedAt = new Date();
-      user.approvalNotes = notes;
-
-      await user.save();
-
-      // Send approval email
-      try {
-        await sendApprovalEmail(user.email, user.fullName, userType, true, '');
-        console.log('✅ Approval email sent to user');
-      } catch (emailError) {
-        console.error('❌ Error sending approval email:', emailError);
-      }
-
-      res.json({ 
-        success: true, 
-        message: 'User approved successfully',
-        data: user
-      });
-    } catch (error) {
-      console.error('Approve user error:', error);
-      res.status(500).json({ success: false, message: 'Failed to approve user' });
-    }
-  }
-
-  // Reject user
-  async rejectUser(req, res) {
-    try {
-      // Authentication is handled by middleware
-      const { userType, userId } = req.params;
-      const { reason } = req.body;
-
-      const user = await User.findById(userId);
-      if (!user) {
-        return res.status(404).json({ success: false, message: 'User not found' });
-      }
-
-      // Update user status
-      user.isApproved = false;
-      user.approvalStatus = 'rejected';
-      user.status = 'inactive';
-      user.rejectedBy = req.firebaseUid;
-      user.rejectedAt = new Date();
-      user.rejectionReason = reason;
-
-      await user.save();
-
-      // Send rejection email
-      try {
-        await sendApprovalEmail(user.email, user.fullName, userType, false, reason);
-        console.log('✅ Rejection email sent to user');
-      } catch (emailError) {
-        console.error('❌ Error sending rejection email:', emailError);
-      }
-
-      res.json({ 
-        success: true, 
-        message: 'User rejected successfully',
-        data: user
-      });
-    } catch (error) {
-      console.error('Reject user error:', error);
-      res.status(500).json({ success: false, message: 'Failed to reject user' });
-    }
-  }
-
-  // Request additional documents
-  async requestDocuments(req, res) {
-    try {
-      // Authentication is handled by middleware
-      const { userType, userId } = req.params;
-      const { missingDocuments, notes } = req.body;
-
-      const user = await User.findById(userId);
-      if (!user) {
-        return res.status(404).json({ success: false, message: 'User not found' });
-      }
-
-      // Update user status
-      user.approvalStatus = 'document_review';
-      user.status = 'pending';
-      user.documentReviewNotes = notes;
-      user.updatedAt = new Date();
-
-      await user.save();
-
-      // Send document review notification
-      try {
-        await sendDocumentReviewNotification(user.email, user.fullName, userType, missingDocuments);
-        console.log('✅ Document review notification sent to user');
-      } catch (emailError) {
-        console.error('❌ Error sending document review notification:', emailError);
-      }
-
-      res.json({ 
-        success: true, 
-        message: 'Document review request sent successfully',
-        data: user
-      });
-    } catch (error) {
-      console.error('Request documents error:', error);
-      res.status(500).json({ success: false, message: 'Failed to request documents' });
-    }
-  }
+  // Note: Old approveUser, rejectUser, and requestDocuments methods removed
+  // These are replaced by the working approveStakeholder and rejectStakeholder methods
+  // that properly handle all service provider models
 
   // Get users by type
   async getUsersByType(req, res) {
     try {
-      // Authentication is handled by middleware
+      console.log('🔍 Fetching users by type:', req.params.userType);
+      
       const { userType } = req.params;
-      const users = await User.find({ userType }).select('-password');
+      let users = [];
 
-      res.json({ success: true, data: users });
+      // Import and query the appropriate model based on user type
+      switch (userType.toLowerCase()) {
+        case 'hospital':
+          const Hospital = require('../models/Hospital');
+          users = await Hospital.find().select('-__v');
+          break;
+        case 'doctor':
+          const Doctor = require('../models/Doctor');
+          users = await Doctor.find().select('-__v');
+          break;
+        case 'nurse':
+          const Nurse = require('../models/Nurse');
+          users = await Nurse.find().select('-__v');
+          break;
+        case 'pharmacy':
+          const Pharmacy = require('../models/Pharmacy');
+          users = await Pharmacy.find().select('-__v');
+          break;
+        case 'lab':
+          const Lab = require('../models/Lab');
+          users = await Lab.find().select('-__v');
+          break;
+        default:
+          return res.status(400).json({ 
+            success: false, 
+            message: 'Invalid user type. Must be one of: hospital, doctor, nurse, pharmacy, lab' 
+          });
+      }
+
+      // Add userType to each user
+      const usersWithType = users.map(user => ({ 
+        ...user.toObject(), 
+        userType: userType.toLowerCase() 
+      }));
+
+      console.log(`✅ Found ${usersWithType.length} ${userType}s`);
+
+      res.json({ success: true, data: usersWithType });
     } catch (error) {
-      console.error('Get users by type error:', error);
+      console.error('❌ Get users by type error:', error);
       res.status(500).json({ success: false, message: 'Failed to get users' });
     }
   }
@@ -397,17 +381,52 @@ class StaffWebController {
   // Get user details
   async getUserDetails(req, res) {
     try {
-      // Authentication is handled by middleware
+      console.log('🔍 Fetching user details for:', req.params.userType, 'ID:', req.params.userId);
+      
       const { userType, userId } = req.params;
-      const user = await User.findById(userId).select('-password');
+      let user = null;
+
+      // Import and query the appropriate model based on user type
+      switch (userType.toLowerCase()) {
+        case 'hospital':
+          const Hospital = require('../models/Hospital');
+          user = await Hospital.findById(userId).select('-__v');
+          break;
+        case 'doctor':
+          const Doctor = require('../models/Doctor');
+          user = await Doctor.findById(userId).select('-__v');
+          break;
+        case 'nurse':
+          const Nurse = require('../models/Nurse');
+          user = await Nurse.findById(userId).select('-__v');
+          break;
+        case 'pharmacy':
+          const Pharmacy = require('../models/Pharmacy');
+          user = await Pharmacy.findById(userId).select('-__v');
+          break;
+        case 'lab':
+          const Lab = require('../models/Lab');
+          user = await Lab.findById(userId).select('-__v');
+          break;
+        default:
+          return res.status(400).json({ 
+            success: false, 
+            message: 'Invalid user type. Must be one of: hospital, doctor, nurse, pharmacy, lab' 
+          });
+      }
 
       if (!user) {
         return res.status(404).json({ success: false, message: 'User not found' });
       }
 
-      res.json({ success: true, data: user });
+      // Add userType to user data
+      const userData = { ...user.toObject(), userType: userType.toLowerCase() };
+
+      console.log(`✅ Found ${userType} with ID: ${userId}`);
+
+      res.json({ success: true, data: userData });
     } catch (error) {
-      console.error('Get user details error:', error);
+      console.error('❌ Get user details error:', error);
       res.status(500).json({ success: false, message: 'Failed to get user details' });
     }
   }
@@ -415,9 +434,39 @@ class StaffWebController {
   // Get user documents
   async getUserDocuments(req, res) {
     try {
-      // Authentication is handled by middleware
+      console.log('🔍 Fetching user documents for:', req.params.userType, 'ID:', req.params.userId);
+      
       const { userType, userId } = req.params;
-      const user = await User.findById(userId);
+      let user = null;
+
+      // Import and query the appropriate model based on user type
+      switch (userType.toLowerCase()) {
+        case 'hospital':
+          const Hospital = require('../models/Hospital');
+          user = await Hospital.findById(userId);
+          break;
+        case 'doctor':
+          const Doctor = require('../models/Doctor');
+          user = await Doctor.findById(userId);
+          break;
+        case 'nurse':
+          const Nurse = require('../models/Nurse');
+          user = await Nurse.findById(userId);
+          break;
+        case 'pharmacy':
+          const Pharmacy = require('../models/Pharmacy');
+          user = await Pharmacy.findById(userId);
+          break;
+        case 'lab':
+          const Lab = require('../models/Lab');
+          user = await Lab.findById(userId);
+          break;
+        default:
+          return res.status(400).json({ 
+            success: false, 
+            message: 'Invalid user type. Must be one of: hospital, doctor, nurse, pharmacy, lab' 
+          });
+      }
 
       if (!user) {
         return res.status(404).json({ success: false, message: 'User not found' });
@@ -426,23 +475,23 @@ class StaffWebController {
       // Extract document URLs based on user type
       let documents = {};
       
-      switch (userType) {
+      switch (userType.toLowerCase()) {
         case 'hospital':
           documents = {
             license: user.licenseDocumentUrl,
-            registration: user.registrationDocumentUrl
+            registration: user.registrationCertificateUrl
           };
           break;
         case 'doctor':
           documents = {
             license: user.licenseDocumentUrl,
-            medicalRegistration: user.medicalRegistrationDocumentUrl
+            medicalRegistration: user.medicalRegistrationNumber
           };
           break;
         case 'nurse':
           documents = {
             license: user.licenseDocumentUrl,
-            nursingRegistration: user.nursingRegistrationDocumentUrl
+            nursingRegistration: user.licenseNumber
           };
           break;
         case 'pharmacy':
@@ -471,11 +520,41 @@ class StaffWebController {
   // Verify documents
   async verifyDocuments(req, res) {
     try {
-      // Authentication is handled by middleware
+      console.log('🔍 Verifying documents for:', req.params.userType, 'ID:', req.params.userId);
+      
       const { userType, userId } = req.params;
       const { verificationStatus, notes } = req.body;
+      let user = null;
 
-      const user = await User.findById(userId);
+      // Import and query the appropriate model based on user type
+      switch (userType.toLowerCase()) {
+        case 'hospital':
+          const Hospital = require('../models/Hospital');
+          user = await Hospital.findById(userId);
+          break;
+        case 'doctor':
+          const Doctor = require('../models/Doctor');
+          user = await Doctor.findById(userId);
+          break;
+        case 'nurse':
+          const Nurse = require('../models/Nurse');
+          user = await Nurse.findById(userId);
+          break;
+        case 'pharmacy':
+          const Pharmacy = require('../models/Pharmacy');
+          user = await Pharmacy.findById(userId);
+          break;
+        case 'lab':
+          const Lab = require('../models/Lab');
+          user = await Lab.findById(userId);
+          break;
+        default:
+          return res.status(400).json({ 
+            success: false, 
+            message: 'Invalid user type. Must be one of: hospital, doctor, nurse, pharmacy, lab' 
+          });
+      }
+
       if (!user) {
         return res.status(404).json({ success: false, message: 'User not found' });
       }
@@ -489,13 +568,15 @@ class StaffWebController {
 
       await user.save();
 
+      console.log(`✅ Documents verified for ${userType} with ID: ${userId}`);
+
       res.json({ 
         success: true, 
         message: 'Documents verified successfully',
         data: user
       });
     } catch (error) {
-      console.error('Verify documents error:', error);
+      console.error('❌ Verify documents error:', error);
       res.status(500).json({ success: false, message: 'Failed to verify documents' });
     }
   }
