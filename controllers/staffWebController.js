@@ -111,6 +111,121 @@ class StaffWebController {
     }
   }
 
+  // Create test staff account (remove in production)
+  async createTestStaffAccount(req, res) {
+    try {
+      const { email, uid, fullName } = req.body;
+      console.log('🔧 Creating test staff account:', { email, uid, fullName });
+
+      const ArcStaff = require('../models/ArcStaff');
+      
+      // Check if staff already exists
+      const existingStaff = await ArcStaff.findOne({ email });
+      if (existingStaff) {
+        return res.json({
+          success: true,
+          message: 'Staff account already exists',
+          data: existingStaff
+        });
+      }
+
+      // Create new staff account
+      const newStaff = new ArcStaff({
+        uid: uid,
+        email: email,
+        fullName: fullName || email.split('@')[0],
+        userType: 'arc_staff',
+        role: 'arc_staff',
+        isApproved: true,
+        approvalStatus: 'approved',
+        status: 'active',
+        profileComplete: true,
+        canApproveHospitals: true,
+        canApproveDoctors: true,
+        canApproveLabs: true,
+        canApprovePharmacies: true,
+        canApproveNurses: true,
+        canViewReports: true,
+        canManageUsers: false
+      });
+
+      await newStaff.save();
+      console.log('✅ Test staff account created:', newStaff.email);
+
+      res.json({
+        success: true,
+        message: 'Test staff account created successfully',
+        data: newStaff
+      });
+
+    } catch (error) {
+      console.error('❌ Create test staff account error:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to create test staff account' 
+      });
+    }
+  }
+
+  // Get staff profile (for dashboard)
+  async getStaffProfile(req, res) {
+    try {
+      const { uid } = req.params;
+      console.log('🔍 Getting staff profile for UID:', uid);
+
+      const ArcStaff = require('../models/ArcStaff');
+      const staff = await ArcStaff.findOne({ 
+        uid: uid,
+        isApproved: true
+      }).select('-__v');
+
+      if (!staff) {
+        console.log('❌ Staff profile not found for UID:', uid);
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Staff profile not found' 
+        });
+      }
+
+      console.log('✅ Staff profile found:', {
+        email: staff.email,
+        userType: staff.userType,
+        name: staff.fullName
+      });
+
+      res.json({
+        success: true,
+        message: 'Staff profile loaded',
+        data: {
+          uid: staff.uid,
+          email: staff.email,
+          fullName: staff.fullName,
+          userType: staff.userType,
+          role: staff.role,
+          isApproved: staff.isApproved,
+          department: staff.department,
+          designation: staff.designation,
+          permissions: {
+            canApproveHospitals: staff.canApproveHospitals,
+            canApproveDoctors: staff.canApproveDoctors,
+            canApproveLabs: staff.canApproveLabs,
+            canApprovePharmacies: staff.canApprovePharmacies,
+            canApproveNurses: staff.canApproveNurses,
+            canViewReports: staff.canViewReports,
+            canManageUsers: staff.canManageUsers
+          }
+        }
+      });
+
+    } catch (error) {
+      console.error('❌ Get staff profile error:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to get staff profile' 
+      });
+    }
+  }
+
   // Get pending approvals
   async getPendingApprovals(req, res) {
     try {
