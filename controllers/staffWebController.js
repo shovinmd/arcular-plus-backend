@@ -552,6 +552,8 @@ class StaffWebController {
   // Approve stakeholder (matching frontend expectations)
   async approveStakeholder(req, res) {
     try {
+      console.log('🔍 Approving stakeholder with ID:', req.params.id);
+      
       // Authentication is handled by middleware
       const { id } = req.params;
 
@@ -584,8 +586,11 @@ class StaffWebController {
       }
 
       if (!user) {
+        console.log('❌ User not found in any role model');
         return res.status(404).json({ success: false, message: 'User not found' });
       }
+
+      console.log('✅ Found user in model:', userType, 'with email:', user.email);
 
       // Update user status
       user.isApproved = true;
@@ -595,22 +600,32 @@ class StaffWebController {
       user.approvedAt = new Date();
 
       await user.save();
+      console.log('✅ User status updated successfully');
 
       // Send approval email
       try {
         const userName = user.fullName || user.hospitalName || user.pharmacyName || user.labName;
+        console.log('📧 Sending approval email to:', user.email, 'for user:', userName);
+        
         await sendApprovalEmail(user.email, userName, userType, true, '');
-        console.log('✅ Approval email sent to user');
+        console.log('✅ Approval email sent successfully');
       } catch (emailError) {
         console.error('❌ Error sending approval email:', emailError);
+        // Don't fail the approval if email fails
       }
 
       res.json({ 
         success: true, 
-        message: 'Stakeholder approved successfully'
+        message: 'Stakeholder approved successfully',
+        data: {
+          id: user._id,
+          email: user.email,
+          userType: userType,
+          approvalStatus: user.approvalStatus
+        }
       });
     } catch (error) {
-      console.error('Approve stakeholder error:', error);
+      console.error('❌ Approve stakeholder error:', error);
       res.status(500).json({ success: false, message: 'Failed to approve stakeholder' });
     }
   }
@@ -618,6 +633,8 @@ class StaffWebController {
   // Reject stakeholder (matching frontend expectations)
   async rejectStakeholder(req, res) {
     try {
+      console.log('🔍 Rejecting stakeholder with ID:', req.params.id, 'Reason:', req.body.reason);
+      
       // Authentication is handled by middleware
       const { id } = req.params;
       const { reason } = req.body;
@@ -651,8 +668,11 @@ class StaffWebController {
       }
 
       if (!user) {
+        console.log('❌ User not found in any role model');
         return res.status(404).json({ success: false, message: 'User not found' });
       }
+
+      console.log('✅ Found user in model:', userType, 'with email:', user.email);
 
       // Update user status
       user.isApproved = false;
@@ -663,22 +683,32 @@ class StaffWebController {
       user.rejectionReason = reason || 'Application rejected';
 
       await user.save();
+      console.log('✅ User status updated to rejected');
 
       // Send rejection email
       try {
         const userName = user.fullName || user.hospitalName || user.pharmacyName || user.labName;
+        console.log('📧 Sending rejection email to:', user.email, 'for user:', userName);
+        
         await sendApprovalEmail(user.email, userName, userType, false, reason || 'Application rejected');
-        console.log('✅ Rejection email sent to user');
+        console.log('✅ Rejection email sent successfully');
       } catch (emailError) {
         console.error('❌ Error sending rejection email:', emailError);
+        // Don't fail the rejection if email fails
       }
 
       res.json({ 
         success: true, 
-        message: 'Stakeholder rejected successfully'
+        message: 'Stakeholder rejected successfully',
+        data: {
+          id: user._id,
+          email: user.email,
+          userType: userType,
+          approvalStatus: user.approvalStatus
+        }
       });
     } catch (error) {
-      console.error('Reject stakeholder error:', error);
+      console.error('❌ Reject stakeholder error:', error);
       res.status(500).json({ success: false, message: 'Failed to reject stakeholder' });
     }
   }
