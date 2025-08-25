@@ -21,16 +21,15 @@ router.get('/api/staff/test', staffController.testStaffAccounts);
 router.post('/api/staff/create-test', staffController.createTestStaffAccount);
 
 // Stakeholder management endpoints (matching existing frontend)
+// Note: These use the new approveStakeholder/rejectStakeholder methods that work with all service provider models
 router.get('/api/stakeholders/pending', verifyFirebaseToken, verifyStaffRole, staffController.getPendingStakeholders);
 router.post('/api/stakeholders/:id/approve', verifyFirebaseToken, verifyStaffRole, staffController.approveStakeholder);
 router.post('/api/stakeholders/:id/reject', verifyFirebaseToken, verifyStaffRole, staffController.rejectStakeholder);
 
 // Additional endpoints for future use
+// Note: approveUser, rejectUser, and requestDocuments methods were removed and replaced by approveStakeholder/rejectStakeholder
 router.get('/pending', verifyFirebaseToken, verifyStaffRole, staffController.getPendingApprovals);
 router.get('/pending/:userType', verifyFirebaseToken, verifyStaffRole, staffController.getPendingByType);
-router.post('/approve/:userType/:userId', verifyFirebaseToken, verifyStaffRole, staffController.approveUser);
-router.post('/reject/:userType/:userId', verifyFirebaseToken, verifyStaffRole, staffController.rejectUser);
-router.post('/request-documents/:userType/:userId', verifyFirebaseToken, verifyStaffRole, staffController.requestDocuments);
 router.get('/users/:userType', verifyFirebaseToken, verifyStaffRole, staffController.getUsersByType);
 router.get('/users/:userType/:userId', verifyFirebaseToken, verifyStaffRole, staffController.getUserDetails);
 router.get('/documents/:userType/:userId', verifyFirebaseToken, verifyStaffRole, staffController.getUserDocuments);

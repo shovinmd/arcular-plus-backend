@@ -27,7 +27,7 @@ class StaffWebController {
     try {
       // Authentication is handled by middleware for API calls
       // For page serving, we'll allow access and let the frontend handle auth
-      res.sendFile(path.join(__dirname, '../../Arcular Pluse Webpage/ARCstaff/index.html'));
+      res.sendFile(path.join(__dirname, '../../Arcular Pluse Webpage/ARCstaff/arcstaff-dashboard.html'));
     } catch (error) {
       console.error('Dashboard error:', error);
       res.status(500).json({ success: false, message: 'Failed to load dashboard' });
