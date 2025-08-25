@@ -35,4 +35,7 @@ router.get('/users/:userType/:userId', verifyFirebaseToken, verifyStaffRole, sta
 router.get('/documents/:userType/:userId', verifyFirebaseToken, verifyStaffRole, staffController.getUserDocuments);
 router.post('/documents/:userType/:userId/verify', verifyFirebaseToken, verifyStaffRole, staffController.verifyDocuments);
 
+// Enhanced service provider details endpoint for comprehensive staff review
+router.get('/service-provider/:userType/:userId', verifyFirebaseToken, verifyStaffRole, staffController.getServiceProviderDetails);
+
 module.exports = router;

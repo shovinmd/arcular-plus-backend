@@ -431,7 +431,7 @@ class StaffWebController {
     }
   }
 
-  // Get user documents
+  // Get user documents with enhanced details
   async getUserDocuments(req, res) {
     try {
       console.log('🔍 Fetching user documents for:', req.params.userType, 'ID:', req.params.userId);
@@ -472,45 +472,117 @@ class StaffWebController {
         return res.status(404).json({ success: false, message: 'User not found' });
       }
 
-      // Extract document URLs based on user type
+      // Extract comprehensive document URLs and details based on user type
       let documents = {};
+      let additionalInfo = {};
       
       switch (userType.toLowerCase()) {
         case 'hospital':
           documents = {
             license: user.licenseDocumentUrl,
-            registration: user.registrationCertificateUrl
+            registration: user.registrationCertificateUrl,
+            businessLicense: user.businessLicenseUrl,
+            taxRegistration: user.taxRegistrationUrl,
+            insuranceCertificate: user.insuranceCertificateUrl
+          };
+          additionalInfo = {
+            hospitalName: user.hospitalName,
+            registrationNumber: user.registrationNumber,
+            contactNumber: user.contactNumber,
+            address: user.address,
+            specialization: user.specialization,
+            bedCount: user.bedCount,
+            establishedYear: user.establishedYear
           };
           break;
         case 'doctor':
           documents = {
             license: user.licenseDocumentUrl,
-            medicalRegistration: user.medicalRegistrationNumber
+            medicalRegistration: user.medicalRegistrationNumber,
+            degreeCertificate: user.degreeCertificateUrl,
+            specializationCertificate: user.specializationCertificateUrl,
+            experienceCertificate: user.experienceCertificateUrl
+          };
+          additionalInfo = {
+            fullName: user.fullName,
+            medicalRegistrationNumber: user.medicalRegistrationNumber,
+            specialization: user.specialization,
+            experience: user.experience,
+            contactNumber: user.contactNumber,
+            address: user.address,
+            qualifications: user.qualifications
           };
           break;
         case 'nurse':
           documents = {
             license: user.licenseDocumentUrl,
-            nursingRegistration: user.licenseNumber
+            nursingRegistration: user.nursingRegistrationNumber,
+            degreeCertificate: user.degreeCertificateUrl,
+            experienceCertificate: user.experienceCertificateUrl
+          };
+          additionalInfo = {
+            fullName: user.fullName,
+            nursingRegistrationNumber: user.nursingRegistrationNumber,
+            department: user.department,
+            experience: user.experience,
+            contactNumber: user.contactNumber,
+            address: user.address,
+            qualifications: user.qualifications
           };
           break;
         case 'pharmacy':
           documents = {
             license: user.licenseDocumentUrl,
             drugLicense: user.drugLicenseUrl,
-            premisesCertificate: user.premisesCertificateUrl
+            premisesCertificate: user.premisesCertificateUrl,
+            taxRegistration: user.taxRegistrationUrl,
+            insuranceCertificate: user.insuranceCertificateUrl
+          };
+          additionalInfo = {
+            pharmacyName: user.pharmacyName,
+            drugLicenseNumber: user.drugLicenseNumber,
+            contactNumber: user.contactNumber,
+            address: user.address,
+            ownerName: user.ownerName,
+            establishedYear: user.establishedYear
           };
           break;
         case 'lab':
           documents = {
             license: user.licenseUrl,
             accreditationCertificate: user.accreditationCertificateUrl,
-            equipmentCertificate: user.equipmentCertificateUrl
+            equipmentCertificate: user.equipmentCertificateUrl,
+            qualityCertificate: user.qualityCertificateUrl,
+            taxRegistration: user.taxRegistrationUrl
+          };
+          additionalInfo = {
+            labName: user.labName,
+            licenseNumber: user.licenseNumber,
+            contactNumber: user.contactNumber,
+            address: user.address,
+            ownerName: user.ownerName,
+            establishedYear: user.establishedYear,
+            specializations: user.specializations
           };
           break;
       }
 
-      res.json({ success: true, data: documents });
+      // Filter out undefined/null documents
+      const filteredDocuments = Object.fromEntries(
+        Object.entries(documents).filter(([key, value]) => value != null)
+      );
+
+      res.json({ 
+        success: true, 
+        data: {
+          documents: filteredDocuments,
+          additionalInfo: additionalInfo,
+          userType: userType.toLowerCase(),
+          userId: userId,
+          approvalStatus: user.approvalStatus,
+          isApproved: user.isApproved
+        }
+      });
     } catch (error) {
       console.error('Get user documents error:', error);
       res.status(500).json({ success: false, message: 'Failed to get user documents' });
@@ -695,15 +767,32 @@ class StaffWebController {
         // Don't fail the approval if email fails
       }
 
+      // Prepare comprehensive response data
+      const responseData = {
+        id: user._id,
+        email: user.email,
+        userType: userType,
+        approvalStatus: user.approvalStatus,
+        approvedAt: user.approvedAt,
+        approvedBy: user.approvedBy,
+        // Include basic info for dashboard access
+        basicInfo: {
+          name: user.fullName || user.hospitalName || user.pharmacyName || user.labName,
+          contactNumber: user.contactNumber,
+          address: user.address
+        },
+        // Dashboard access instructions
+        dashboardAccess: {
+          message: `${userType.charAt(0).toUpperCase() + userType.slice(1)} can now login to their dashboard`,
+          loginUrl: `/auth/login`, // Frontend will handle the routing
+          dashboardUrl: `/${userType}/dashboard` // Frontend will handle the routing
+        }
+      };
+
       res.json({ 
         success: true, 
         message: 'Stakeholder approved successfully',
-        data: {
-          id: user._id,
-          email: user.email,
-          userType: userType,
-          approvalStatus: user.approvalStatus
-        }
+        data: responseData
       });
     } catch (error) {
       console.error('❌ Approve stakeholder error:', error);
@@ -778,15 +867,33 @@ class StaffWebController {
         // Don't fail the rejection if email fails
       }
 
+      // Prepare comprehensive response data for rejection
+      const responseData = {
+        id: user._id,
+        email: user.email,
+        userType: userType,
+        approvalStatus: user.approvalStatus,
+        rejectedAt: user.rejectedAt,
+        rejectedBy: user.rejectedBy,
+        rejectionReason: user.rejectionReason,
+        // Include basic info
+        basicInfo: {
+          name: user.fullName || user.hospitalName || user.pharmacyName || user.labName,
+          contactNumber: user.contactNumber,
+          address: user.address
+        },
+        // Rejection instructions
+        nextSteps: {
+          message: `${userType.charAt(0).toUpperCase() + userType.slice(1)} can reapply after addressing the rejection reason`,
+          reapplyUrl: `/auth/register/${userType}`,
+          contactInfo: 'Contact support for assistance'
+        }
+      };
+
       res.json({ 
         success: true, 
         message: 'Stakeholder rejected successfully',
-        data: {
-          id: user._id,
-          email: user.email,
-          userType: userType,
-          approvalStatus: user.approvalStatus
-        }
+        data: responseData
       });
     } catch (error) {
       console.error('❌ Reject stakeholder error:', error);
@@ -814,28 +921,268 @@ class StaffWebController {
       case 'hospital':
         if (user.licenseDocumentUrl) documents.push({ name: 'License', url: user.licenseDocumentUrl });
         if (user.registrationDocumentUrl) documents.push({ name: 'Registration', url: user.registrationDocumentUrl });
+        if (user.businessLicenseUrl) documents.push({ name: 'Business License', url: user.businessLicenseUrl });
+        if (user.taxRegistrationUrl) documents.push({ name: 'Tax Registration', url: user.taxRegistrationUrl });
+        if (user.insuranceCertificateUrl) documents.push({ name: 'Insurance Certificate', url: user.insuranceCertificateUrl });
         break;
       case 'doctor':
         if (user.licenseDocumentUrl) documents.push({ name: 'Medical License', url: user.licenseDocumentUrl });
         if (user.medicalRegistrationDocumentUrl) documents.push({ name: 'Medical Registration', url: user.medicalRegistrationDocumentUrl });
+        if (user.degreeCertificateUrl) documents.push({ name: 'Degree Certificate', url: user.degreeCertificateUrl });
+        if (user.specializationCertificateUrl) documents.push({ name: 'Specialization Certificate', url: user.specializationCertificateUrl });
+        if (user.experienceCertificateUrl) documents.push({ name: 'Experience Certificate', url: user.experienceCertificateUrl });
         break;
       case 'nurse':
         if (user.licenseDocumentUrl) documents.push({ name: 'Nursing License', url: user.licenseDocumentUrl });
         if (user.nursingRegistrationDocumentUrl) documents.push({ name: 'Nursing Registration', url: user.nursingRegistrationDocumentUrl });
+        if (user.degreeCertificateUrl) documents.push({ name: 'Degree Certificate', url: user.degreeCertificateUrl });
+        if (user.experienceCertificateUrl) documents.push({ name: 'Experience Certificate', url: user.experienceCertificateUrl });
         break;
       case 'pharmacy':
         if (user.licenseDocumentUrl) documents.push({ name: 'Pharmacy License', url: user.licenseDocumentUrl });
         if (user.drugLicenseUrl) documents.push({ name: 'Drug License', url: user.drugLicenseUrl });
         if (user.premisesCertificateUrl) documents.push({ name: 'Premises Certificate', url: user.premisesCertificateUrl });
+        if (user.taxRegistrationUrl) documents.push({ name: 'Tax Registration', url: user.taxRegistrationUrl });
+        if (user.insuranceCertificateUrl) documents.push({ name: 'Insurance Certificate', url: user.insuranceCertificateUrl });
         break;
       case 'lab':
         if (user.licenseUrl) documents.push({ name: 'Lab License', url: user.licenseUrl });
         if (user.accreditationCertificateUrl) documents.push({ name: 'Accreditation Certificate', url: user.accreditationCertificateUrl });
         if (user.equipmentCertificateUrl) documents.push({ name: 'Equipment Certificate', url: user.equipmentCertificateUrl });
+        if (user.qualityCertificateUrl) documents.push({ name: 'Quality Certificate', url: user.qualityCertificateUrl });
+        if (user.taxRegistrationUrl) documents.push({ name: 'Tax Registration', url: user.taxRegistrationUrl });
         break;
     }
     
     return documents;
+  }
+
+  // Get comprehensive service provider details for staff review
+  async getServiceProviderDetails(req, res) {
+    try {
+      console.log('🔍 Fetching comprehensive service provider details for:', req.params.userType, 'ID:', req.params.userId);
+      
+      const { userType, userId } = req.params;
+      let user = null;
+
+      // Import and query the appropriate model based on user type
+      switch (userType.toLowerCase()) {
+        case 'hospital':
+          const Hospital = require('../models/Hospital');
+          user = await Hospital.findById(userId);
+          break;
+        case 'doctor':
+          const Doctor = require('../models/Doctor');
+          user = await Doctor.findById(userId);
+          break;
+        case 'nurse':
+          const Nurse = require('../models/Nurse');
+          user = await Nurse.findById(userId);
+          break;
+        case 'pharmacy':
+          const Pharmacy = require('../models/Pharmacy');
+          user = await Pharmacy.findById(userId);
+          break;
+        case 'lab':
+          const Lab = require('../models/Lab');
+          user = await Lab.findById(userId);
+          break;
+        default:
+          return res.status(400).json({ 
+            success: false, 
+            message: 'Invalid user type. Must be one of: hospital, doctor, nurse, pharmacy, lab' 
+          });
+      }
+
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'User not found' });
+      }
+
+      // Extract comprehensive information based on user type
+      let providerInfo = {};
+      let documents = {};
+      
+      switch (userType.toLowerCase()) {
+        case 'hospital':
+          providerInfo = {
+            basicInfo: {
+              hospitalName: user.hospitalName,
+              registrationNumber: user.registrationNumber,
+              contactNumber: user.contactNumber,
+              email: user.email,
+              address: user.address,
+              specialization: user.specialization,
+              bedCount: user.bedCount,
+              establishedYear: user.establishedYear,
+              ownerName: user.ownerName
+            },
+            status: {
+              approvalStatus: user.approvalStatus,
+              isApproved: user.isApproved,
+              status: user.status,
+              registrationDate: user.registrationDate,
+              approvedAt: user.approvedAt,
+              approvedBy: user.approvedBy
+            }
+          };
+          documents = {
+            license: user.licenseDocumentUrl,
+            registration: user.registrationCertificateUrl,
+            businessLicense: user.businessLicenseUrl,
+            taxRegistration: user.taxRegistrationUrl,
+            insuranceCertificate: user.insuranceCertificateUrl
+          };
+          break;
+        case 'doctor':
+          providerInfo = {
+            basicInfo: {
+              fullName: user.fullName,
+              medicalRegistrationNumber: user.medicalRegistrationNumber,
+              specialization: user.specialization,
+              experience: user.experience,
+              contactNumber: user.contactNumber,
+              email: user.email,
+              address: user.address,
+              qualifications: user.qualifications,
+              dateOfBirth: user.dateOfBirth,
+              gender: user.gender
+            },
+            status: {
+              approvalStatus: user.approvalStatus,
+              isApproved: user.isApproved,
+              status: user.status,
+              registrationDate: user.registrationDate,
+              approvedAt: user.approvedAt,
+              approvedBy: user.approvedBy
+            }
+          };
+          documents = {
+            license: user.licenseDocumentUrl,
+            medicalRegistration: user.medicalRegistrationNumber,
+            degreeCertificate: user.degreeCertificateUrl,
+            specializationCertificate: user.specializationCertificateUrl,
+            experienceCertificate: user.experienceCertificateUrl
+          };
+          break;
+        case 'nurse':
+          providerInfo = {
+            basicInfo: {
+              fullName: user.fullName,
+              nursingRegistrationNumber: user.nursingRegistrationNumber,
+              department: user.department,
+              experience: user.experience,
+              contactNumber: user.contactNumber,
+              email: user.email,
+              address: user.address,
+              qualifications: user.qualifications,
+              dateOfBirth: user.dateOfBirth,
+              gender: user.gender
+            },
+            status: {
+              approvalStatus: user.approvalStatus,
+              isApproved: user.isApproved,
+              status: user.status,
+              registrationDate: user.registrationDate,
+              approvedAt: user.approvedAt,
+              approvedBy: user.approvedBy
+            }
+          };
+          documents = {
+            license: user.licenseDocumentUrl,
+            nursingRegistration: user.nursingRegistrationNumber,
+            degreeCertificate: user.degreeCertificateUrl,
+            experienceCertificate: user.experienceCertificateUrl
+          };
+          break;
+        case 'pharmacy':
+          providerInfo = {
+            basicInfo: {
+              pharmacyName: user.pharmacyName,
+              drugLicenseNumber: user.drugLicenseNumber,
+              contactNumber: user.contactNumber,
+              email: user.email,
+              address: user.address,
+              ownerName: user.ownerName,
+              establishedYear: user.establishedYear,
+              businessType: user.businessType
+            },
+            status: {
+              approvalStatus: user.approvalStatus,
+              isApproved: user.isApproved,
+              status: user.status,
+              registrationDate: user.registrationDate,
+              approvedAt: user.approvedAt,
+              approvedBy: user.approvedBy
+            }
+          };
+          documents = {
+            license: user.licenseDocumentUrl,
+            drugLicense: user.drugLicenseUrl,
+            premisesCertificate: user.premisesCertificateUrl,
+            taxRegistration: user.taxRegistrationUrl,
+            insuranceCertificate: user.insuranceCertificateUrl
+          };
+          break;
+        case 'lab':
+          providerInfo = {
+            basicInfo: {
+              labName: user.labName,
+              licenseNumber: user.licenseNumber,
+              contactNumber: user.contactNumber,
+              email: user.email,
+              address: user.address,
+              ownerName: user.ownerName,
+              establishedYear: user.establishedYear,
+              specializations: user.specializations
+            },
+            status: {
+              approvalStatus: user.approvalStatus,
+              isApproved: user.isApproved,
+              status: user.status,
+              registrationDate: user.registrationDate,
+              approvedAt: user.approvedAt,
+              approvedBy: user.approvedBy
+            }
+          };
+          documents = {
+            license: user.licenseUrl,
+            accreditationCertificate: user.accreditationCertificateUrl,
+            equipmentCertificate: user.equipmentCertificateUrl,
+            qualityCertificate: user.qualityCertificateUrl,
+            taxRegistration: user.taxRegistrationUrl
+          };
+          break;
+      }
+
+      // Filter out undefined/null documents
+      const filteredDocuments = Object.fromEntries(
+        Object.entries(documents).filter(([key, value]) => value != null)
+      );
+
+      res.json({ 
+        success: true, 
+        data: {
+          userType: userType.toLowerCase(),
+          userId: userId,
+          providerInfo: providerInfo,
+          documents: filteredDocuments,
+          // Approval workflow info
+          approvalWorkflow: {
+            canApprove: user.approvalStatus === 'pending',
+            canReject: user.approvalStatus === 'pending',
+            requiresDocuments: Object.keys(filteredDocuments).length > 0,
+            nextSteps: user.approvalStatus === 'pending' 
+              ? 'Review documents and approve/reject application'
+              : user.approvalStatus === 'approved'
+              ? 'User can access dashboard'
+              : 'User can reapply after addressing rejection reason'
+          }
+        }
+      });
+    } catch (error) {
+      console.error('❌ Get service provider details error:', error);
+      res.status(500).json({ success: false, message: 'Failed to get service provider details' });
+    }
   }
 }
 
