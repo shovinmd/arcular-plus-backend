@@ -1184,6 +1184,96 @@ class StaffWebController {
       res.status(500).json({ success: false, message: 'Failed to get service provider details' });
     }
   }
+
+  // Get pending profile changes from staff
+  async getPendingProfileChanges(req, res) {
+    try {
+      console.log('Getting pending profile changes...');
+      
+      // For now, return empty array - this will be implemented when we add profile change functionality
+      // In the future, this would query a ProfileChange model
+      res.json({
+        success: true,
+        pendingChanges: []
+      });
+    } catch (error) {
+      console.error('Error getting pending profile changes:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to get pending profile changes'
+      });
+    }
+  }
+
+  // Approve a profile change
+  async approveProfileChange(req, res) {
+    try {
+      const { changeId } = req.params;
+      console.log('Approving profile change:', changeId);
+      
+      // For now, return success - this will be implemented when we add profile change functionality
+      res.json({
+        success: true,
+        message: 'Profile change approved successfully'
+      });
+    } catch (error) {
+      console.error('Error approving profile change:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to approve profile change'
+      });
+    }
+  }
+
+  // Reject a profile change
+  async rejectProfileChange(req, res) {
+    try {
+      const { changeId } = req.params;
+      const { reason } = req.body;
+      console.log('Rejecting profile change:', changeId, 'Reason:', reason);
+      
+      // For now, return success - this will be implemented when we add profile change functionality
+      res.json({
+        success: true,
+        message: 'Profile change rejected successfully'
+      });
+    } catch (error) {
+      console.error('Error rejecting profile change:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to reject profile change'
+      });
+    }
+  }
+
+  // Submit a profile change request
+  async submitProfileChange(req, res) {
+    try {
+      const { fieldName, oldValue, newValue, reason } = req.body;
+      const staffUid = req.firebaseUid;
+      
+      console.log('Staff profile change request:', {
+        staffUid,
+        fieldName,
+        oldValue,
+        newValue,
+        reason
+      });
+
+      // For now, return success - this will be implemented when we add profile change functionality
+      // In the future, this would save to a ProfileChange model and notify admin
+      res.json({
+        success: true,
+        message: 'Profile change request submitted successfully. Waiting for admin approval.'
+      });
+    } catch (error) {
+      console.error('Error submitting profile change:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to submit profile change request'
+      });
+    }
+  }
 }
 
 module.exports = new StaffWebController();

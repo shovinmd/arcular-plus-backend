@@ -218,10 +218,74 @@ const deleteAdmin = async (req, res) => {
   }
 };
 
+// Get pending profile changes from staff
+const getPendingProfileChanges = async (req, res) => {
+  try {
+    console.log('Getting pending profile changes...');
+    
+    // For now, return empty array - this will be implemented when we add profile change functionality
+    // In the future, this would query a ProfileChange model
+    res.json({
+      success: true,
+      pendingChanges: []
+    });
+  } catch (error) {
+    console.error('Error getting pending profile changes:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get pending profile changes'
+    });
+  }
+};
+
+// Approve a profile change
+const approveProfileChange = async (req, res) => {
+  try {
+    const { changeId } = req.params;
+    console.log('Approving profile change:', changeId);
+    
+    // For now, return success - this will be implemented when we add profile change functionality
+    res.json({
+      success: true,
+      message: 'Profile change approved successfully'
+    });
+  } catch (error) {
+    console.error('Error approving profile change:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to approve profile change'
+    });
+  }
+};
+
+// Reject a profile change
+const rejectProfileChange = async (req, res) => {
+  try {
+    const { changeId } = req.params;
+    const { reason } = req.body;
+    console.log('Rejecting profile change:', changeId, 'Reason:', reason);
+    
+    // For now, return success - this will be implemented when we add profile change functionality
+    res.json({
+      success: true,
+      message: 'Profile change rejected successfully'
+    });
+  } catch (error) {
+    console.error('Error rejecting profile change:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to reject profile change'
+    });
+  }
+};
+
 module.exports = {
   registerAdmin,
   getAdminInfo,
   getAllAdmins,
   updateAdmin,
   deleteAdmin,
+  getPendingProfileChanges,
+  approveProfileChange,
+  rejectProfileChange,
 }; 

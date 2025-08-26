@@ -38,4 +38,12 @@ router.post('/documents/:userType/:userId/verify', verifyFirebaseToken, verifySt
 // Enhanced service provider details endpoint for comprehensive staff review
 router.get('/service-provider/:userType/:userId', verifyFirebaseToken, verifyStaffRole, staffController.getServiceProviderDetails);
 
+// Staff profile change routes
+router.get('/staff/profile-changes', verifyFirebaseToken, verifyStaffRole, staffController.getPendingProfileChanges);
+router.post('/staff/profile-changes/:changeId/approve', verifyFirebaseToken, verifyStaffRole, staffController.approveProfileChange);
+router.post('/staff/profile-changes/:changeId/reject', verifyFirebaseToken, verifyStaffRole, staffController.rejectProfileChange);
+
+// Staff profile change submission route
+router.post('/staff/profile-changes', verifyFirebaseToken, verifyStaffRole, staffController.submitProfileChange);
+
 module.exports = router;
