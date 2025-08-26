@@ -26,6 +26,9 @@ router.get('/api/stakeholders/pending', verifyFirebaseToken, verifyStaffRole, st
 router.post('/api/stakeholders/:id/approve', verifyFirebaseToken, verifyStaffRole, staffController.approveStakeholder);
 router.post('/api/stakeholders/:id/reject', verifyFirebaseToken, verifyStaffRole, staffController.rejectStakeholder);
 
+// Document request route
+router.post('/api/stakeholders/:id/request-documents', verifyFirebaseToken, verifyStaffRole, staffController.requestDocuments);
+
 // Additional endpoints for future use
 // Note: approveUser, rejectUser, and requestDocuments methods were removed and replaced by approveStakeholder/rejectStakeholder
 router.get('/pending', verifyFirebaseToken, verifyStaffRole, staffController.getPendingApprovals);

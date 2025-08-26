@@ -803,11 +803,15 @@ class StaffWebController {
   // Reject stakeholder (matching frontend expectations)
   async rejectStakeholder(req, res) {
     try {
-      console.log('🔍 Rejecting stakeholder with ID:', req.params.id, 'Reason:', req.body.reason);
+      console.log('🔍 Rejecting stakeholder with ID:', req.params.id);
       
       // Authentication is handled by middleware
       const { id } = req.params;
       const { reason } = req.body;
+
+      if (!reason) {
+        return res.status(400).json({ success: false, message: 'Rejection reason is required' });
+      }
 
       // Import all role models
       const Hospital = require('../models/Hospital');
@@ -847,57 +851,132 @@ class StaffWebController {
       // Update user status
       user.isApproved = false;
       user.approvalStatus = 'rejected';
-      user.status = 'inactive';
+      user.status = 'rejected';
       user.rejectedBy = req.firebaseUid;
       user.rejectedAt = new Date();
-      user.rejectionReason = reason || 'Application rejected';
+      user.rejectionReason = reason;
 
       await user.save();
-      console.log('✅ User status updated to rejected');
+      console.log('✅ User status updated successfully');
 
       // Send rejection email
       try {
         const userName = user.fullName || user.hospitalName || user.pharmacyName || user.labName;
         console.log('📧 Sending rejection email to:', user.email, 'for user:', userName);
         
-        await sendApprovalEmail(user.email, userName, userType, false, reason || 'Application rejected');
+        await sendApprovalEmail(user.email, userName, userType, false, reason);
         console.log('✅ Rejection email sent successfully');
       } catch (emailError) {
         console.error('❌ Error sending rejection email:', emailError);
         // Don't fail the rejection if email fails
       }
 
-      // Prepare comprehensive response data for rejection
-      const responseData = {
-        id: user._id,
-        email: user.email,
-        userType: userType,
-        approvalStatus: user.approvalStatus,
-        rejectedAt: user.rejectedAt,
-        rejectedBy: user.rejectedBy,
-        rejectionReason: user.rejectionReason,
-        // Include basic info
-        basicInfo: {
-          name: user.fullName || user.hospitalName || user.pharmacyName || user.labName,
-          contactNumber: user.contactNumber,
-          address: user.address
-        },
-        // Rejection instructions
-        nextSteps: {
-          message: `${userType.charAt(0).toUpperCase() + userType.slice(1)} can reapply after addressing the rejection reason`,
-          reapplyUrl: `/auth/register/${userType}`,
-          contactInfo: 'Contact support for assistance'
-        }
-      };
-
       res.json({ 
         success: true, 
         message: 'Stakeholder rejected successfully',
-        data: responseData
+        data: {
+          id: user._id,
+          email: user.email,
+          userType: userType,
+          approvalStatus: user.approvalStatus,
+          rejectedAt: user.rejectedAt,
+          rejectedBy: user.rejectedBy,
+          rejectionReason: user.rejectionReason
+        }
       });
     } catch (error) {
       console.error('❌ Reject stakeholder error:', error);
       res.status(500).json({ success: false, message: 'Failed to reject stakeholder' });
+    }
+  }
+
+  // Request documents from stakeholder
+  async requestDocuments(req, res) {
+    try {
+      console.log('🔍 Requesting documents from stakeholder with ID:', req.params.id);
+      
+      // Authentication is handled by middleware
+      const { id } = req.params;
+      const { requiredDocuments, deadline, notes } = req.body;
+
+      if (!requiredDocuments || !Array.isArray(requiredDocuments) || requiredDocuments.length === 0) {
+        return res.status(400).json({ success: false, message: 'Required documents list is required' });
+      }
+
+      // Import all role models
+      const Hospital = require('../models/Hospital');
+      const Doctor = require('../models/Doctor');
+      const Nurse = require('../models/Nurse');
+      const Pharmacy = require('../models/Pharmacy');
+      const Lab = require('../models/Lab');
+
+      // Try to find the user in each model
+      let user = await Hospital.findById(id);
+      let userType = 'hospital';
+      
+      if (!user) {
+        user = await Doctor.findById(id);
+        userType = 'doctor';
+      }
+      if (!user) {
+        user = await Nurse.findById(id);
+        userType = 'nurse';
+      }
+      if (!user) {
+        user = await Pharmacy.findById(id);
+        userType = 'pharmacy';
+      }
+      if (!user) {
+        user = await Lab.findById(id);
+        userType = 'lab';
+      }
+
+      if (!user) {
+        console.log('❌ User not found in any role model');
+        return res.status(404).json({ success: false, message: 'User not found' });
+      }
+
+      console.log('✅ Found user in model:', userType, 'with email:', user.email);
+
+      // Store document request
+      user.documentRequests = user.documentRequests || [];
+      user.documentRequests.push({
+        requestedBy: req.firebaseUid,
+        requestedAt: new Date(),
+        requiredDocuments: requiredDocuments,
+        deadline: deadline ? new Date(deadline) : null,
+        notes: notes || '',
+        status: 'pending'
+      });
+
+      await user.save();
+      console.log('✅ Document request stored successfully');
+
+      // Send document request notification email
+      try {
+        const userName = user.fullName || user.hospitalName || user.pharmacyName || user.labName;
+        console.log('📧 Sending document request notification to:', user.email, 'for user:', userName);
+        
+        await sendDocumentReviewNotification(user.email, userName, userType, requiredDocuments, deadline, notes);
+        console.log('✅ Document request notification sent successfully');
+      } catch (emailError) {
+        console.error('❌ Error sending document request notification:', emailError);
+        // Don't fail the request if email fails
+      }
+
+      res.json({ 
+        success: true, 
+        message: 'Document request sent successfully',
+        data: {
+          id: user._id,
+          email: user.email,
+          userType: userType,
+          documentRequest: user.documentRequests[user.documentRequests.length - 1]
+        }
+      });
+    } catch (error) {
+      console.error('❌ Request documents error:', error);
+      res.status(500).json({ success: false, message: 'Failed to request documents' });
     }
   }
 
