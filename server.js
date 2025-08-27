@@ -51,7 +51,7 @@ app.use(cors({
     'http://localhost:55853', // Add the new staff domain
     'http://localhost:3000',
     'http://localhost:3001',
-    'http://localhost:5500',
+    'http://localhost:59160',
     'http://127.0.0.1:5500',
     'http://127.0.0.1:3000',
     'null' // Allow file:// protocol for local testing
