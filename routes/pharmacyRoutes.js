@@ -26,6 +26,9 @@ router.get('/uid/:uid', firebaseAuthMiddleware, pharmacyController.getPharmacyBy
 // Get pharmacy by email (for login verification)
 router.get('/email/:email', firebaseAuthMiddleware, pharmacyController.getPharmacyByEmail);
 
+// Get pharmacy by email (for login verification - unprotected)
+router.get('/login-email/:email', pharmacyController.getPharmacyByEmail);
+
 // Get pharmacy by ID (generic route - must come last)
 router.get('/:id', firebaseAuthMiddleware, pharmacyController.getPharmacyById);
 

@@ -26,6 +26,9 @@ router.get('/uid/:uid', firebaseAuthMiddleware, labController.getLabByUID);
 // Get lab by email (for login verification)
 router.get('/email/:email', firebaseAuthMiddleware, labController.getLabByEmail);
 
+// Get lab by email (for login verification - unprotected)
+router.get('/login-email/:email', labController.getLabByEmail);
+
 // Get lab by ID (generic route - must come last)
 router.get('/:id', firebaseAuthMiddleware, labController.getLabById);
 

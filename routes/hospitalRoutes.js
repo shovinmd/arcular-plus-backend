@@ -22,6 +22,9 @@ router.get('/uid/:uid', firebaseAuthMiddleware, hospitalController.getHospitalPr
 // Get hospital by email (for login verification)
 router.get('/email/:email', firebaseAuthMiddleware, hospitalController.getHospitalByEmail);
 
+// Get hospital by email (for login verification - unprotected)
+router.get('/login-email/:email', hospitalController.getHospitalByEmail);
+
 // Hospital approval status check
 router.get('/:uid/approval-status', firebaseAuthMiddleware, hospitalController.getHospitalApprovalStatus);
 

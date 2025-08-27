@@ -26,6 +26,9 @@ router.get('/uid/:uid', firebaseAuthMiddleware, nurseController.getNurseByUID);
 // Get nurse by email (for login verification)
 router.get('/email/:email', firebaseAuthMiddleware, nurseController.getNurseByEmail);
 
+// Get nurse by email (for login verification - unprotected)
+router.get('/login-email/:email', nurseController.getNurseByEmail);
+
 // Get nurse by ID (generic route - must come last)
 router.get('/:id', firebaseAuthMiddleware, nurseController.getNurseById);
 
