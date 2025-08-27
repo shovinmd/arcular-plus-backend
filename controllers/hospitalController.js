@@ -386,10 +386,6 @@ exports.getHospitalByEmail = async (req, res) => {
       });
     }
     
-    // Convert to plain object and add type field
-    const hospitalData = hospital.toObject();
-    hospitalData.type = 'hospital';
-    
     res.json({
       success: true,
       data: hospital
