@@ -50,7 +50,7 @@ app.use(cors({
     'https://arcular-plus-staffs.vercel.app',
     'http://localhost:55853', // Add the new staff domain
     'http://localhost:3000',
-    'http://localhost:50093',
+    'http://localhost:52520',
     'http://localhost:64413',
     'http://127.0.0.1:5500',
     'http://127.0.0.1:3000',

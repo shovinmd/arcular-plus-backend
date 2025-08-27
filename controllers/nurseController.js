@@ -33,7 +33,7 @@ const registerNurse = async (req, res) => {
     // Create new nurse user in Nurse model
     const newNurse = new Nurse({
       ...userData,
-      status: userData.status || 'pending',
+      status: 'active', // Changed from 'pending' to 'active' (valid enum value)
       isApproved: false,
       approvalStatus: 'pending',
       registrationDate: new Date(),
