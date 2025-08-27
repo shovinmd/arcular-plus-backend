@@ -51,6 +51,12 @@ const nurseSchema = new mongoose.Schema({
     unique: true,
     trim: true
   },
+  registrationNumber: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true
+  },
   licenseDocumentUrl: {
     type: String,
     required: true
