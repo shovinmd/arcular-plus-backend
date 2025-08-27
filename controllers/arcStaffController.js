@@ -258,44 +258,52 @@ const getPendingApprovals = async (req, res) => {
     const pendingUsers = [];
     
     if (staff.canApproveHospitals) {
-      const hospitals = await User.find({ 
-        type: 'hospital',
+      const Hospital = require('../models/Hospital');
+      const hospitals = await Hospital.find({ 
+        isApproved: false,
         approvalStatus: 'pending'
-      }).select('uid fullName email hospitalName createdAt');
+      }).select('uid fullName email hospitalName createdAt licenseDocumentUrl registrationCertificateUrl buildingPermitUrl profileImageUrl');
       pendingUsers.push(...hospitals.map(h => ({ ...h.toObject(), userType: 'hospital' })));
     }
     
     if (staff.canApproveDoctors) {
-      const doctors = await User.find({ 
-        type: 'doctor',
+      const Doctor = require('../models/Doctor');
+      const doctors = await Doctor.find({ 
+        isApproved: false,
         approvalStatus: 'pending'
-      }).select('uid fullName email createdAt');
+      }).select('uid fullName email createdAt licenseDocumentUrl profileImageUrl medicalRegistrationNumber specialization');
       pendingUsers.push(...doctors.map(d => ({ ...d.toObject(), userType: 'doctor' })));
     }
     
     if (staff.canApproveLabs) {
-      const labs = await User.find({ 
-        type: 'lab',
+      const Lab = require('../models/Lab');
+      const labs = await Lab.find({ 
+        isApproved: false,
         approvalStatus: 'pending'
-      }).select('uid fullName email createdAt');
+      }).select('uid fullName email labName createdAt licenseDocumentUrl profileImageUrl');
       pendingUsers.push(...labs.map(l => ({ ...l.toObject(), userType: 'lab' })));
     }
     
     if (staff.canApprovePharmacies) {
-      const pharmacies = await User.find({ 
-        type: 'pharmacy',
+      const Pharmacy = require('../models/Pharmacy');
+      const pharmacies = await Pharmacy.find({ 
+        isApproved: false,
         approvalStatus: 'pending'
-      }).select('uid fullName email createdAt');
+      }).select('uid fullName email pharmacyName createdAt licenseDocumentUrl profileImageUrl');
       pendingUsers.push(...pharmacies.map(p => ({ ...p.toObject(), userType: 'pharmacy' })));
     }
     
     if (staff.canApproveNurses) {
-      const nurses = await User.find({ 
-        type: 'nurse',
+      const Nurse = require('../models/Nurse');
+      const nurses = await Nurse.find({ 
+        isApproved: false,
         approvalStatus: 'pending'
-      }).select('uid fullName email createdAt');
+      }).select('uid fullName email createdAt licenseDocumentUrl profileImageUrl registrationNumber');
       pendingUsers.push(...nurses.map(n => ({ ...n.toObject(), userType: 'nurse' })));
     }
+
+    console.log('✅ Found pending users:', pendingUsers.length);
+    console.log('📋 Pending users:', pendingUsers.map(u => ({ userType: u.userType, email: u.email, name: u.fullName || u.hospitalName || u.labName || u.pharmacyName })));
 
     res.status(200).json({
       success: true,
