@@ -76,6 +76,9 @@ router.post('/register', firebaseAuthMiddleware, async (req, res) => {
 // Get all doctors
 router.get('/', firebaseAuthMiddleware, doctorController.getAllDoctors);
 
+// Get doctor by UID
+router.get('/uid/:uid', firebaseAuthMiddleware, doctorController.getDoctorByUID);
+
 // Staff routes for pending approvals
 router.get('/pending-approvals', firebaseAuthMiddleware, doctorController.getPendingApprovalsForStaff);
 router.post('/:doctorId/approve', firebaseAuthMiddleware, doctorController.approveDoctorByStaff);
