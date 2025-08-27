@@ -205,6 +205,49 @@ const getLabsByCity = async (req, res) => {
   }
 };
 
+// Search labs
+const searchLabs = async (req, res) => {
+  try {
+    const { query, city, specialization } = req.query;
+    
+    let searchCriteria = {};
+    
+    if (query) {
+      searchCriteria.$or = [
+        { labName: { $regex: query, $options: 'i' } },
+        { ownerName: { $regex: query, $options: 'i' } },
+        { specialization: { $regex: query, $options: 'i' } }
+      ];
+    }
+    
+    if (city) {
+      searchCriteria.city = { $regex: city, $options: 'i' };
+    }
+    
+    if (specialization) {
+      searchCriteria.specialization = { $regex: specialization, $options: 'i' };
+    }
+    
+    // Only return approved labs
+    searchCriteria.isApproved = true;
+    
+    const labs = await Lab.find(searchCriteria).limit(20);
+    
+    res.json({
+      success: true,
+      data: labs,
+      count: labs.length
+    });
+  } catch (error) {
+    console.error('Error searching labs:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to search labs',
+      error: error.message
+    });
+  }
+};
+
 // Get labs by service
 const getLabsByService = async (req, res) => {
   try {
@@ -307,16 +350,134 @@ const rejectLab = async (req, res) => {
   }
 };
 
+// Get pending approvals for staff
+const getPendingApprovalsForStaff = async (req, res) => {
+  try {
+    const pendingLabs = await Lab.find({ 
+      isApproved: false, 
+      approvalStatus: 'pending' 
+    }).select('-__v').sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      data: pendingLabs,
+      count: pendingLabs.length
+    });
+  } catch (error) {
+    console.error('Error fetching pending approvals for staff:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch pending approvals'
+    });
+  }
+};
+
+// Approve lab by staff
+const approveLabByStaff = async (req, res) => {
+  try {
+    const { labId } = req.params;
+    const { approvedBy, notes } = req.body;
+    
+    const lab = await Lab.findById(labId);
+    if (!lab) {
+      return res.status(404).json({
+        success: false,
+        error: 'Lab not found'
+      });
+    }
+
+    // Update approval status
+    lab.isApproved = true;
+    lab.approvalStatus = 'approved';
+    lab.approvedAt = new Date();
+    lab.approvedBy = approvedBy || 'staff';
+    lab.approvalNotes = notes || 'Approved by staff';
+    
+    await lab.save();
+
+    // Send approval email
+    try {
+      await sendApprovalEmail(lab.email, lab.labName, 'lab', true, notes);
+      console.log('✅ Approval email sent to lab');
+    } catch (emailError) {
+      console.error('❌ Error sending approval email:', emailError);
+    }
+    
+    res.json({
+      success: true,
+      message: 'Lab approved successfully',
+      data: lab
+    });
+  } catch (error) {
+    console.error('Error approving lab by staff:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to approve lab'
+    });
+  }
+};
+
+// Reject lab by staff
+const rejectLabByStaff = async (req, res) => {
+  try {
+    const { labId } = req.params;
+    const { rejectedBy, reason, category, nextSteps } = req.body;
+    
+    const lab = await Lab.findById(labId);
+    if (!lab) {
+      return res.status(404).json({
+        success: false,
+        error: 'Lab not found'
+      });
+    }
+
+    // Update rejection status
+    lab.isApproved = false;
+    lab.approvalStatus = 'rejected';
+    lab.rejectedAt = new Date();
+    lab.rejectedBy = rejectedBy || 'staff';
+    lab.rejectionReason = reason;
+    lab.rejectionCategory = category;
+    lab.nextSteps = nextSteps;
+    
+    await lab.save();
+
+    // Send rejection email
+    try {
+      await sendApprovalEmail(lab.email, lab.labName, 'lab', false, reason);
+      console.log('✅ Rejection email sent to lab');
+    } catch (emailError) {
+      console.error('❌ Error sending rejection email:', emailError);
+    }
+    
+    res.json({
+      success: true,
+      message: 'Lab rejected successfully',
+      data: lab
+    });
+  } catch (error) {
+    console.error('Error rejecting lab by staff:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to reject lab'
+    });
+  }
+};
+
 module.exports = {
   registerLab,
+  getAllLabs,
   getLabById,
   getLabByUID,
-  getAllLabs,
   updateLab,
   deleteLab,
   getLabsByCity,
   getLabsByService,
+  searchLabs,
   getPendingApprovals,
   approveLab,
-  rejectLab
+  rejectLab,
+  getPendingApprovalsForStaff,
+  approveLabByStaff,
+  rejectLabByStaff
 }; 

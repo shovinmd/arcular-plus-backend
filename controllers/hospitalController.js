@@ -232,7 +232,12 @@ exports.approveHospital = async (req, res) => {
     await hospital.save();
     
     // Send approval email
-    await sendApprovalEmail(hospital.email, hospital.hospitalName, true, '');
+    try {
+      await sendApprovalEmail(hospital.email, hospital.hospitalName, 'hospital', true, '');
+      console.log('✅ Approval email sent to hospital');
+    } catch (emailError) {
+      console.error('❌ Error sending approval email:', emailError);
+    }
     
     // Send welcome email
     try {
@@ -272,7 +277,7 @@ exports.rejectHospital = async (req, res) => {
     await hospital.save();
     
     // Send rejection email
-    await sendApprovalEmail(hospital.email, hospital.hospitalName, false, reason);
+    await sendApprovalEmail(hospital.email, hospital.hospitalName, 'hospital', false, reason);
     
     res.json({ 
       message: 'Hospital rejected successfully',
@@ -312,7 +317,12 @@ exports.updateApprovalStatus = async (req, res) => {
     await hospital.save();
     
     // Send email notification
-    await sendApprovalEmail(hospital.email, hospital.hospitalName, status === 'approved', notes);
+    try {
+      await sendApprovalEmail(hospital.email, hospital.hospitalName, 'hospital', status === 'approved', notes);
+      console.log('✅ Status update email sent to hospital');
+    } catch (emailError) {
+      console.error('❌ Error sending status update email:', emailError);
+    }
     
     res.json({ 
       message: `Hospital status updated to ${status}`,
@@ -426,3 +436,117 @@ exports.getDocuments = async (req, res) => res.status(501).json({ error: 'Not im
 exports.uploadDocument = async (req, res) => res.status(501).json({ error: 'Not implemented' });
 exports.getNotifications = async (req, res) => res.status(501).json({ error: 'Not implemented' });
 exports.updateSettings = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+
+// Get pending approvals for staff
+exports.getPendingApprovalsForStaff = async (req, res) => {
+  try {
+    const pendingHospitals = await Hospital.find({ 
+      isApproved: false, 
+      approvalStatus: 'pending' 
+    }).select('-__v').sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      data: pendingHospitals,
+      count: pendingHospitals.length
+    });
+  } catch (error) {
+    console.error('Error fetching pending approvals for staff:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch pending approvals'
+    });
+  }
+};
+
+// Approve hospital by staff
+exports.approveHospitalByStaff = async (req, res) => {
+  try {
+    const { hospitalId } = req.params;
+    const { approvedBy, notes } = req.body;
+    
+    const hospital = await Hospital.findById(hospitalId);
+    if (!hospital) {
+      return res.status(404).json({
+        success: false,
+        error: 'Hospital not found'
+      });
+    }
+
+    // Update approval status
+    hospital.isApproved = true;
+    hospital.approvalStatus = 'approved';
+    hospital.approvedAt = new Date();
+    hospital.approvedBy = approvedBy || 'staff';
+    hospital.approvalNotes = notes || 'Approved by staff';
+    
+    await hospital.save();
+
+    // Send approval email
+    try {
+      await sendApprovalEmail(hospital.email, hospital.hospitalName, 'hospital', true, notes);
+      console.log('✅ Approval email sent to hospital');
+    } catch (emailError) {
+      console.error('❌ Error sending approval email:', emailError);
+    }
+    
+    res.json({
+      success: true,
+      message: 'Hospital approved successfully',
+      data: hospital
+    });
+  } catch (error) {
+    console.error('Error approving hospital by staff:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to approve hospital'
+    });
+  }
+};
+
+// Reject hospital by staff
+exports.rejectHospitalByStaff = async (req, res) => {
+  try {
+    const { hospitalId } = req.params;
+    const { rejectedBy, reason, category, nextSteps } = req.body;
+    
+    const hospital = await Hospital.findById(hospitalId);
+    if (!hospital) {
+      return res.status(404).json({
+        success: false,
+        error: 'Hospital not found'
+      });
+    }
+
+    // Update rejection status
+    hospital.isApproved = false;
+    hospital.approvalStatus = 'rejected';
+    hospital.rejectedAt = new Date();
+    hospital.rejectedBy = rejectedBy || 'staff';
+    hospital.rejectionReason = reason;
+    hospital.rejectionCategory = category;
+    hospital.nextSteps = nextSteps;
+    
+    await hospital.save();
+
+    // Send rejection email
+    try {
+      await sendApprovalEmail(hospital.email, hospital.hospitalName, 'hospital', false, reason);
+      console.log('✅ Rejection email sent to hospital');
+    } catch (emailError) {
+      console.error('❌ Error sending rejection email:', emailError);
+    }
+    
+    res.json({
+      success: true,
+      message: 'Hospital rejected successfully',
+      data: hospital
+    });
+  } catch (error) {
+    console.error('Error rejecting hospital by staff:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to reject hospital'
+    });
+  }
+};

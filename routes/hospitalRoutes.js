@@ -11,6 +11,11 @@ router.post('/admin/:hospitalId/approve', authenticateToken, hospitalController.
 router.post('/admin/:hospitalId/reject', authenticateToken, hospitalController.rejectHospital);
 router.put('/admin/:hospitalId/status', authenticateToken, hospitalController.updateApprovalStatus);
 
+// Staff routes for pending approvals
+router.get('/pending-approvals', firebaseAuthMiddleware, hospitalController.getPendingApprovalsForStaff);
+router.post('/:hospitalId/approve', firebaseAuthMiddleware, hospitalController.approveHospitalByStaff);
+router.post('/:hospitalId/reject', firebaseAuthMiddleware, hospitalController.rejectHospitalByStaff);
+
 // Get hospital by UID (for login) - MUST BE BEFORE GENERIC :id ROUTES
 router.get('/uid/:uid', firebaseAuthMiddleware, hospitalController.getHospitalProfile);
 

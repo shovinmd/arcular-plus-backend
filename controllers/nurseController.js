@@ -313,6 +313,120 @@ const rejectNurse = async (req, res) => {
   }
 };
 
+// Get pending approvals for staff
+const getPendingApprovalsForStaff = async (req, res) => {
+  try {
+    const pendingNurses = await Nurse.find({ 
+      isApproved: false, 
+      approvalStatus: 'pending' 
+    }).select('-__v').sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      data: pendingNurses,
+      count: pendingNurses.length
+    });
+  } catch (error) {
+    console.error('Error fetching pending approvals for staff:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch pending approvals'
+    });
+  }
+};
+
+// Approve nurse by staff
+const approveNurseByStaff = async (req, res) => {
+  try {
+    const { nurseId } = req.params;
+    const { approvedBy, notes } = req.body;
+    
+    const nurse = await Nurse.findById(nurseId);
+    if (!nurse) {
+      return res.status(404).json({
+        success: false,
+        error: 'Nurse not found'
+      });
+    }
+
+    // Update approval status
+    nurse.isApproved = true;
+    nurse.approvalStatus = 'approved';
+    nurse.approvedAt = new Date();
+    nurse.approvedBy = approvedBy || 'staff';
+    nurse.approvalNotes = notes || 'Approved by staff';
+    
+    await nurse.save();
+
+    // Send approval email
+    try {
+      await sendApprovalEmail(nurse.email, nurse.fullName, 'nurse', true, notes);
+      console.log('✅ Approval email sent to nurse');
+    } catch (emailError) {
+      console.error('❌ Error sending approval email:', emailError);
+    }
+    
+    res.json({
+      success: true,
+      message: 'Nurse approved successfully',
+      data: nurse
+    });
+  } catch (error) {
+    console.error('Error approving nurse by staff:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to approve nurse'
+    });
+  }
+};
+
+// Reject nurse by staff
+const rejectNurseByStaff = async (req, res) => {
+  try {
+    const { nurseId } = req.params;
+    const { rejectedBy, reason, category, nextSteps } = req.body;
+    
+    const nurse = await Nurse.findById(nurseId);
+    if (!nurse) {
+      return res.status(404).json({
+        success: false,
+        error: 'Nurse not found'
+      });
+    }
+
+    // Update rejection status
+    nurse.isApproved = false;
+    nurse.approvalStatus = 'rejected';
+    nurse.rejectedAt = new Date();
+    nurse.rejectedBy = rejectedBy || 'staff';
+    nurse.rejectionReason = reason;
+    nurse.rejectionCategory = category;
+    nurse.nextSteps = nextSteps;
+    
+    await nurse.save();
+
+    // Send rejection email
+    try {
+      await sendApprovalEmail(nurse.email, nurse.fullName, 'nurse', false, reason);
+      console.log('✅ Rejection email sent to nurse');
+    } catch (emailError) {
+      console.error('❌ Error sending rejection email:', emailError);
+    }
+    
+    res.json({
+      success: true,
+      message: 'Nurse rejected successfully',
+      data: nurse
+    });
+  } catch (error) {
+    console.error('Error rejecting nurse by staff:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to reject nurse'
+    });
+  }
+};
+
 module.exports = {
   registerNurse,
   getNurseById,
@@ -324,5 +438,8 @@ module.exports = {
   getNursesByQualification,
   getPendingApprovals,
   approveNurse,
-  rejectNurse
+  rejectNurse,
+  getPendingApprovalsForStaff,
+  approveNurseByStaff,
+  rejectNurseByStaff
 }; 

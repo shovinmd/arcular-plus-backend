@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
 const Doctor = require('../models/Doctor');
+const doctorController = require('../controllers/doctorController');
 
 // Doctor registration
 router.post('/register', firebaseAuthMiddleware, async (req, res) => {
@@ -73,38 +74,12 @@ router.post('/register', firebaseAuthMiddleware, async (req, res) => {
 });
 
 // Get all doctors
-router.get('/', firebaseAuthMiddleware, async (req, res) => {
-  try {
-    // Get doctors from Doctor model only
-    const doctors = await Doctor.find({}).sort({ createdAt: -1 });
+router.get('/', firebaseAuthMiddleware, doctorController.getAllDoctors);
 
-    // Format doctors for response
-    const formattedDoctors = doctors.map(doctor => ({
-      uid: doctor.uid,
-      fullName: doctor.fullName,
-      specialization: doctor.specialization,
-      experienceYears: doctor.experienceYears || 0,
-      consultationFee: doctor.consultationFee || 0,
-      profileImageUrl: doctor.profileImageUrl,
-      email: doctor.email,
-      mobileNumber: doctor.mobileNumber,
-      hospitalAffiliation: doctor.currentHospital,
-      affiliatedHospitals: doctor.affiliatedHospitals || [],
-      rating: doctor.rating || 4.5,
-      about: doctor.bio || '',
-      qualification: doctor.education || 'MBBS',
-      medicalRegistrationNumber: doctor.medicalRegistrationNumber || '',
-      status: doctor.status,
-      isApproved: doctor.isApproved,
-      approvalStatus: doctor.approvalStatus,
-    }));
-
-    res.json(formattedDoctors);
-  } catch (error) {
-    console.error('Error fetching doctors:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+// Staff routes for pending approvals
+router.get('/pending-approvals', firebaseAuthMiddleware, doctorController.getPendingApprovalsForStaff);
+router.post('/:doctorId/approve', firebaseAuthMiddleware, doctorController.approveDoctorByStaff);
+router.post('/:doctorId/reject', firebaseAuthMiddleware, doctorController.rejectDoctorByStaff);
 
 // Get doctor availability
 router.get('/:doctorId/availability', firebaseAuthMiddleware, async (req, res) => {

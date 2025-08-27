@@ -9,6 +9,11 @@ router.post('/register', firebaseAuthMiddleware, labController.registerLab);
 // Get all labs
 router.get('/', firebaseAuthMiddleware, labController.getAllLabs);
 
+// Staff routes for pending approvals
+router.get('/pending-approvals', firebaseAuthMiddleware, labController.getPendingApprovalsForStaff);
+router.post('/:labId/approve', firebaseAuthMiddleware, labController.approveLabByStaff);
+router.post('/:labId/reject', firebaseAuthMiddleware, labController.rejectLabByStaff);
+
 // Get labs by city
 router.get('/city/:city', firebaseAuthMiddleware, labController.getLabsByCity);
 

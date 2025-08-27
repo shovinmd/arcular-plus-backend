@@ -9,6 +9,11 @@ router.post('/register', firebaseAuthMiddleware, pharmacyController.registerPhar
 // Get all pharmacies
 router.get('/', firebaseAuthMiddleware, pharmacyController.getAllPharmacies);
 
+// Staff routes for pending approvals
+router.get('/pending-approvals', firebaseAuthMiddleware, pharmacyController.getPendingApprovalsForStaff);
+router.post('/:pharmacyId/approve', firebaseAuthMiddleware, pharmacyController.approvePharmacyByStaff);
+router.post('/:pharmacyId/reject', firebaseAuthMiddleware, pharmacyController.rejectPharmacyByStaff);
+
 // Get pharmacies by city
 router.get('/city/:city', firebaseAuthMiddleware, pharmacyController.getPharmaciesByCity);
 
@@ -26,10 +31,5 @@ router.put('/:id', firebaseAuthMiddleware, pharmacyController.updatePharmacy);
 
 // Delete pharmacy
 router.delete('/:id', firebaseAuthMiddleware, pharmacyController.deletePharmacy);
-
-// Admin routes
-router.get('/pending-approvals', firebaseAuthMiddleware, pharmacyController.getPendingApprovals);
-router.post('/:id/approve', firebaseAuthMiddleware, pharmacyController.approvePharmacy);
-router.post('/:id/reject', firebaseAuthMiddleware, pharmacyController.rejectPharmacy);
 
 module.exports = router; 

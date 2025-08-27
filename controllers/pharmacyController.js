@@ -222,6 +222,49 @@ const getPharmaciesByDrug = async (req, res) => {
   }
 };
 
+// Search pharmacies
+const searchPharmacies = async (req, res) => {
+  try {
+    const { query, city, specialization } = req.query;
+    
+    let searchCriteria = {};
+    
+    if (query) {
+      searchCriteria.$or = [
+        { pharmacyName: { $regex: query, $options: 'i' } },
+        { ownerName: { $regex: query, $options: 'i' } },
+        { pharmacistName: { $regex: query, $options: 'i' } }
+      ];
+    }
+    
+    if (city) {
+      searchCriteria.city = { $regex: city, $options: 'i' };
+    }
+    
+    if (specialization) {
+      searchCriteria.specialization = { $regex: specialization, $options: 'i' };
+    }
+    
+    // Only return approved pharmacies
+    searchCriteria.isApproved = true;
+    
+    const pharmacies = await Pharmacy.find(searchCriteria).limit(20);
+    
+    res.json({
+      success: true,
+      data: pharmacies,
+      count: pharmacies.length
+    });
+  } catch (error) {
+    console.error('Error searching pharmacies:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to search pharmacies',
+      error: error.message
+    });
+  }
+};
+
 // Get pending approvals
 const getPendingApprovals = async (req, res) => {
   try {
@@ -307,16 +350,134 @@ const rejectPharmacy = async (req, res) => {
   }
 };
 
+// Get pending approvals for staff
+const getPendingApprovalsForStaff = async (req, res) => {
+  try {
+    const pendingPharmacies = await Pharmacy.find({ 
+      isApproved: false, 
+      approvalStatus: 'pending' 
+    }).select('-__v').sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      data: pendingPharmacies,
+      count: pendingPharmacies.length
+    });
+  } catch (error) {
+    console.error('Error fetching pending approvals for staff:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch pending approvals'
+    });
+  }
+};
+
+// Approve pharmacy by staff
+const approvePharmacyByStaff = async (req, res) => {
+  try {
+    const { pharmacyId } = req.params;
+    const { approvedBy, notes } = req.body;
+    
+    const pharmacy = await Pharmacy.findById(pharmacyId);
+    if (!pharmacy) {
+      return res.status(404).json({
+        success: false,
+        error: 'Pharmacy not found'
+      });
+    }
+
+    // Update approval status
+    pharmacy.isApproved = true;
+    pharmacy.approvalStatus = 'approved';
+    pharmacy.approvedAt = new Date();
+    pharmacy.approvedBy = approvedBy || 'staff';
+    pharmacy.approvalNotes = notes || 'Approved by staff';
+    
+    await pharmacy.save();
+
+    // Send approval email
+    try {
+      await sendApprovalEmail(pharmacy.email, pharmacy.pharmacyName, 'pharmacy', true, notes);
+      console.log('✅ Approval email sent to pharmacy');
+    } catch (emailError) {
+      console.error('❌ Error sending approval email:', emailError);
+    }
+    
+    res.json({
+      success: true,
+      message: 'Pharmacy approved successfully',
+      data: pharmacy
+    });
+  } catch (error) {
+    console.error('Error approving pharmacy by staff:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to approve pharmacy'
+    });
+  }
+};
+
+// Reject pharmacy by staff
+const rejectPharmacyByStaff = async (req, res) => {
+  try {
+    const { pharmacyId } = req.params;
+    const { rejectedBy, reason, category, nextSteps } = req.body;
+    
+    const pharmacy = await Pharmacy.findById(pharmacyId);
+    if (!pharmacy) {
+      return res.status(404).json({
+        success: false,
+        error: 'Pharmacy not found'
+      });
+    }
+
+    // Update rejection status
+    pharmacy.isApproved = false;
+    pharmacy.approvalStatus = 'rejected';
+    pharmacy.rejectedAt = new Date();
+    pharmacy.rejectedBy = rejectedBy || 'staff';
+    pharmacy.rejectionReason = reason;
+    pharmacy.rejectionCategory = category;
+    pharmacy.nextSteps = nextSteps;
+    
+    await pharmacy.save();
+
+    // Send rejection email
+    try {
+      await sendApprovalEmail(pharmacy.email, pharmacy.pharmacyName, 'pharmacy', false, reason);
+      console.log('✅ Rejection email sent to pharmacy');
+    } catch (emailError) {
+      console.error('❌ Error sending rejection email:', emailError);
+    }
+    
+    res.json({
+      success: true,
+      message: 'Pharmacy rejected successfully',
+      data: pharmacy
+    });
+  } catch (error) {
+    console.error('Error rejecting pharmacy by staff:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to reject pharmacy'
+    });
+  }
+};
+
 module.exports = {
   registerPharmacy,
+  getAllPharmacies,
   getPharmacyById,
   getPharmacyByUID,
-  getAllPharmacies,
   updatePharmacy,
   deletePharmacy,
   getPharmaciesByCity,
   getPharmaciesByDrug,
+  searchPharmacies,
   getPendingApprovals,
   approvePharmacy,
-  rejectPharmacy
+  rejectPharmacy,
+  getPendingApprovalsForStaff,
+  approvePharmacyByStaff,
+  rejectPharmacyByStaff
 }; 

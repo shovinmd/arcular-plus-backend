@@ -9,6 +9,11 @@ router.post('/register', firebaseAuthMiddleware, nurseController.registerNurse);
 // Get all nurses
 router.get('/', firebaseAuthMiddleware, nurseController.getAllNurses);
 
+// Staff routes for pending approvals
+router.get('/pending-approvals', firebaseAuthMiddleware, nurseController.getPendingApprovalsForStaff);
+router.post('/:nurseId/approve', firebaseAuthMiddleware, nurseController.approveNurseByStaff);
+router.post('/:nurseId/reject', firebaseAuthMiddleware, nurseController.rejectNurseByStaff);
+
 // Get nurses by hospital
 router.get('/hospital/:hospitalName', firebaseAuthMiddleware, nurseController.getNursesByHospital);
 

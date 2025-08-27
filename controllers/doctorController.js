@@ -1,9 +1,7 @@
-const Doctor = require('../models/Doctor');
 const { sendRegistrationConfirmation, sendApprovalEmail } = require('../services/emailService');
-
-// Log the Doctor schema to debug
-console.log('🔍 Doctor schema fields:', Object.keys(Doctor.schema.paths));
-console.log('🔍 Doctor schema licenseNumber path:', Doctor.schema.path('licenseNumber'));
+const Doctor = require('../models/Doctor');
+const { v4: uuidv4 } = require('uuid');
+const QRCode = require('qrcode');
 
 // Register new doctor
 const registerDoctor = async (req, res) => {
@@ -482,6 +480,120 @@ const rejectDoctor = async (req, res) => {
   }
 };
 
+// Get pending approvals for staff
+const getPendingApprovalsForStaff = async (req, res) => {
+  try {
+    const pendingDoctors = await Doctor.find({ 
+      isApproved: false, 
+      approvalStatus: 'pending' 
+    }).select('-__v').sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      data: pendingDoctors,
+      count: pendingDoctors.length
+    });
+  } catch (error) {
+    console.error('Error fetching pending approvals for staff:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch pending approvals'
+    });
+  }
+};
+
+// Approve doctor by staff
+const approveDoctorByStaff = async (req, res) => {
+  try {
+    const { doctorId } = req.params;
+    const { approvedBy, notes } = req.body;
+    
+    const doctor = await Doctor.findById(doctorId);
+    if (!doctor) {
+      return res.status(404).json({
+        success: false,
+        error: 'Doctor not found'
+      });
+    }
+
+    // Update approval status
+    doctor.isApproved = true;
+    doctor.approvalStatus = 'approved';
+    doctor.approvedAt = new Date();
+    doctor.approvedBy = approvedBy || 'staff';
+    doctor.approvalNotes = notes || 'Approved by staff';
+    
+    await doctor.save();
+
+    // Send approval email
+    try {
+      await sendApprovalEmail(doctor.email, doctor.fullName, 'doctor', true, notes);
+      console.log('✅ Approval email sent to doctor');
+    } catch (emailError) {
+      console.error('❌ Error sending approval email:', emailError);
+    }
+    
+    res.json({
+      success: true,
+      message: 'Doctor approved successfully',
+      data: doctor
+    });
+  } catch (error) {
+    console.error('Error approving doctor by staff:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to approve doctor'
+    });
+  }
+};
+
+// Reject doctor by staff
+const rejectDoctorByStaff = async (req, res) => {
+  try {
+    const { doctorId } = req.params;
+    const { rejectedBy, reason, category, nextSteps } = req.body;
+    
+    const doctor = await Doctor.findById(doctorId);
+    if (!doctor) {
+      return res.status(404).json({
+        success: false,
+        error: 'Doctor not found'
+      });
+    }
+
+    // Update rejection status
+    doctor.isApproved = false;
+    doctor.approvalStatus = 'rejected';
+    doctor.rejectedAt = new Date();
+    doctor.rejectedBy = rejectedBy || 'staff';
+    doctor.rejectionReason = reason;
+    doctor.rejectionCategory = category;
+    doctor.nextSteps = nextSteps;
+    
+    await doctor.save();
+
+    // Send rejection email
+    try {
+      await sendApprovalEmail(doctor.email, doctor.fullName, 'doctor', false, reason);
+      console.log('✅ Rejection email sent to doctor');
+    } catch (emailError) {
+      console.error('❌ Error sending rejection email:', emailError);
+    }
+    
+    res.json({
+      success: true,
+      message: 'Doctor rejected successfully',
+      data: doctor
+    });
+  } catch (error) {
+    console.error('Error rejecting doctor by staff:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to reject doctor'
+    });
+  }
+};
+
 module.exports = {
   registerDoctor,
   getAllDoctors,
@@ -494,5 +606,8 @@ module.exports = {
   searchDoctors,
   getPendingApprovals,
   approveDoctor,
-  rejectDoctor
+  rejectDoctor,
+  getPendingApprovalsForStaff,
+  approveDoctorByStaff,
+  rejectDoctorByStaff
 }; 
