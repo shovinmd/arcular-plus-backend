@@ -317,7 +317,10 @@ const getPendingApprovals = async (req, res) => {
 const approveUser = async (req, res) => {
   try {
     const { userId } = req.params;
+    const { userType } = req.body;
     const firebaseUser = req.user;
+    
+    console.log('🔄 Approving user:', { userId, userType, staffEmail: firebaseUser.email });
     
     // Get staff info
     const staff = await ArcStaff.findOne({ 
@@ -326,51 +329,90 @@ const approveUser = async (req, res) => {
     });
 
     if (!staff) {
+      console.log('❌ Staff not found for UID:', firebaseUser.uid);
       return res.status(404).json({
         success: false,
         message: 'Arc Staff not found'
       });
     }
 
-    // Get user to approve
-    const user = await User.findOne({ 
-      uid: userId,
-      approvalStatus: 'pending'
-    });
+    console.log('✅ Staff found:', staff.email);
 
-    if (!user) {
+    // Get service provider to approve based on userType
+    let serviceProvider;
+    let modelName;
+    
+    switch (userType) {
+      case 'hospital':
+        const Hospital = require('../models/Hospital');
+        serviceProvider = await Hospital.findOne({ uid: userId, approvalStatus: 'pending' });
+        modelName = 'Hospital';
+        break;
+      case 'doctor':
+        const Doctor = require('../models/Doctor');
+        serviceProvider = await Doctor.findOne({ uid: userId, approvalStatus: 'pending' });
+        modelName = 'Doctor';
+        break;
+      case 'nurse':
+        const Nurse = require('../models/Nurse');
+        serviceProvider = await Nurse.findOne({ uid: userId, approvalStatus: 'pending' });
+        modelName = 'Nurse';
+        break;
+      case 'lab':
+        const Lab = require('../models/Lab');
+        serviceProvider = await Lab.findOne({ uid: userId, approvalStatus: 'pending' });
+        modelName = 'Lab';
+        break;
+      case 'pharmacy':
+        const Pharmacy = require('../models/Pharmacy');
+        serviceProvider = await Pharmacy.findOne({ uid: userId, approvalStatus: 'pending' });
+        modelName = 'Pharmacy';
+        break;
+      default:
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid user type'
+        });
+    }
+
+    if (!serviceProvider) {
+      console.log(`❌ ${modelName} not found or already processed for UID:`, userId);
       return res.status(404).json({
         success: false,
-        message: 'User not found or already processed'
+        message: `${modelName} not found or already processed`
       });
     }
 
-    // Check if staff has permission to approve this user type
-    if (!staff.canApprove(user.type)) {
-      return res.status(403).json({
-        success: false,
-        message: 'You do not have permission to approve this user type'
-      });
+    console.log(`✅ Found ${modelName} to approve:`, serviceProvider.email);
+
+    // Approve service provider
+    serviceProvider.approvalStatus = 'approved';
+    serviceProvider.isApproved = true;
+    serviceProvider.approvedBy = firebaseUser.uid;
+    serviceProvider.approvedAt = new Date();
+    await serviceProvider.save();
+
+    console.log(`✅ ${modelName} approved by Arc Staff:`, serviceProvider.email);
+
+    // Send approval email
+    try {
+      const { sendApprovalEmail, sendWelcomeEmail } = require('../services/emailService');
+      await sendApprovalEmail(serviceProvider.email, serviceProvider.fullName || serviceProvider.hospitalName || serviceProvider.labName || serviceProvider.pharmacyName, userType, true);
+      await sendWelcomeEmail(serviceProvider.email, serviceProvider.fullName || serviceProvider.hospitalName || serviceProvider.labName || serviceProvider.pharmacyName, userType);
+      console.log(`✅ Approval and welcome emails sent to ${serviceProvider.email}`);
+    } catch (emailError) {
+      console.warn('⚠️ Failed to send approval email:', emailError.message);
     }
-
-    // Approve user
-    user.approvalStatus = 'approved';
-    user.isApproved = true;
-    user.approvedBy = firebaseUser.uid;
-    user.approvedAt = new Date();
-    await user.save();
-
-    console.log('✅ User approved by Arc Staff:', user.email);
 
     res.status(200).json({
       success: true,
-      message: 'User approved successfully',
+      message: `${modelName} approved successfully`,
       user: {
-        uid: user.uid,
-        email: user.email,
-        fullName: user.fullName,
-        type: user.type,
-        approvalStatus: user.approvalStatus
+        uid: serviceProvider.uid,
+        email: serviceProvider.email,
+        fullName: serviceProvider.fullName || serviceProvider.hospitalName || serviceProvider.labName || serviceProvider.pharmacyName,
+        type: userType,
+        approvalStatus: serviceProvider.approvalStatus
       }
     });
 
@@ -388,8 +430,10 @@ const approveUser = async (req, res) => {
 const rejectUser = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { reason } = req.body;
+    const { reason, userType } = req.body;
     const firebaseUser = req.user;
+    
+    console.log('🔄 Rejecting user:', { userId, userType, reason, staffEmail: firebaseUser.email });
     
     // Get staff info
     const staff = await ArcStaff.findOne({ 
@@ -398,53 +442,91 @@ const rejectUser = async (req, res) => {
     });
 
     if (!staff) {
+      console.log('❌ Staff not found for UID:', firebaseUser.uid);
       return res.status(404).json({
         success: false,
         message: 'Arc Staff not found'
       });
     }
 
-    // Get user to reject
-    const user = await User.findOne({ 
-      uid: userId,
-      approvalStatus: 'pending'
-    });
+    console.log('✅ Staff found:', staff.email);
 
-    if (!user) {
+    // Get service provider to reject based on userType
+    let serviceProvider;
+    let modelName;
+    
+    switch (userType) {
+      case 'hospital':
+        const Hospital = require('../models/Hospital');
+        serviceProvider = await Hospital.findOne({ uid: userId, approvalStatus: 'pending' });
+        modelName = 'Hospital';
+        break;
+      case 'doctor':
+        const Doctor = require('../models/Doctor');
+        serviceProvider = await Doctor.findOne({ uid: userId, approvalStatus: 'pending' });
+        modelName = 'Doctor';
+        break;
+      case 'nurse':
+        const Nurse = require('../models/Nurse');
+        serviceProvider = await Nurse.findOne({ uid: userId, approvalStatus: 'pending' });
+        modelName = 'Nurse';
+        break;
+      case 'lab':
+        const Lab = require('../models/Lab');
+        serviceProvider = await Lab.findOne({ uid: userId, approvalStatus: 'pending' });
+        modelName = 'Lab';
+        break;
+      case 'pharmacy':
+        const Pharmacy = require('../models/Pharmacy');
+        serviceProvider = await Pharmacy.findOne({ uid: userId, approvalStatus: 'pending' });
+        modelName = 'Pharmacy';
+        break;
+      default:
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid user type'
+        });
+    }
+
+    if (!serviceProvider) {
+      console.log(`❌ ${modelName} not found or already processed for UID:`, userId);
       return res.status(404).json({
         success: false,
-        message: 'User not found or already processed'
+        message: `${modelName} not found or already processed`
       });
     }
 
-    // Check if staff has permission to reject this user type
-    if (!staff.canApprove(user.type)) {
-      return res.status(403).json({
-        success: false,
-        message: 'You do not have permission to reject this user type'
-      });
+    console.log(`✅ Found ${modelName} to reject:`, serviceProvider.email);
+
+    // Reject service provider
+    serviceProvider.approvalStatus = 'rejected';
+    serviceProvider.isApproved = false;
+    serviceProvider.rejectedBy = firebaseUser.uid;
+    serviceProvider.rejectedAt = new Date();
+    serviceProvider.rejectionReason = reason || 'Rejected by Arc Staff';
+    await serviceProvider.save();
+
+    console.log(`❌ ${modelName} rejected by Arc Staff:`, serviceProvider.email);
+
+    // Send rejection email
+    try {
+      const { sendApprovalEmail } = require('../services/emailService');
+      await sendApprovalEmail(serviceProvider.email, serviceProvider.fullName || serviceProvider.hospitalName || serviceProvider.labName || serviceProvider.pharmacyName, userType, false, reason);
+      console.log(`✅ Rejection email sent to ${serviceProvider.email}`);
+    } catch (emailError) {
+      console.warn('⚠️ Failed to send rejection email:', emailError.message);
     }
-
-    // Reject user
-    user.approvalStatus = 'rejected';
-    user.isApproved = false;
-    user.rejectedBy = firebaseUser.uid;
-    user.rejectedAt = new Date();
-    user.rejectionReason = reason || 'Rejected by Arc Staff';
-    await user.save();
-
-    console.log('❌ User rejected by Arc Staff:', user.email);
 
     res.status(200).json({
       success: true,
-      message: 'User rejected successfully',
+      message: `${modelName} rejected successfully`,
       user: {
-        uid: user.uid,
-        email: user.email,
-        fullName: user.fullName,
-        type: user.type,
-        approvalStatus: user.approvalStatus,
-        rejectionReason: user.rejectionReason
+        uid: serviceProvider.uid,
+        email: serviceProvider.email,
+        fullName: serviceProvider.fullName || serviceProvider.hospitalName || serviceProvider.labName || serviceProvider.pharmacyName,
+        type: userType,
+        approvalStatus: serviceProvider.approvalStatus,
+        rejectionReason: serviceProvider.rejectionReason
       }
     });
 
@@ -493,12 +575,19 @@ const getArcStaffProfile = async (req, res) => {
 // Get all approved hospitals for staff dashboard
 const getAllApprovedHospitals = async (req, res) => {
   try {
+    console.log('🏥 Getting all approved hospitals...');
     const Hospital = require('../models/Hospital');
+    
+    const totalCount = await Hospital.countDocuments();
+    const approvedCount = await Hospital.countDocuments({ isApproved: true, approvalStatus: 'approved' });
+    console.log('📊 Hospital counts - Total:', totalCount, 'Approved:', approvedCount);
     
     const hospitals = await Hospital.find({ 
       isApproved: true, 
       approvalStatus: 'approved' 
     }).select('uid hospitalName registrationNumber mobileNumber email address approvalStatus');
+    
+    console.log('✅ Found approved hospitals:', hospitals.length);
     
     res.status(200).json({
       success: true,
@@ -613,11 +702,44 @@ const getAllApprovedPharmacies = async (req, res) => {
 // Get all approved service providers summary for staff dashboard
 const getAllApprovedServiceProviders = async (req, res) => {
   try {
+    console.log('🔄 Getting all approved service providers...');
+    console.log('👤 Request user:', req.user ? req.user.email : 'No user');
+    
     const Hospital = require('../models/Hospital');
     const Doctor = require('../models/Doctor');
     const Nurse = require('../models/Nurse');
     const Lab = require('../models/Lab');
     const Pharmacy = require('../models/Pharmacy');
+    
+    // Check total counts first
+    const totalHospitals = await Hospital.countDocuments();
+    const totalDoctors = await Doctor.countDocuments();
+    const totalNurses = await Nurse.countDocuments();
+    const totalLabs = await Lab.countDocuments();
+    const totalPharmacies = await Pharmacy.countDocuments();
+    
+    console.log('📊 Total documents in database:', {
+      hospitals: totalHospitals,
+      doctors: totalDoctors,
+      nurses: totalNurses,
+      labs: totalLabs,
+      pharmacies: totalPharmacies
+    });
+    
+    // Check approved counts
+    const approvedHospitalsCount = await Hospital.countDocuments({ isApproved: true, approvalStatus: 'approved' });
+    const approvedDoctorsCount = await Doctor.countDocuments({ isApproved: true, approvalStatus: 'approved' });
+    const approvedNursesCount = await Nurse.countDocuments({ isApproved: true, approvalStatus: 'approved' });
+    const approvedLabsCount = await Lab.countDocuments({ isApproved: true, approvalStatus: 'approved' });
+    const approvedPharmaciesCount = await Pharmacy.countDocuments({ isApproved: true, approvalStatus: 'approved' });
+    
+    console.log('✅ Approved documents count:', {
+      hospitals: approvedHospitalsCount,
+      doctors: approvedDoctorsCount,
+      nurses: approvedNursesCount,
+      labs: approvedLabsCount,
+      pharmacies: approvedPharmaciesCount
+    });
     
     // Fetch all approved service providers in parallel
     const [hospitals, doctors, nurses, labs, pharmacies] = await Promise.all([
@@ -627,6 +749,14 @@ const getAllApprovedServiceProviders = async (req, res) => {
       Lab.find({ isApproved: true, approvalStatus: 'approved' }).select('uid labName licenseNumber mobileNumber email services approvalStatus'),
       Pharmacy.find({ isApproved: true, approvalStatus: 'approved' }).select('uid pharmacyName licenseNumber mobileNumber email services approvalStatus')
     ]);
+    
+    console.log('📋 Fetched data:', {
+      hospitals: hospitals.length,
+      doctors: doctors.length,
+      nurses: nurses.length,
+      labs: labs.length,
+      pharmacies: pharmacies.length
+    });
     
     res.status(200).json({
       success: true,
