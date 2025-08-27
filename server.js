@@ -42,26 +42,75 @@ const PORT = process.env.PORT || 3000;
 app.use(helmet());
 app.use(compression());
 app.use(morgan('combined'));
-app.use(cors({
-  origin: [
-    'https://arcular-plus-sup-admin-staffs-hown.vercel.app',
-    'https://arcular-plus-sup-admin-staffs-xdw9.vercel.app',
-    'https://arcular-plus-sup-admin-staffs.vercel.app',
-    'https://arcular-plus-staffs.vercel.app',
-    'http://localhost:55853', // Add the new staff domain
-    'http://localhost:3000',
-    'http://localhost:59123',
-    'http://localhost:64413',
-    'http://127.0.0.1:5500',
-    'http://127.0.0.1:3000',
-    'null' // Allow file:// protocol for local testing
-  ],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Origin', 'Accept'],
-  preflightContinue: false,
-  optionsSuccessStatus: 204
-}));
+
+// CORS configuration - more permissive for development
+if (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV) {
+  // Development: Allow all origins
+  app.use(cors({
+    origin: true, // Allow all origins
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Origin', 'Accept', 'Access-Control-Allow-Origin'],
+    preflightContinue: false,
+    optionsSuccessStatus: 204
+  }));
+  console.log('🌍 Development mode: CORS allows all origins');
+} else {
+  // Production: Restrict to specific origins
+  app.use(cors({
+    origin: [
+      'https://arcular-plus-sup-admin-staffs-hown.vercel.app',
+      'https://arcular-plus-sup-admin-staffs-xdw9.vercel.app',
+      'https://arcular-plus-sup-admin-staffs.vercel.app',
+      'https://arcular-plus-staffs.vercel.app',
+      'http://localhost:55853',
+      'http://localhost:3000',
+      'http://localhost:59123',
+      'http://localhost:64413',
+      'http://127.0.0.1:5500',
+      'http://127.0.0.1:3000',
+      'http://localhost:8080',
+      'http://localhost:8000',
+      'http://localhost:5000',
+      'http://localhost:4000',
+      'http://localhost:3001',
+      'http://localhost:3002',
+      'http://localhost:3003',
+      'http://localhost:3004',
+      'http://localhost:3005',
+      'http://localhost:3006',
+      'http://localhost:3007',
+      'http://localhost:3008',
+      'http://localhost:3009',
+      'http://localhost:3010',
+      'null'
+    ],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Origin', 'Accept', 'Access-Control-Allow-Origin'],
+    preflightContinue: false,
+    optionsSuccessStatus: 204
+  }));
+  console.log('🌍 Production mode: CORS restricted to specific origins');
+}
+
+// Additional CORS headers for preflight requests
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    res.status(200).end();
+    return;
+  }
+  
+  next();
+});
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -99,6 +148,16 @@ app.use('/api/arc-staff', arcStaffRoutes);
 app.use('/api/nurses', nurseRoutes);
 app.use('/api/pharmacies', pharmacyRoutes);
 app.use('/api/labs', labRoutes);
+
+// Test endpoint to verify CORS
+app.get('/api/test-cors', (req, res) => {
+  res.json({ 
+    message: 'CORS test successful!', 
+    timestamp: new Date().toISOString(),
+    origin: req.headers.origin,
+    userAgent: req.headers['user-agent']
+  });
+});
 
 // Web Interface Routes
 app.use('/admin', adminWebRoutes);
