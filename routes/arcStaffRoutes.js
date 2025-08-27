@@ -16,6 +16,14 @@ router.post('/approve/:userId', authenticateToken, arcStaffController.approveUse
 router.post('/reject/:userId', authenticateToken, arcStaffController.rejectUser);
 router.get('/profile', authenticateToken, arcStaffController.getArcStaffProfile);
 
+// Staff dashboard data routes
+router.get('/approved-hospitals', authenticateToken, arcStaffController.getAllApprovedHospitals);
+router.get('/approved-doctors', authenticateToken, arcStaffController.getAllApprovedDoctors);
+router.get('/approved-nurses', authenticateToken, arcStaffController.getAllApprovedNurses);
+router.get('/approved-labs', authenticateToken, arcStaffController.getAllApprovedLabs);
+router.get('/approved-pharmacies', authenticateToken, arcStaffController.getAllApprovedPharmacies);
+router.get('/approved-service-providers', authenticateToken, arcStaffController.getAllApprovedServiceProviders);
+
 // Staff management routes (must come after specific routes)
 router.get('/:staffId', authenticateToken, arcStaffController.getArcStaffById);
 router.put('/:staffId', authenticateToken, arcStaffController.updateArcStaff);

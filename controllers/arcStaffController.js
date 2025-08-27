@@ -490,6 +490,164 @@ const getArcStaffProfile = async (req, res) => {
   }
 };
 
+// Get all approved hospitals for staff dashboard
+const getAllApprovedHospitals = async (req, res) => {
+  try {
+    const Hospital = require('../models/Hospital');
+    
+    const hospitals = await Hospital.find({ 
+      isApproved: true, 
+      approvalStatus: 'approved' 
+    }).select('uid hospitalName registrationNumber mobileNumber email address approvalStatus');
+    
+    res.status(200).json({
+      success: true,
+      hospitals: hospitals
+    });
+  } catch (error) {
+    console.error('❌ Get approved hospitals error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get approved hospitals',
+      error: error.message
+    });
+  }
+};
+
+// Get all approved doctors for staff dashboard
+const getAllApprovedDoctors = async (req, res) => {
+  try {
+    const Doctor = require('../models/Doctor');
+    
+    const doctors = await Doctor.find({ 
+      isApproved: true, 
+      approvalStatus: 'approved' 
+    }).select('uid fullName licenseNumber specialization mobileNumber email experienceYears approvalStatus');
+    
+    res.status(200).json({
+      success: true,
+      doctors: doctors
+    });
+  } catch (error) {
+    console.error('❌ Get approved doctors error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get approved doctors',
+      error: error.message
+    });
+  }
+};
+
+// Get all approved nurses for staff dashboard
+const getAllApprovedNurses = async (req, res) => {
+  try {
+    const Nurse = require('../models/Nurse');
+    
+    const nurses = await Nurse.find({ 
+      isApproved: true, 
+      approvalStatus: 'approved' 
+    }).select('uid fullName licenseNumber department mobileNumber email experienceYears approvalStatus');
+    
+    res.status(200).json({
+      success: true,
+      nurses: nurses
+    });
+  } catch (error) {
+    console.error('❌ Get approved nurses error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get approved nurses',
+      error: error.message
+    });
+  }
+};
+
+// Get all approved labs for staff dashboard
+const getAllApprovedLabs = async (req, res) => {
+  try {
+    const Lab = require('../models/Lab');
+    
+    const labs = await Lab.find({ 
+      isApproved: true, 
+      approvalStatus: 'approved' 
+    }).select('uid labName licenseNumber mobileNumber email services approvalStatus');
+    
+    res.status(200).json({
+      success: true,
+      labs: labs
+    });
+  } catch (error) {
+    console.error('❌ Get approved labs error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get approved labs',
+      error: error.message
+    });
+  }
+};
+
+// Get all approved pharmacies for staff dashboard
+const getAllApprovedPharmacies = async (req, res) => {
+  try {
+    const Pharmacy = require('../models/Pharmacy');
+    
+    const pharmacies = await Pharmacy.find({ 
+      isApproved: true, 
+      approvalStatus: 'approved' 
+    }).select('uid pharmacyName licenseNumber mobileNumber email services approvalStatus');
+    
+    res.status(200).json({
+      success: true,
+      pharmacies: pharmacies
+    });
+  } catch (error) {
+    console.error('❌ Get approved pharmacies error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get approved pharmacies',
+      error: error.message
+    });
+  }
+};
+
+// Get all approved service providers summary for staff dashboard
+const getAllApprovedServiceProviders = async (req, res) => {
+  try {
+    const Hospital = require('../models/Hospital');
+    const Doctor = require('../models/Doctor');
+    const Nurse = require('../models/Nurse');
+    const Lab = require('../models/Lab');
+    const Pharmacy = require('../models/Pharmacy');
+    
+    // Fetch all approved service providers in parallel
+    const [hospitals, doctors, nurses, labs, pharmacies] = await Promise.all([
+      Hospital.find({ isApproved: true, approvalStatus: 'approved' }).select('uid hospitalName registrationNumber mobileNumber email address approvalStatus'),
+      Doctor.find({ isApproved: true, approvalStatus: 'approved' }).select('uid fullName licenseNumber specialization mobileNumber email experienceYears approvalStatus'),
+      Nurse.find({ isApproved: true, approvalStatus: 'approved' }).select('uid fullName licenseNumber department mobileNumber email experienceYears approvalStatus'),
+      Lab.find({ isApproved: true, approvalStatus: 'approved' }).select('uid labName licenseNumber mobileNumber email services approvalStatus'),
+      Pharmacy.find({ isApproved: true, approvalStatus: 'approved' }).select('uid pharmacyName licenseNumber mobileNumber email services approvalStatus')
+    ]);
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        hospitals: hospitals,
+        doctors: doctors,
+        nurses: nurses,
+        labs: labs,
+        pharmacies: pharmacies
+      }
+    });
+  } catch (error) {
+    console.error('❌ Get all approved service providers error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get approved service providers',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   registerArcStaff,
   createArcStaff,
@@ -501,4 +659,10 @@ module.exports = {
   approveUser,
   rejectUser,
   getArcStaffProfile,
+  getAllApprovedHospitals,
+  getAllApprovedDoctors,
+  getAllApprovedNurses,
+  getAllApprovedLabs,
+  getAllApprovedPharmacies,
+  getAllApprovedServiceProviders,
 }; 
