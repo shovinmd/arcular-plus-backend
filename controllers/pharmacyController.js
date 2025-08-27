@@ -33,7 +33,7 @@ const registerPharmacy = async (req, res) => {
     // Create new pharmacy user in Pharmacy model
     const newPharmacy = new Pharmacy({
       ...userData,
-      status: userData.status || 'pending',
+      status: 'active', // Changed from 'pending' to 'active' (valid enum value)
       isApproved: false,
       approvalStatus: 'pending',
       registrationDate: new Date(),

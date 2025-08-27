@@ -33,7 +33,7 @@ const registerLab = async (req, res) => {
     // Create new lab user in Lab model
     const newLab = new Lab({
       ...userData,
-      status: userData.status || 'pending',
+      status: 'active', // Changed from 'pending' to 'active' (valid enum value)
       isApproved: false,
       approvalStatus: 'pending',
       registrationDate: new Date(),
