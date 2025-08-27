@@ -2,29 +2,59 @@ const express = require('express');
 const router = express.Router();
 const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
 const Doctor = require('../models/Doctor');
-const User = require('../models/User');
 
 // Doctor registration
 router.post('/register', firebaseAuthMiddleware, async (req, res) => {
   try {
+    console.log('👨‍⚕️ Doctor registration request received');
+    console.log('📋 Request body:', JSON.stringify(req.body, null, 2));
+
+    // Map documents from RegistrationService format to expected format
+    const { documents } = req.body;
+    if (documents) {
+      if (documents.medical_degree) {
+        req.body.medicalDegreeUrl = documents.medical_degree;
+      }
+      if (documents.license_certificate) {
+        req.body.licenseDocumentUrl = documents.license_certificate;
+      }
+      if (documents.identity_proof) {
+        req.body.identityProofUrl = documents.identity_proof;
+      }
+    }
+
     const userData = req.body;
     const { uid } = userData;
 
-    // Check if doctor already exists
-    const existingDoctor = await User.findOne({ uid });
+    // Check if doctor already exists in Doctor model
+    const existingDoctor = await Doctor.findOne({ uid });
     if (existingDoctor) {
       return res.status(400).json({ error: 'Doctor already registered' });
     }
 
-    // Create new doctor user
-    const newDoctor = new User({
+    // Create new doctor user in Doctor model
+    const newDoctor = new Doctor({
       ...userData,
-      userType: 'doctor',
       status: userData.status || 'pending',
+      isApproved: false,
+      approvalStatus: 'pending',
       registrationDate: new Date(),
     });
 
     const savedDoctor = await newDoctor.save();
+
+    // Send registration confirmation email
+    try {
+      const { sendRegistrationConfirmation } = require('../services/emailService');
+      await sendRegistrationConfirmation(
+        savedDoctor.email, 
+        savedDoctor.fullName, 
+        'doctor'
+      );
+      console.log('✅ Registration confirmation email sent to doctor');
+    } catch (emailError) {
+      console.error('❌ Error sending registration confirmation email:', emailError);
+    }
 
     res.status(201).json({
       success: true,
@@ -45,47 +75,31 @@ router.post('/register', firebaseAuthMiddleware, async (req, res) => {
 // Get all doctors
 router.get('/', firebaseAuthMiddleware, async (req, res) => {
   try {
-    // Try to get doctors from both collections
-    const doctorsFromDoctor = await Doctor.find({});
-    const doctorsFromUser = await User.find({ userType: 'doctor' });
+    // Get doctors from Doctor model only
+    const doctors = await Doctor.find({}).sort({ createdAt: -1 });
 
-    // Combine and format doctors
-    const allDoctors = [
-      ...doctorsFromDoctor.map(doctor => ({
-        uid: doctor.uid,
-        fullName: doctor.name || doctor.fullName,
-        specialization: doctor.specialization,
-        experienceYears: doctor.experienceYears || 0,
-        consultationFee: doctor.consultationFee || 0,
-        profileImageUrl: doctor.profileImageUrl,
-        email: doctor.email,
-        mobileNumber: doctor.mobileNumber,
-        hospitalAffiliation: doctor.hospitalAffiliation || doctor.hospital,
-        affiliatedHospitals: doctor.affiliatedHospitals || [],
-        rating: doctor.rating || 4.5,
-        about: doctor.about || '',
-        qualification: doctor.qualification || 'MBBS',
-        medicalRegistrationNumber: doctor.medicalRegistrationNumber || '',
-      })),
-      ...doctorsFromUser.map(doctor => ({
-        uid: doctor.uid,
-        fullName: doctor.fullName,
-        specialization: doctor.specialization || 'General',
-        experienceYears: doctor.experienceYears || 0,
-        consultationFee: doctor.consultationFee || 0,
-        profileImageUrl: doctor.profileImageUrl,
-        email: doctor.email,
-        mobileNumber: doctor.mobileNumber,
-        hospitalAffiliation: doctor.hospitalAffiliation || doctor.hospital,
-        affiliatedHospitals: doctor.affiliatedHospitals || [],
-        rating: doctor.rating || 4.5,
-        about: doctor.about || '',
-        qualification: doctor.qualification || 'MBBS',
-        medicalRegistrationNumber: doctor.medicalRegistrationNumber || '',
-      }))
-    ];
+    // Format doctors for response
+    const formattedDoctors = doctors.map(doctor => ({
+      uid: doctor.uid,
+      fullName: doctor.fullName,
+      specialization: doctor.specialization,
+      experienceYears: doctor.experienceYears || 0,
+      consultationFee: doctor.consultationFee || 0,
+      profileImageUrl: doctor.profileImageUrl,
+      email: doctor.email,
+      mobileNumber: doctor.mobileNumber,
+      hospitalAffiliation: doctor.currentHospital,
+      affiliatedHospitals: doctor.affiliatedHospitals || [],
+      rating: doctor.rating || 4.5,
+      about: doctor.bio || '',
+      qualification: doctor.education || 'MBBS',
+      medicalRegistrationNumber: doctor.medicalRegistrationNumber || '',
+      status: doctor.status,
+      isApproved: doctor.isApproved,
+      approvalStatus: doctor.approvalStatus,
+    }));
 
-    res.json(allDoctors);
+    res.json(formattedDoctors);
   } catch (error) {
     console.error('Error fetching doctors:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -130,11 +144,8 @@ router.get('/:doctorId/profile', firebaseAuthMiddleware, async (req, res) => {
   try {
     const { doctorId } = req.params;
     
-    // Try to find doctor in both collections
-    let doctor = await Doctor.findOne({ uid: doctorId });
-    if (!doctor) {
-      doctor = await User.findOne({ uid: doctorId, userType: 'doctor' });
-    }
+    // Find doctor in Doctor model only
+    const doctor = await Doctor.findOne({ uid: doctorId });
 
     if (!doctor) {
       return res.status(404).json({ error: 'Doctor not found' });
@@ -142,20 +153,20 @@ router.get('/:doctorId/profile', firebaseAuthMiddleware, async (req, res) => {
 
     const doctorProfile = {
       uid: doctor.uid,
-      fullName: doctor.name || doctor.fullName,
+      fullName: doctor.fullName,
       specialization: doctor.specialization,
       experienceYears: doctor.experienceYears || 0,
       consultationFee: doctor.consultationFee || 0,
       profileImageUrl: doctor.profileImageUrl,
       email: doctor.email,
       mobileNumber: doctor.mobileNumber,
-      hospitalAffiliation: doctor.hospitalAffiliation || doctor.hospital,
+      hospitalAffiliation: doctor.currentHospital,
       affiliatedHospitals: doctor.affiliatedHospitals || [],
       rating: doctor.rating || 4.5,
-      bio: doctor.bio || doctor.about || '',
-      education: doctor.education || [],
+      bio: doctor.bio || '',
+      education: doctor.education || '',
       certifications: doctor.certifications || [],
-      qualification: doctor.qualification || 'MBBS',
+      qualification: doctor.education || 'MBBS',
       medicalRegistrationNumber: doctor.medicalRegistrationNumber || '',
     };
 
@@ -171,42 +182,24 @@ router.get('/hospital/:hospitalName', firebaseAuthMiddleware, async (req, res) =
   try {
     const { hospitalName } = req.params;
     
-    // Find doctors affiliated with the hospital
-    const doctorsFromDoctor = await Doctor.find({
+    // Find doctors affiliated with the hospital from Doctor model only
+    const doctors = await Doctor.find({
       $or: [
-        { hospitalAffiliation: { $regex: hospitalName, $options: 'i' } },
-        { affiliatedHospitals: { $regex: hospitalName, $options: 'i' } }
-      ]
-    });
-    
-    const doctorsFromUser = await User.find({
-      userType: 'doctor',
-      $or: [
-        { hospitalAffiliation: { $regex: hospitalName, $options: 'i' } },
+        { currentHospital: { $regex: hospitalName, $options: 'i' } },
         { affiliatedHospitals: { $regex: hospitalName, $options: 'i' } }
       ]
     });
 
-    const allDoctors = [
-      ...doctorsFromDoctor.map(doctor => ({
-        uid: doctor.uid,
-        fullName: doctor.name || doctor.fullName,
-        specialization: doctor.specialization,
-        experienceYears: doctor.experienceYears || 0,
-        consultationFee: doctor.consultationFee || 0,
-        hospitalAffiliation: doctor.hospitalAffiliation || doctor.hospital,
-      })),
-      ...doctorsFromUser.map(doctor => ({
-        uid: doctor.uid,
-        fullName: doctor.fullName,
-        specialization: doctor.specialization || 'General',
-        experienceYears: doctor.experienceYears || 0,
-        consultationFee: doctor.consultationFee || 0,
-        hospitalAffiliation: doctor.hospitalAffiliation || doctor.hospital,
-      }))
-    ];
+    const formattedDoctors = doctors.map(doctor => ({
+      uid: doctor.uid,
+      fullName: doctor.fullName,
+      specialization: doctor.specialization,
+      experienceYears: doctor.experienceYears || 0,
+      consultationFee: doctor.consultationFee || 0,
+      hospitalAffiliation: doctor.currentHospital,
+    }));
 
-    res.json(allDoctors);
+    res.json(formattedDoctors);
   } catch (error) {
     console.error('Error fetching doctors by hospital:', error);
     res.status(500).json({ error: 'Internal server error' });
