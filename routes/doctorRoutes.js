@@ -79,6 +79,9 @@ router.get('/', firebaseAuthMiddleware, doctorController.getAllDoctors);
 // Get doctor by UID
 router.get('/uid/:uid', firebaseAuthMiddleware, doctorController.getDoctorByUID);
 
+// Get doctor by email (for login verification)
+router.get('/email/:email', firebaseAuthMiddleware, doctorController.getDoctorByEmail);
+
 // Staff routes for pending approvals
 router.get('/pending-approvals', firebaseAuthMiddleware, doctorController.getPendingApprovalsForStaff);
 router.post('/:doctorId/approve', firebaseAuthMiddleware, doctorController.approveDoctorByStaff);

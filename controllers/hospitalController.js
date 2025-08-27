@@ -374,6 +374,31 @@ exports.getHospitalProfile = async (req, res) => {
   }
 };
 
+exports.getHospitalByEmail = async (req, res) => {
+  try {
+    const { email } = req.params;
+    const hospital = await Hospital.findOne({ email: email });
+    
+    if (!hospital) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Hospital not found' 
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: hospital
+    });
+  } catch (err) {
+    console.error('Error getting hospital by email:', err);
+    res.status(500).json({ 
+      success: false, 
+      error: err.message 
+    });
+  }
+};
+
 exports.updateHospitalProfile = async (req, res) => {
   try {
     const { uid } = req.params;

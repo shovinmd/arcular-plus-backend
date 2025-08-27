@@ -119,6 +119,32 @@ const getLabByUID = async (req, res) => {
   }
 };
 
+// Get lab by email
+const getLabByEmail = async (req, res) => {
+  try {
+    const { email } = req.params;
+    const lab = await Lab.findOne({ email: email });
+    if (!lab) {
+      return res.status(404).json({
+        success: false,
+        message: 'Lab not found'
+      });
+    }
+    const labData = lab.toObject();
+    labData.type = 'lab';
+    res.json({
+      success: true,
+      data: labData
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get lab',
+      error: error.message
+    });
+  }
+};
+
 // Get all labs
 const getAllLabs = async (req, res) => {
   try {
@@ -469,6 +495,7 @@ module.exports = {
   getAllLabs,
   getLabById,
   getLabByUID,
+  getLabByEmail,
   updateLab,
   deleteLab,
   getLabsByCity,

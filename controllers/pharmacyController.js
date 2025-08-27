@@ -119,6 +119,32 @@ const getPharmacyByUID = async (req, res) => {
   }
 };
 
+// Get pharmacy by email
+const getPharmacyByEmail = async (req, res) => {
+  try {
+    const { email } = req.params;
+    const pharmacy = await Pharmacy.findOne({ email: email });
+    if (!pharmacy) {
+      return res.status(404).json({
+        success: false,
+        message: 'Pharmacy not found'
+      });
+    }
+    const data = pharmacy.toObject();
+    data.type = 'pharmacy';
+    res.json({
+      success: true,
+      data
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get pharmacy',
+      error: error.message
+    });
+  }
+};
+
 // Get all pharmacies
 const getAllPharmacies = async (req, res) => {
   try {
@@ -469,6 +495,7 @@ module.exports = {
   getAllPharmacies,
   getPharmacyById,
   getPharmacyByUID,
+  getPharmacyByEmail,
   updatePharmacy,
   deletePharmacy,
   getPharmaciesByCity,

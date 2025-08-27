@@ -263,6 +263,39 @@ const getDoctorByUID = async (req, res) => {
   }
 };
 
+// Get doctor by email
+const getDoctorByEmail = async (req, res) => {
+  try {
+    const { email } = req.params;
+    console.log('🔍 Fetching doctor with email:', email);
+    
+    const doctor = await Doctor.findOne({ email: email });
+    if (!doctor) {
+      return res.status(404).json({
+        success: false,
+        error: 'Doctor not found'
+      });
+    }
+    
+    console.log('✅ Found doctor:', doctor.fullName);
+    
+    // Convert to plain object and add type field
+    const doctorData = doctor.toObject();
+    doctorData.type = 'doctor';
+    
+    res.json({
+      success: true,
+      data: doctorData
+    });
+  } catch (error) {
+    console.error('Error fetching doctor by email:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch doctor'
+    });
+  }
+};
+
 // Update doctor
 const updateDoctor = async (req, res) => {
   try {
@@ -599,6 +632,7 @@ module.exports = {
   getAllDoctors,
   getDoctorById,
   getDoctorByUID,
+  getDoctorByEmail,
   updateDoctor,
   deleteDoctor,
   getDoctorsByHospital,

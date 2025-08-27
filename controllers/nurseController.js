@@ -121,6 +121,33 @@ const getNurseByUID = async (req, res) => {
   }
 };
 
+// Get nurse by email
+const getNurseByEmail = async (req, res) => {
+  try {
+    const { email } = req.params;
+    const nurse = await Nurse.findOne({ email: email });
+    if (!nurse) {
+      return res.status(404).json({
+        success: false,
+        message: 'Nurse not found'
+      });
+    }
+    // Add explicit type for client routing
+    const nurseData = nurse.toObject();
+    nurseData.type = 'nurse';
+    res.json({
+      success: true,
+      data: nurseData
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get nurse',
+      error: error.message
+    });
+  }
+};
+
 // Get all nurses
 const getAllNurses = async (req, res) => {
   try {
@@ -431,6 +458,7 @@ module.exports = {
   registerNurse,
   getNurseById,
   getNurseByUID,
+  getNurseByEmail,
   getAllNurses,
   updateNurse,
   deleteNurse,

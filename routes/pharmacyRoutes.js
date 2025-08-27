@@ -23,6 +23,9 @@ router.get('/drug/:drugName', firebaseAuthMiddleware, pharmacyController.getPhar
 // Get pharmacy by UID (for login) - must come before /:id
 router.get('/uid/:uid', firebaseAuthMiddleware, pharmacyController.getPharmacyByUID);
 
+// Get pharmacy by email (for login verification)
+router.get('/email/:email', firebaseAuthMiddleware, pharmacyController.getPharmacyByEmail);
+
 // Get pharmacy by ID (generic route - must come last)
 router.get('/:id', firebaseAuthMiddleware, pharmacyController.getPharmacyById);
 
