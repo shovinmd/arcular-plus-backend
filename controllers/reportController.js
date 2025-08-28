@@ -72,6 +72,13 @@ const getReportsByUser = async (req, res) => {
     console.log('🔍 Fetching reports for userId:', userId);
     console.log('🔍 Query params - category:', category, 'limit:', limit);
 
+    // First, let's check if the user exists and has any reports at all
+    const totalReports = await Report.countDocuments({});
+    console.log('📊 Total reports in database:', totalReports);
+    
+    const userReportsCount = await Report.countDocuments({ patientId: userId });
+    console.log('📊 Reports for this user:', userReportsCount);
+
     let reports;
     try {
       if (category) {
@@ -89,10 +96,14 @@ const getReportsByUser = async (req, res) => {
       console.log('⚠️ Method error:', methodError.message);
       
       // Fallback: direct query
+      console.log('🔄 Using fallback direct query...');
       reports = await Report.find({ patientId: userId }).sort({ uploadedAt: -1 });
     }
 
     console.log('✅ Reports found:', reports.length);
+    if (reports.length > 0) {
+      console.log('📋 First report sample:', JSON.stringify(reports[0], null, 2));
+    }
     console.log('📋 Reports data:', JSON.stringify(reports, null, 2));
 
     res.json({
@@ -310,8 +321,19 @@ const saveReportMetadata = async (req, res) => {
   try {
     const { name, url, type, patientId, description, category, fileSize, mimeType } = req.body;
 
+    console.log('📝 Saving report metadata:');
+    console.log('  - name:', name);
+    console.log('  - url:', url);
+    console.log('  - type:', type);
+    console.log('  - patientId:', patientId);
+    console.log('  - description:', description);
+    console.log('  - category:', category);
+    console.log('  - fileSize:', fileSize);
+    console.log('  - mimeType:', mimeType);
+
     // Validate required fields
     if (!name || !url || !patientId) {
+      console.log('❌ Missing required fields');
       return res.status(400).json({
         success: false,
         error: 'Missing required fields: name, url, and patientId are required'
@@ -332,7 +354,11 @@ const saveReportMetadata = async (req, res) => {
       status: 'uploaded'
     });
 
+    console.log('📋 Created report object:', JSON.stringify(report, null, 2));
+
     await report.save();
+
+    console.log('✅ Report saved successfully with ID:', report._id);
 
     res.status(201).json({
       success: true,
@@ -341,7 +367,9 @@ const saveReportMetadata = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error saving report metadata:', error);
+    console.error('❌ Error saving report metadata:', error);
+    console.error('❌ Error details:', error.message);
+    console.error('❌ Error stack:', error.stack);
     res.status(500).json({
       success: false,
       error: 'Failed to save report metadata'
