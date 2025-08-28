@@ -29,6 +29,11 @@ const reportSchema = new mongoose.Schema({
     required: false,
     index: true
   },
+  uploadedBy: {
+    type: String,
+    required: false,
+    trim: true
+  },
   description: {
     type: String,
     trim: true

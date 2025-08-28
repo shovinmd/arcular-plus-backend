@@ -341,7 +341,7 @@ const getReportById = async (req, res) => {
 // Save report metadata (for files uploaded via Firebase Storage)
 const saveReportMetadata = async (req, res) => {
   try {
-    const { name, url, type, patientId, description, category, fileSize, mimeType } = req.body;
+    const { name, url, type, patientId, description, category, fileSize, mimeType, uploadedBy } = req.body;
 
     console.log('📝 Saving report metadata:');
     console.log('  - name:', name);
@@ -352,6 +352,7 @@ const saveReportMetadata = async (req, res) => {
     console.log('  - category:', category);
     console.log('  - fileSize:', fileSize);
     console.log('  - mimeType:', mimeType);
+    console.log('  - uploadedBy:', uploadedBy);
 
     // Validate required fields
     if (!name || !url || !patientId) {
@@ -382,6 +383,7 @@ const saveReportMetadata = async (req, res) => {
       category: category || 'Other',
       fileSize: fileSize || 0,
       mimeType: 'application/pdf',
+      uploadedBy: uploadedBy || null,
       status: 'uploaded'
     });
 
