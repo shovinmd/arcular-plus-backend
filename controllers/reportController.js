@@ -69,14 +69,31 @@ const getReportsByUser = async (req, res) => {
     const { userId } = req.params;
     const { category, limit } = req.query;
 
+    console.log('🔍 Fetching reports for userId:', userId);
+    console.log('🔍 Query params - category:', category, 'limit:', limit);
+
     let reports;
-    if (category) {
-      reports = await Report.findByCategory(userId, category);
-    } else if (limit) {
-      reports = await Report.findRecent(userId, parseInt(limit));
-    } else {
-      reports = await Report.findByPatient(userId);
+    try {
+      if (category) {
+        console.log('🔍 Using findByCategory method');
+        reports = await Report.findByCategory(userId, category);
+      } else if (limit) {
+        console.log('🔍 Using findRecent method');
+        reports = await Report.findRecent(userId, parseInt(limit));
+      } else {
+        console.log('🔍 Using findByPatient method');
+        reports = await Report.findByPatient(userId);
+      }
+    } catch (methodError) {
+      console.log('⚠️ Static method failed, using direct query as fallback');
+      console.log('⚠️ Method error:', methodError.message);
+      
+      // Fallback: direct query
+      reports = await Report.find({ patientId: userId }).sort({ uploadedAt: -1 });
     }
+
+    console.log('✅ Reports found:', reports.length);
+    console.log('📋 Reports data:', JSON.stringify(reports, null, 2));
 
     res.json({
       success: true,
@@ -84,7 +101,8 @@ const getReportsByUser = async (req, res) => {
       count: reports.length
     });
   } catch (error) {
-    console.error('Error fetching reports:', error);
+    console.error('❌ Error fetching reports:', error);
+    console.error('❌ Error stack:', error.stack);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch reports'
@@ -290,7 +308,7 @@ const getReportById = async (req, res) => {
 // Save report metadata (for files uploaded via Firebase Storage)
 const saveReportMetadata = async (req, res) => {
   try {
-    const { name, url, type, patientId, description, fileSize, mimeType } = req.body;
+    const { name, url, type, patientId, description, category, fileSize, mimeType } = req.body;
 
     // Validate required fields
     if (!name || !url || !patientId) {
@@ -308,6 +326,7 @@ const saveReportMetadata = async (req, res) => {
       patientId,
       // doctorId is optional for user-uploaded reports
       description: description || '',
+      category: category || 'Other',
       fileSize: fileSize || 0,
       mimeType: mimeType || 'application/octet-stream',
       status: 'uploaded'
