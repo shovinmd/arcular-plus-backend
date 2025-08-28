@@ -193,8 +193,6 @@ const deleteReport = async (req, res) => {
   try {
     const { id } = req.params;
     console.log('🗑️ Delete request received for report ID:', id);
-    console.log('🔍 Request params:', req.params);
-    console.log('🔍 Request body:', req.body);
     
     const report = await Report.findById(id);
 
@@ -208,40 +206,7 @@ const deleteReport = async (req, res) => {
 
     console.log('📋 Report to delete:', JSON.stringify(report, null, 2));
 
-    // Delete from Firebase Storage
-    try {
-      if (bucket && report.url) {
-        console.log('🔥 Firebase Storage bucket available, attempting file deletion...');
-        // Extract file path from Firebase Storage URL
-        const firebaseUrl = report.url;
-        let filePath = '';
-        
-        if (firebaseUrl.includes('firebasestorage.googleapis.com')) {
-          const urlParts = firebaseUrl.split('/');
-          const oIndex = urlParts.indexOf('o');
-          if (oIndex !== -1 && oIndex + 1 < urlParts.length) {
-            filePath = decodeURIComponent(urlParts[oIndex + 1]);
-            console.log('🗂️ Extracted Firebase file path:', filePath);
-            
-            // Delete the file from Firebase Storage
-            const file = bucket.file(filePath);
-            console.log('🗂️ Firebase file object created, attempting deletion...');
-            await file.delete();
-            console.log('✅ File deleted from Firebase Storage');
-          } else {
-            console.log('⚠️ Could not parse Firebase URL structure');
-          }
-        } else {
-          console.log('⚠️ URL does not appear to be Firebase Storage URL');
-        }
-      } else {
-        console.log('ℹ️ Firebase Storage bucket not available or no URL');
-      }
-    } catch (firebaseError) {
-      console.log('⚠️ Firebase Storage deletion failed:', firebaseError.message);
-      console.log('⚠️ Firebase error details:', firebaseError);
-      // Continue with database deletion even if Firebase fails
-    }
+    console.log('ℹ️ Only deleting from MongoDB (Firebase files remain for data integrity)');
 
     // Delete the report record from database
     console.log('🗄️ Deleting report from database...');
