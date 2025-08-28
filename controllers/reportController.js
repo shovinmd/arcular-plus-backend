@@ -192,31 +192,38 @@ const uploadReport = async (req, res) => {
 const deleteReport = async (req, res) => {
   try {
     const { id } = req.params;
+    console.log('🗑️ Deleting report with ID:', id);
+    
     const report = await Report.findById(id);
 
     if (!report) {
+      console.log('❌ Report not found for deletion');
       return res.status(404).json({
         success: false,
         error: 'Report not found'
       });
     }
 
-    // Delete file from filesystem
-    try {
-      const filePath = path.join(__dirname, '..', report.url);
-      await fs.unlink(filePath);
-    } catch (fileError) {
-      console.warn('File not found for deletion:', fileError.message);
-    }
+    console.log('📋 Report to delete:', JSON.stringify(report, null, 2));
 
+    // For Firebase Storage files, we can't delete them from here
+    // The file will remain in Firebase Storage (this is normal for cloud storage)
+    // If you want to delete from Firebase, you'd need to implement that separately
+    console.log('ℹ️ Note: File remains in Firebase Storage for data integrity');
+
+    // Delete the report record from database
     await Report.findByIdAndDelete(id);
+
+    console.log('✅ Report deleted successfully from database');
 
     res.json({
       success: true,
       message: 'Report deleted successfully'
     });
   } catch (error) {
-    console.error('Error deleting report:', error);
+    console.error('❌ Error deleting report:', error);
+    console.error('❌ Error details:', error.message);
+    console.error('❌ Error stack:', error.stack);
     res.status(500).json({
       success: false,
       error: 'Failed to delete report'
@@ -340,11 +347,21 @@ const saveReportMetadata = async (req, res) => {
       });
     }
 
+    // Validate file type
+    const allowedTypes = ['pdf', 'doc', 'docx', 'docm', 'image'];
+    if (!allowedTypes.includes(type.toLowerCase())) {
+      console.log('❌ Invalid file type:', type);
+      return res.status(400).json({
+        success: false,
+        error: `Invalid file type: ${type}. Allowed types: ${allowedTypes.join(', ')}`
+      });
+    }
+
     // Create new report with metadata
     const report = new Report({
       name,
       url,
-      type: type || 'document',
+      type: type.toLowerCase() || 'document',
       patientId,
       // doctorId is optional for user-uploaded reports
       description: description || '',
@@ -355,6 +372,16 @@ const saveReportMetadata = async (req, res) => {
     });
 
     console.log('📋 Created report object:', JSON.stringify(report, null, 2));
+
+    // Validate the report object before saving
+    const validationError = report.validateSync();
+    if (validationError) {
+      console.log('❌ Validation error:', validationError.message);
+      return res.status(400).json({
+        success: false,
+        error: 'Validation error: ' + validationError.message
+      });
+    }
 
     await report.save();
 
@@ -370,6 +397,24 @@ const saveReportMetadata = async (req, res) => {
     console.error('❌ Error saving report metadata:', error);
     console.error('❌ Error details:', error.message);
     console.error('❌ Error stack:', error.stack);
+    
+    // Check if it's a MongoDB validation error
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({
+        success: false,
+        error: 'Validation errors: ' + validationErrors.join(', ')
+      });
+    }
+    
+    // Check if it's a duplicate key error
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        error: 'Report with this name already exists'
+      });
+    }
+    
     res.status(500).json({
       success: false,
       error: 'Failed to save report metadata'
