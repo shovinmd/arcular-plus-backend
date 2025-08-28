@@ -193,6 +193,8 @@ const deleteReport = async (req, res) => {
   try {
     const { id } = req.params;
     console.log('🗑️ Delete request received for report ID:', id);
+    console.log('🔍 Request params:', req.params);
+    console.log('🔍 Request body:', req.body);
     
     const report = await Report.findById(id);
 
@@ -210,13 +212,31 @@ const deleteReport = async (req, res) => {
 
     // Delete the report record from database
     console.log('🗄️ Deleting report from database...');
+    console.log('🔍 Report ID to delete:', id);
+    console.log('🔍 Report exists before deletion:', !!report);
+    
     const deleteResult = await Report.findByIdAndDelete(id);
+    console.log('🗄️ Delete result:', deleteResult);
+    
+    // Verify deletion
+    const verifyReport = await Report.findById(id);
+    console.log('🔍 Report still exists after deletion:', !!verifyReport);
+    
     console.log('✅ Report deleted from database:', deleteResult);
 
-    res.json({
-      success: true,
-      message: 'Report deleted successfully'
-    });
+    if (deleteResult) {
+      res.json({
+        success: true,
+        message: 'Report deleted successfully'
+      });
+    } else {
+      console.log('❌ Delete operation returned null/undefined');
+      res.status(500).json({
+        success: false,
+        error: 'Delete operation failed'
+      });
+    }
+
   } catch (error) {
     console.error('❌ Error deleting report:', error);
     console.error('❌ Error details:', error.message);
