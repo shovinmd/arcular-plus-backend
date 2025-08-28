@@ -12,8 +12,8 @@ const reportSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['pdf', 'image', 'document', 'scan'],
-    default: 'document'
+    enum: ['pdf'],
+    default: 'pdf'
   },
   uploadedAt: {
     type: Date,
