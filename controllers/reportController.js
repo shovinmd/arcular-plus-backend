@@ -206,14 +206,40 @@ const deleteReport = async (req, res) => {
 
     console.log('📋 Report to delete:', JSON.stringify(report, null, 2));
 
-    // For Firebase Storage files, we can't delete them from here
-    // The file will remain in Firebase Storage (this is normal for cloud storage)
-    // If you want to delete from Firebase, you'd need to implement that separately
-    console.log('ℹ️ Note: File remains in Firebase Storage for data integrity');
+    // Extract file path from Firebase Storage URL
+    const firebaseUrl = report.url;
+    let filePath = '';
+    
+    try {
+      // Parse Firebase Storage URL to get file path
+      if (firebaseUrl.includes('firebasestorage.googleapis.com')) {
+        const urlParts = firebaseUrl.split('/');
+        const oIndex = urlParts.indexOf('o');
+        if (oIndex !== -1 && oIndex + 1 < urlParts.length) {
+          filePath = decodeURIComponent(urlParts[oIndex + 1]);
+          console.log('🗂️ Extracted Firebase file path:', filePath);
+        }
+      }
+    } catch (parseError) {
+      console.log('⚠️ Could not parse Firebase URL:', parseError.message);
+    }
+
+    // Delete from Firebase Storage first (if we have the path)
+    if (filePath && bucket) {
+      try {
+        const file = bucket.file(filePath);
+        await file.delete();
+        console.log('✅ File deleted from Firebase Storage');
+      } catch (firebaseError) {
+        console.log('⚠️ Could not delete from Firebase Storage:', firebaseError.message);
+        // Continue with database deletion even if Firebase fails
+      }
+    } else {
+      console.log('ℹ️ No Firebase Storage bucket available or file path not found');
+    }
 
     // Delete the report record from database
     await Report.findByIdAndDelete(id);
-
     console.log('✅ Report deleted successfully from database');
 
     res.json({
@@ -347,13 +373,12 @@ const saveReportMetadata = async (req, res) => {
       });
     }
 
-    // Validate file type
-    const allowedTypes = ['pdf', 'doc', 'docx', 'docm', 'image'];
-    if (!allowedTypes.includes(type.toLowerCase())) {
+    // Only allow PDF files
+    if (type.toLowerCase() !== 'pdf') {
       console.log('❌ Invalid file type:', type);
       return res.status(400).json({
         success: false,
-        error: `Invalid file type: ${type}. Allowed types: ${allowedTypes.join(', ')}`
+        error: `Only PDF files are allowed. Received: ${type}`
       });
     }
 
@@ -361,13 +386,13 @@ const saveReportMetadata = async (req, res) => {
     const report = new Report({
       name,
       url,
-      type: type.toLowerCase() || 'document',
+      type: 'pdf',
       patientId,
       // doctorId is optional for user-uploaded reports
       description: description || '',
       category: category || 'Other',
       fileSize: fileSize || 0,
-      mimeType: mimeType || 'application/octet-stream',
+      mimeType: 'application/pdf',
       status: 'uploaded'
     });
 
