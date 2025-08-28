@@ -54,6 +54,14 @@ router.get('/qr/:identifier', async (req, res) => {
     const { identifier } = req.params;
     console.log('🔍 QR Scan Request - Raw Identifier:', identifier);
     
+    // Input validation
+    if (!identifier || identifier.trim().length === 0) {
+      return res.status(400).json({ 
+        error: 'Invalid identifier',
+        message: 'Identifier cannot be empty'
+      });
+    }
+    
     // Try to parse JSON identifier first
     let parsedIdentifier = identifier;
     let extractedUid = null;
@@ -126,6 +134,13 @@ router.get('/qr/:identifier', async (req, res) => {
       bloodGroup: user.bloodGroup,
       height: user.height,
       weight: user.weight,
+      profileImageUrl: user.profileImageUrl, // Add profile image
+      mobileNumber: user.mobileNumber, // Add mobile number
+      alternateMobile: user.alternateMobile, // Add alternate mobile
+      address: user.address, // Add address
+      pincode: user.pincode, // Add pincode
+      city: user.city, // Add city
+      state: user.state, // Add state
       emergencyContactName: user.emergencyContactName,
       emergencyContactNumber: user.emergencyContactNumber,
       emergencyContactRelation: user.emergencyContactRelation,
@@ -138,6 +153,7 @@ router.get('/qr/:identifier', async (req, res) => {
       lastPeriodStartDate: user.lastPeriodStartDate,
       healthInsuranceId: user.healthInsuranceId,
       policyNumber: user.policyNumber,
+      policyExpiryDate: user.policyExpiryDate, // Add policy expiry date
       // Add health history summary
       healthSummary: {
         hasAllergies: (user.knownAllergies || []).length > 0,
@@ -159,6 +175,7 @@ router.get('/qr/:identifier', async (req, res) => {
 router.get('/uid/:uid', async (req, res) => {
   try {
     const { uid } = req.params;
+
     console.log('🔍 UID Scan Request - Raw UID:', uid);
     
     // Try to parse JSON UID first
@@ -211,6 +228,13 @@ router.get('/uid/:uid', async (req, res) => {
       bloodGroup: user.bloodGroup,
       height: user.height,
       weight: user.weight,
+      profileImageUrl: user.profileImageUrl, // Add profile image
+      mobileNumber: user.mobileNumber, // Add mobile number
+      alternateMobile: user.alternateMobile, // Add alternate mobile
+      address: user.address, // Add address
+      pincode: user.pincode, // Add pincode
+      city: user.city, // Add city
+      state: user.state, // Add state
       emergencyContactName: user.emergencyContactName,
       emergencyContactNumber: user.emergencyContactNumber,
       emergencyContactRelation: user.emergencyContactRelation,
@@ -223,6 +247,7 @@ router.get('/uid/:uid', async (req, res) => {
       lastPeriodStartDate: user.lastPeriodStartDate,
       healthInsuranceId: user.healthInsuranceId,
       policyNumber: user.policyNumber,
+      policyExpiryDate: user.policyExpiryDate, // Add policy expiry date
       // Add health history summary
       healthSummary: {
         hasAllergies: (user.knownAllergies || []).length > 0,
