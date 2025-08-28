@@ -349,6 +349,38 @@ const saveReportMetadata = async (req, res) => {
   }
 };
 
+// Test endpoint to check Report model
+const testReportModel = async (req, res) => {
+  try {
+    console.log('🧪 Testing Report model...');
+    
+    // Test basic find
+    const allReports = await Report.find({});
+    console.log('✅ Basic find works, found ${allReports.length} reports');
+    
+    // Test find by patientId
+    const testUserId = 'test123';
+    const userReports = await Report.find({ patientId: testUserId });
+    console.log('✅ Find by patientId works, found ${userReports.length} reports for $testUserId');
+    
+    // Test schema
+    console.log('📋 Report schema fields:', Object.keys(Report.schema.paths));
+    
+    res.json({
+      success: true,
+      message: 'Report model test completed',
+      totalReports: allReports.length,
+      schemaFields: Object.keys(Report.schema.paths)
+    });
+  } catch (error) {
+    console.error('❌ Report model test failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Report model test failed: ' + error.message
+    });
+  }
+};
+
 module.exports = {
   getReportsByUser,
   uploadReport,
@@ -356,5 +388,6 @@ module.exports = {
   updateReport,
   searchReports,
   getReportById,
-  saveReportMetadata
+  saveReportMetadata,
+  testReportModel
 }; 
