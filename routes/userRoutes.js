@@ -52,24 +52,55 @@ router.get('/debug/users', async (req, res) => {
 router.get('/qr/:identifier', async (req, res) => {
   try {
     const { identifier } = req.params;
-    console.log('🔍 QR Scan Request - Identifier:', identifier);
+    console.log('🔍 QR Scan Request - Raw Identifier:', identifier);
+    
+    // Try to parse JSON identifier first
+    let parsedIdentifier = identifier;
+    let extractedUid = null;
+    let extractedEmail = null;
+    
+    try {
+      // Check if identifier is JSON and extract uid/email
+      if (identifier.startsWith('{') && identifier.includes('"uid"')) {
+        const jsonData = JSON.parse(identifier);
+        extractedUid = jsonData.uid;
+        extractedEmail = jsonData.contactInfo?.email || jsonData.email;
+        console.log('✅ Parsed JSON - UID:', extractedUid, 'Email:', extractedEmail);
+      }
+    } catch (parseError) {
+      console.log('⚠️ Identifier is not valid JSON, using as-is');
+    }
     
     // Try to find user by arcId first
     let user = await User.findOne({ arcId: identifier });
     console.log('🔍 Search by arcId result:', user ? 'Found' : 'Not found');
     
-    // If not found by arcId, try by uid
-    if (!user) {
-      console.log('🔄 Trying to find by UID...');
-      user = await User.findOne({ uid: identifier });
-      console.log('🔍 Search by UID result:', user ? 'Found' : 'Not found');
+    // If not found by arcId, try by extracted UID
+    if (!user && extractedUid) {
+      console.log('🔄 Trying to find by extracted UID:', extractedUid);
+      user = await User.findOne({ uid: extractedUid });
+      console.log('🔍 Search by extracted UID result:', user ? 'Found' : 'Not found');
     }
     
-    // If still not found, try by email
+    // If still not found, try by original identifier as UID
     if (!user) {
-      console.log('🔄 Trying to find by email...');
+      console.log('🔄 Trying to find by original identifier as UID...');
+      user = await User.findOne({ uid: identifier });
+      console.log('🔍 Search by original identifier as UID result:', user ? 'Found' : 'Not found');
+    }
+    
+    // If still not found, try by extracted email
+    if (!user && extractedEmail) {
+      console.log('🔄 Trying to find by extracted email:', extractedEmail);
+      user = await User.findOne({ email: extractedEmail });
+      console.log('🔍 Search by extracted email result:', user ? 'Found' : 'Not found');
+    }
+    
+    // If still not found, try by original identifier as email
+    if (!user) {
+      console.log('🔄 Trying to find by original identifier as email...');
       user = await User.findOne({ email: identifier });
-      console.log('🔍 Search by email result:', user ? 'Found' : 'Not found');
+      console.log('🔍 Search by original identifier as email result:', user ? 'Found' : 'Not found');
     }
     
     if (!user) {
@@ -77,6 +108,8 @@ router.get('/qr/:identifier', async (req, res) => {
       return res.status(404).json({ 
         error: 'User not found',
         searchedFor: identifier,
+        extractedUid: extractedUid,
+        extractedEmail: extractedEmail,
         message: 'User not found by ARC ID, UID, or email'
       });
     }
@@ -126,15 +159,42 @@ router.get('/qr/:identifier', async (req, res) => {
 router.get('/uid/:uid', async (req, res) => {
   try {
     const { uid } = req.params;
-    console.log('🔍 UID Scan Request - UID:', uid);
+    console.log('🔍 UID Scan Request - Raw UID:', uid);
     
-    const user = await User.findOne({ uid });
+    // Try to parse JSON UID first
+    let extractedUid = uid;
+    
+    try {
+      // Check if UID is JSON and extract the actual UID
+      if (uid.startsWith('{') && uid.includes('"uid"')) {
+        const jsonData = JSON.parse(uid);
+        extractedUid = jsonData.uid;
+        console.log('✅ Parsed JSON UID - Extracted:', extractedUid);
+      }
+    } catch (parseError) {
+      console.log('⚠️ UID is not valid JSON, using as-is');
+    }
+    
+    console.log('🔍 Searching for user with UID:', extractedUid);
+    const user = await User.findOne({ uid: extractedUid });
     
     if (!user) {
-      console.log('❌ User not found by UID:', uid);
+      console.log('❌ User not found by UID:', extractedUid);
+      
+      // Debug: Check if any users exist in database
+      const totalUsers = await User.countDocuments();
+      console.log('📊 Total users in database:', totalUsers);
+      
+      // Debug: Check if the specific UID exists
+      const userExists = await User.exists({ uid: extractedUid });
+      console.log('🔍 User exists check for UID:', extractedUid, 'Result:', userExists);
+      
       return res.status(404).json({ 
         error: 'User not found',
         searchedFor: uid,
+        extractedUid: extractedUid,
+        totalUsersInDatabase: totalUsers,
+        userExistsCheck: userExists,
         message: 'User not found by UID'
       });
     }
