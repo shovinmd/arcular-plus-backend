@@ -23,27 +23,88 @@ router.get('/profile', firebaseAuthMiddleware, getUserProfile);
 // Add public endpoint to get user by ARC ID
 router.get('/arc/:arcId', getUserByArcId);
 
-// Public endpoint for QR code scanning - shows limited user info
-router.get('/qr/:arcId', async (req, res) => {
+// Debug endpoint to list all users (for testing)
+router.get('/debug/users', async (req, res) => {
   try {
-    const { arcId } = req.params;
-    const user = await User.findOne({ arcId });
+    console.log('🔍 Debug: Listing all users...');
+    const users = await User.find({}, 'uid arcId fullName email');
+    console.log('📊 Found users:', users.length);
+    users.forEach(user => {
+      console.log(`  - UID: ${user.uid}, ARC ID: ${user.arcId}, Name: ${user.fullName}, Email: ${user.email}`);
+    });
+    
+    res.json({
+      count: users.length,
+      users: users.map(u => ({
+        uid: u.uid,
+        arcId: u.arcId,
+        fullName: u.fullName,
+        email: u.email
+      }))
+    });
+  } catch (error) {
+    console.error('❌ Error listing users:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+// Public endpoint for QR code scanning - shows limited user info
+router.get('/qr/:identifier', async (req, res) => {
+  try {
+    const { identifier } = req.params;
+    console.log('🔍 QR Scan Request - Identifier:', identifier);
+    
+    // Try to find user by arcId first
+    let user = await User.findOne({ arcId: identifier });
+    console.log('🔍 Search by arcId result:', user ? 'Found' : 'Not found');
+    
+    // If not found by arcId, try by uid
+    if (!user) {
+      console.log('🔄 Trying to find by UID...');
+      user = await User.findOne({ uid: identifier });
+      console.log('🔍 Search by UID result:', user ? 'Found' : 'Not found');
+    }
+    
+    // If still not found, try by email
+    if (!user) {
+      console.log('🔄 Trying to find by email...');
+      user = await User.findOne({ email: identifier });
+      console.log('🔍 Search by email result:', user ? 'Found' : 'Not found');
+    }
     
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      console.log('❌ User not found by any method');
+      return res.status(404).json({ 
+        error: 'User not found',
+        searchedFor: identifier,
+        message: 'User not found by ARC ID, UID, or email'
+      });
     }
+
+    console.log('✅ User found:', user.fullName, 'UID:', user.uid, 'ARC ID:', user.arcId);
 
     // Return only public health information for QR scanning
     const publicInfo = {
+      uid: user.uid,
       arcId: user.arcId,
       fullName: user.fullName,
+      dateOfBirth: user.dateOfBirth,
+      gender: user.gender,
       bloodGroup: user.bloodGroup,
+      height: user.height,
+      weight: user.weight,
       emergencyContactName: user.emergencyContactName,
       emergencyContactNumber: user.emergencyContactNumber,
       emergencyContactRelation: user.emergencyContactRelation,
       knownAllergies: user.knownAllergies || [],
       chronicConditions: user.chronicConditions || [],
       isPregnant: user.isPregnant || false,
+      numberOfPreviousPregnancies: user.numberOfPreviousPregnancies || 0,
+      lastPregnancyYear: user.lastPregnancyYear,
+      pregnancyHealthNotes: user.pregnancyHealthNotes,
+      lastPeriodStartDate: user.lastPeriodStartDate,
+      healthInsuranceId: user.healthInsuranceId,
+      policyNumber: user.policyNumber,
       // Add health history summary
       healthSummary: {
         hasAllergies: (user.knownAllergies || []).length > 0,
@@ -53,10 +114,69 @@ router.get('/qr/:arcId', async (req, res) => {
       }
     };
 
+    console.log('📤 Sending public info for:', user.fullName);
     res.json(publicInfo);
   } catch (error) {
-    console.error('Error fetching user by QR:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('❌ Error fetching user by QR:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+// Public endpoint for QR code scanning by UID - shows limited user info
+router.get('/uid/:uid', async (req, res) => {
+  try {
+    const { uid } = req.params;
+    console.log('🔍 UID Scan Request - UID:', uid);
+    
+    const user = await User.findOne({ uid });
+    
+    if (!user) {
+      console.log('❌ User not found by UID:', uid);
+      return res.status(404).json({ 
+        error: 'User not found',
+        searchedFor: uid,
+        message: 'User not found by UID'
+      });
+    }
+
+    console.log('✅ User found by UID:', user.fullName, 'ARC ID:', user.arcId);
+
+    // Return only public health information for QR scanning
+    const publicInfo = {
+      uid: user.uid,
+      arcId: user.arcId,
+      fullName: user.fullName,
+      dateOfBirth: user.dateOfBirth,
+      gender: user.gender,
+      bloodGroup: user.bloodGroup,
+      height: user.height,
+      weight: user.weight,
+      emergencyContactName: user.emergencyContactName,
+      emergencyContactNumber: user.emergencyContactNumber,
+      emergencyContactRelation: user.emergencyContactRelation,
+      knownAllergies: user.knownAllergies || [],
+      chronicConditions: user.chronicConditions || [],
+      isPregnant: user.isPregnant || false,
+      numberOfPreviousPregnancies: user.numberOfPreviousPregnancies || 0,
+      lastPregnancyYear: user.lastPregnancyYear,
+      pregnancyHealthNotes: user.pregnancyHealthNotes,
+      lastPeriodStartDate: user.lastPeriodStartDate,
+      healthInsuranceId: user.healthInsuranceId,
+      policyNumber: user.policyNumber,
+      // Add health history summary
+      healthSummary: {
+        hasAllergies: (user.knownAllergies || []).length > 0,
+        hasChronicConditions: (user.chronicConditions || []).length > 0,
+        isPregnant: user.isPregnant || false,
+        bloodGroup: user.bloodGroup,
+      }
+    };
+
+    console.log('📤 Sending public info for:', user.fullName);
+    res.json(publicInfo);
+  } catch (error) {
+    console.error('❌ Error fetching user by UID for QR:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
