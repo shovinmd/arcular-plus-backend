@@ -51,6 +51,14 @@ const UserSchema = new mongoose.Schema({
   qrCode: String, // QR code data (base64 or URL)
   profileImageUrl: String, // URL to user's profile image
   
+  // FCM Notification fields
+  fcmToken: String, // FCM token for push notifications
+  notificationPreferences: {
+    menstrualReminders: { type: Boolean, default: true }, // Enable/disable menstrual reminders
+    reminderTime: { type: String, default: '09:00' }, // Default reminder time (HH:MM)
+    timezone: { type: String, default: 'Asia/Kolkata' }, // User's timezone
+  },
+  
   // Hospital-specific fields
   hospitalName: String,
   registrationNumber: String,

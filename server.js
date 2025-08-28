@@ -22,6 +22,7 @@ const labReportRoutes = require('./routes/labReportRoutes');
 const pregnancyRoutes = require('./routes/pregnancyRoutes');
 const menstrualRoutes = require('./routes/menstrualRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const fcmRoutes = require('./routes/fcmRoutes');
 const sosRoutes = require('./routes/sosRoutes');
 const qrRoutes = require('./routes/qrRoutes');
 const hospitalRoutes = require('./routes/hospitalRoutes');
@@ -140,6 +141,7 @@ app.use('/api/lab-reports', labReportRoutes);
 app.use('/api/pregnancy', pregnancyRoutes);
 app.use('/api/menstrual-cycle', menstrualRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/fcm', fcmRoutes);
 app.use('/api/sos', sosRoutes);
 app.use('/api/users/qr', qrRoutes);
 app.use('/api/hospitals', hospitalRoutes);
@@ -269,14 +271,26 @@ const connectDB = async () => {
   }
 };
 
+// Import cron service
+const cronService = require('./services/cronService');
+
 // Start server
 const startServer = async () => {
   await connectDB();
+  
+  // Initialize cron service for menstrual reminders
+  try {
+    await cronService.initialize();
+    console.log('✅ Cron service initialized for menstrual reminders');
+  } catch (error) {
+    console.error('❌ Failed to initialize cron service:', error);
+  }
   
   app.listen(PORT, () => {
     console.log(`🚀 Arcular+ Backend server running on port ${PORT}`);
     console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
     console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`⏰ Cron jobs: Daily reminders at 9:00 AM IST`);
   });
 };
 
