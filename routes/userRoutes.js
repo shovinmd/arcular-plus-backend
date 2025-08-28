@@ -5,6 +5,16 @@ const User = require('../models/User');
 const { getUserProfile, getUserByArcId } = require('../controllers/userController');
 const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
 
+// Health check endpoint
+router.get('/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    service: 'User Service',
+    version: '1.0.0'
+  });
+});
+
 // Get user profile
 router.get('/:uid', firebaseAuthMiddleware, async (req, res) => {
   const { uid } = req.params;
