@@ -287,11 +287,55 @@ const getReportById = async (req, res) => {
   }
 };
 
+// Save report metadata (for files uploaded via Firebase Storage)
+const saveReportMetadata = async (req, res) => {
+  try {
+    const { name, url, type, patientId, description, fileSize, mimeType } = req.body;
+
+    // Validate required fields
+    if (!name || !url || !patientId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: name, url, and patientId are required'
+      });
+    }
+
+    // Create new report with metadata
+    const report = new Report({
+      name,
+      url,
+      type: type || 'document',
+      patientId,
+      // doctorId is optional for user-uploaded reports
+      description: description || '',
+      fileSize: fileSize || 0,
+      mimeType: mimeType || 'application/octet-stream',
+      status: 'uploaded'
+    });
+
+    await report.save();
+
+    res.status(201).json({
+      success: true,
+      data: report,
+      message: 'Report metadata saved successfully'
+    });
+
+  } catch (error) {
+    console.error('Error saving report metadata:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to save report metadata'
+    });
+  }
+};
+
 module.exports = {
   getReportsByUser,
   uploadReport,
   deleteReport,
   updateReport,
   searchReports,
-  getReportById
+  getReportById,
+  saveReportMetadata
 }; 

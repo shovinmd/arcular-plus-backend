@@ -26,7 +26,7 @@ const reportSchema = new mongoose.Schema({
   },
   doctorId: {
     type: String,
-    required: true,
+    required: false,
     index: true
   },
   description: {

@@ -17,6 +17,7 @@ router.get('/user/:userId', reportController.getReportsByUser);
 router.get('/search/:userId', reportController.searchReports);
 router.get('/:id', reportController.getReportById);
 router.post('/upload', reportController.uploadReport);
+router.post('/save-metadata', reportController.saveReportMetadata);
 router.put('/:id', validateReportUpdate, reportController.updateReport);
 router.delete('/:id', reportController.deleteReport);
 
