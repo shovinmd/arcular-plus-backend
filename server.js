@@ -64,6 +64,8 @@ if (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV) {
       'https://arcular-plus-sup-admin-staffs-xdw9.vercel.app',
       'https://arcular-plus-sup-admin-staffs.vercel.app',
       'https://arcular-plus-staffs.vercel.app',
+      'https://arcular-plus-backend-man-65aq.vercel.app',
+      'https://arcular-plus-backend-man.vercel.app',
       'http://localhost:55853',
       'http://localhost:3000',
       'http://localhost:59123',
