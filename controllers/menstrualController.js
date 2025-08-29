@@ -44,4 +44,32 @@ exports.updateMenstrual = async (req, res) => {
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
+};
+
+exports.deleteCycleEntry = async (req, res) => {
+  try {
+    const { userId, entryId } = req.params;
+    
+    // Find the user's menstrual cycle data
+    const userData = await MenstrualCycle.findOne({ userId });
+    if (!userData) {
+      return res.status(404).json({ error: 'User data not found' });
+    }
+    
+    // Remove the specific entry from cycleHistory
+    if (userData.cycleHistory && userData.cycleHistory.length > 0) {
+      userData.cycleHistory = userData.cycleHistory.filter(
+        entry => entry.id !== entryId
+      );
+      
+      // Save the updated data
+      await userData.save();
+      res.json({ message: 'Cycle entry deleted successfully' });
+    } else {
+      res.status(404).json({ error: 'No cycle history found' });
+    }
+  } catch (err) {
+    console.error('❌ Error in deleteCycleEntry:', err);
+    res.status(500).json({ error: err.message });
+  }
 }; 

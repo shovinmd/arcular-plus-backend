@@ -9,5 +9,7 @@ router.get('/:userId', authenticateToken, menstrualController.getMenstrualByUser
 router.post('/', authenticateToken, menstrualController.createMenstrual);
 // Update menstrual cycle entry
 router.put('/:id', authenticateToken, menstrualController.updateMenstrual);
+// Delete individual cycle entry
+router.delete('/:userId/:entryId', authenticateToken, menstrualController.deleteCycleEntry);
 
 module.exports = router; 
