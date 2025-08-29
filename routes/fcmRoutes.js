@@ -100,40 +100,7 @@ router.get('/upcoming-reminders', authenticateToken, async (req, res) => {
   }
 });
 
-// Test FCM notification (for testing purposes)
-router.post('/test-notification', authenticateToken, async (req, res) => {
-  try {
-    const userId = req.user.uid;
-    const { title, body } = req.body;
 
-    const notification = {
-      title: title || '🧪 Test Notification',
-      body: body || 'This is a test notification from Arcular+',
-      type: 'test',
-      data: { screen: 'home' }
-    };
-
-    const success = await fcmService.sendToUser(userId, notification);
-
-    if (success) {
-      res.json({
-        success: true,
-        message: 'Test notification sent successfully'
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        error: 'Failed to send test notification'
-      });
-    }
-  } catch (error) {
-    console.error('❌ Error sending test notification:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Internal server error'
-    });
-  }
-});
 
 // Manually trigger reminder processing (for testing/admin purposes)
 router.post('/trigger-reminders', authenticateToken, async (req, res) => {
