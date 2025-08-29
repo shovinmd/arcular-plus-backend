@@ -204,6 +204,9 @@ class StaffWebController {
           isApproved: staff.isApproved,
           department: staff.department,
           designation: staff.designation,
+          mobileNumber: staff.mobileNumber,
+          address: staff.address,
+          bio: staff.bio,
           permissions: {
             canApproveHospitals: staff.canApproveHospitals,
             canApproveDoctors: staff.canApproveDoctors,
