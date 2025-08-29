@@ -12,10 +12,25 @@ exports.getMenstrualByUser = async (req, res) => {
 
 exports.createMenstrual = async (req, res) => {
   try {
-    const entry = new MenstrualCycle(req.body);
-    await entry.save();
-    res.status(201).json(entry);
+    // Check if user already has menstrual cycle data
+    const existingData = await MenstrualCycle.findOne({ userId: req.body.userId });
+    
+    if (existingData) {
+      // Update existing data
+      const updated = await MenstrualCycle.findByIdAndUpdate(
+        existingData._id, 
+        req.body, 
+        { new: true }
+      );
+      res.json(updated);
+    } else {
+      // Create new entry
+      const entry = new MenstrualCycle(req.body);
+      await entry.save();
+      res.status(201).json(entry);
+    }
   } catch (err) {
+    console.error('❌ Error in createMenstrual:', err);
     res.status(400).json({ error: err.message });
   }
 };
