@@ -30,6 +30,7 @@ const ArcStaffSchema = new mongoose.Schema({
   staffId: { type: String, unique: true },
   department: String,
   designation: String,
+  bio: String,
   joiningDate: { type: Date, default: Date.now },
   isActive: { type: Boolean, default: true },
   

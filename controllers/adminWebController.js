@@ -507,7 +507,7 @@ class AdminWebController {
     try {
       console.log('🔐 Admin profile update request received:', req.body);
       
-      const { uid, email, fullName, phone, department, designation, address } = req.body;
+      const { uid, email, fullName, phone, department, designation, address, bio } = req.body;
       
       if (!uid || !email) {
         return res.status(400).json({ 
@@ -533,6 +533,7 @@ class AdminWebController {
       adminUser.department = department;
       adminUser.designation = designation;
       adminUser.address = address;
+      adminUser.bio = bio;
       adminUser.profileComplete = true;
       adminUser.updatedAt = new Date();
 
@@ -550,6 +551,7 @@ class AdminWebController {
           department: adminUser.department,
           designation: adminUser.designation,
           address: adminUser.address,
+          bio: adminUser.bio,
           profileComplete: adminUser.profileComplete
         }
       });
@@ -597,6 +599,7 @@ class AdminWebController {
           department: adminUser.department,
           designation: adminUser.designation,
           address: adminUser.address,
+          bio: adminUser.bio,
           profileComplete: adminUser.profileComplete || false
         }
       });
