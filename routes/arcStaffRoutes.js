@@ -14,6 +14,7 @@ router.get('/all', authenticateToken, arcStaffController.getAllArcStaff);
 router.get('/pending-approvals', authenticateToken, arcStaffController.getPendingApprovals);
 router.post('/approve/:userId', authenticateToken, arcStaffController.approveUser);
 router.post('/reject/:userId', authenticateToken, arcStaffController.rejectUser);
+router.post('/restore/:userType/:userId', authenticateToken, arcStaffController.restoreRejectedServiceProvider);
 router.get('/profile', authenticateToken, arcStaffController.getArcStaffProfile);
 
 // Staff dashboard data routes
@@ -23,6 +24,11 @@ router.get('/approved-nurses', authenticateToken, arcStaffController.getAllAppro
 router.get('/approved-labs', authenticateToken, arcStaffController.getAllApprovedLabs);
 router.get('/approved-pharmacies', authenticateToken, arcStaffController.getAllApprovedPharmacies);
 router.get('/approved-service-providers', authenticateToken, arcStaffController.getAllApprovedServiceProviders);
+
+// Profile changes and stats routes
+router.post('/profile-changes', authenticateToken, arcStaffController.submitProfileChanges);
+router.get('/stats', authenticateToken, arcStaffController.getDashboardStats);
+router.get('/dashboard-counts', authenticateToken, arcStaffController.getDashboardCounts);
 
 // Staff management routes (must come after specific routes)
 router.get('/:staffId', authenticateToken, arcStaffController.getArcStaffById);

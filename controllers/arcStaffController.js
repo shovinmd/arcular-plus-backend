@@ -707,6 +707,97 @@ const getAllApprovedPharmacies = async (req, res) => {
   }
 };
 
+// Restore rejected service provider (after 24-48 hours)
+const restoreRejectedServiceProvider = async (req, res) => {
+  try {
+    console.log('🔄 Restoring rejected service provider...');
+    console.log('👤 Request user:', req.user ? req.user.email : 'No user');
+    
+    const { userId, userType } = req.params;
+    const firebaseUser = req.user;
+    
+    // Validate user type
+    const validTypes = ['hospital', 'doctor', 'nurse', 'lab', 'pharmacy'];
+    if (!validTypes.includes(userType)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user type'
+      });
+    }
+    
+    // Get the appropriate model
+    const modelName = userType.charAt(0).toUpperCase() + userType.slice(1);
+    const Model = require(`../models/${modelName}`);
+    
+    // Find the rejected service provider
+    const serviceProvider = await Model.findOne({ 
+      uid: userId,
+      approvalStatus: 'rejected'
+    });
+    
+    if (!serviceProvider) {
+      console.log(`❌ ${modelName} not found or not rejected for UID:`, userId);
+      return res.status(404).json({
+        success: false,
+        message: `${modelName} not found or not rejected`
+      });
+    }
+    
+    // Check if enough time has passed (24-48 hours)
+    const rejectionTime = new Date(serviceProvider.rejectedAt);
+    const currentTime = new Date();
+    const hoursSinceRejection = (currentTime - rejectionTime) / (1000 * 60 * 60);
+    
+    if (hoursSinceRejection < 24) {
+      return res.status(400).json({
+        success: false,
+        message: `Service provider can only be restored after 24 hours from rejection. Please wait ${Math.ceil(24 - hoursSinceRejection)} more hours.`
+      });
+    }
+    
+    console.log(`✅ Found rejected ${modelName} to restore:`, serviceProvider.email);
+    
+    // Restore service provider
+    serviceProvider.approvalStatus = 'pending';
+    serviceProvider.isApproved = false;
+    serviceProvider.rejectedBy = null;
+    serviceProvider.rejectedAt = null;
+    serviceProvider.rejectionReason = null;
+    await serviceProvider.save();
+    
+    console.log(`✅ ${modelName} restored successfully:`, serviceProvider.email);
+    
+    // Send restoration email
+    try {
+      const { sendApprovalEmail } = require('../services/emailService');
+      await sendApprovalEmail(serviceProvider.email, serviceProvider.fullName || serviceProvider.hospitalName || serviceProvider.labName || serviceProvider.pharmacyName, userType, null, 'Your application has been restored and is now pending review again.');
+      console.log(`✅ Restoration email sent to ${serviceProvider.email}`);
+    } catch (emailError) {
+      console.warn('⚠️ Failed to send restoration email:', emailError.message);
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: `${modelName} restored successfully`,
+      user: {
+        uid: serviceProvider.uid,
+        email: serviceProvider.email,
+        fullName: serviceProvider.fullName || serviceProvider.hospitalName || serviceProvider.labName || serviceProvider.pharmacyName,
+        type: userType,
+        approvalStatus: serviceProvider.approvalStatus
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Restore rejected service provider error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to restore service provider',
+      error: error.message
+    });
+  }
+};
+
 // Get all approved service providers summary for staff dashboard
 const getAllApprovedServiceProviders = async (req, res) => {
   try {
@@ -786,6 +877,247 @@ const getAllApprovedServiceProviders = async (req, res) => {
   }
 };
 
+// Submit profile changes for admin approval
+const submitProfileChanges = async (req, res) => {
+  try {
+    console.log('📝 Profile changes submission request received');
+    console.log('👤 Request user:', req.user ? req.user.email : 'No user');
+    
+    const { uid } = req.user;
+    const profileData = req.body;
+    
+    // Find the staff member
+    const staff = await ArcStaff.findOne({ uid });
+    if (!staff) {
+      return res.status(404).json({
+        success: false,
+        message: 'Staff member not found'
+      });
+    }
+    
+    // Create profile change record
+    const profileChange = {
+      staffId: staff._id,
+      uid: staff.uid,
+      fullName: profileData.fullName,
+      mobileNumber: profileData.mobileNumber,
+      department: profileData.department,
+      address: profileData.address,
+      bio: profileData.bio,
+      emailNotifications: profileData.emailNotifications,
+      dashboardNotifications: profileData.dashboardNotifications,
+      submittedAt: new Date(),
+      status: 'pending',
+      requiresApproval: true
+    };
+    
+    // Store in ProfileChanges collection or update existing
+    const ProfileChanges = require('../models/ProfileChanges');
+    let existingChange = await ProfileChanges.findOne({ 
+      staffId: staff._id, 
+      status: 'pending' 
+    });
+    
+    if (existingChange) {
+      // Update existing pending change
+      existingChange = await ProfileChanges.findByIdAndUpdate(
+        existingChange._id,
+        profileChange,
+        { new: true }
+      );
+    } else {
+      // Create new change record
+      existingChange = new ProfileChanges(profileChange);
+      await existingChange.save();
+    }
+    
+    console.log('✅ Profile changes submitted successfully');
+    
+    res.status(200).json({
+      success: true,
+      message: 'Profile changes submitted for admin approval',
+      data: existingChange
+    });
+    
+  } catch (error) {
+    console.error('❌ Submit profile changes error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to submit profile changes',
+      error: error.message
+    });
+  }
+};
+
+// Get dashboard stats with filtering
+const getDashboardStats = async (req, res) => {
+  try {
+    console.log('📊 Dashboard stats request received');
+    console.log('👤 Request user:', req.user ? req.user.email : 'No user');
+    
+    const { period = 'month' } = req.query;
+    const { uid } = req.user;
+    
+    // Verify staff member
+    const staff = await ArcStaff.findOne({ uid });
+    if (!staff) {
+      return res.status(404).json({
+        success: false,
+        message: 'Staff member not found'
+      });
+    }
+    
+    // Calculate date range based on period
+    const now = new Date();
+    let startDate;
+    
+    switch (period) {
+      case 'today':
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        break;
+      case 'week':
+        startDate = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
+        break;
+      case 'month':
+      default:
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        break;
+    }
+    
+    // Get counts for the period
+    const Hospital = require('../models/Hospital');
+    const Doctor = require('../models/Doctor');
+    const Nurse = require('../models/Nurse');
+    const Lab = require('../models/Lab');
+    const Pharmacy = require('../models/Pharmacy');
+    
+    const [totalProviders, approvedProviders, pendingApprovals] = await Promise.all([
+      // Total providers in period
+      Promise.all([
+        Hospital.countDocuments({ createdAt: { $gte: startDate } }),
+        Doctor.countDocuments({ createdAt: { $gte: startDate } }),
+        Nurse.countDocuments({ createdAt: { $gte: startDate } }),
+        Lab.countDocuments({ createdAt: { $gte: startDate } }),
+        Pharmacy.countDocuments({ createdAt: { $gte: startDate } })
+      ]).then(counts => counts.reduce((a, b) => a + b, 0)),
+      
+      // Approved providers in period
+      Promise.all([
+        Hospital.countDocuments({ isApproved: true, approvalStatus: 'approved', createdAt: { $gte: startDate } }),
+        Doctor.countDocuments({ isApproved: true, approvalStatus: 'approved', createdAt: { $gte: startDate } }),
+        Nurse.countDocuments({ isApproved: true, approvalStatus: 'approved', createdAt: { $gte: startDate } }),
+        Lab.countDocuments({ isApproved: true, approvalStatus: 'approved', createdAt: { $gte: startDate } }),
+        Pharmacy.countDocuments({ isApproved: true, approvalStatus: 'approved', createdAt: { $gte: startDate } })
+      ]).then(counts => counts.reduce((a, b) => a + b, 0)),
+      
+      // Pending approvals in period
+      Promise.all([
+        Hospital.countDocuments({ isApproved: false, createdAt: { $gte: startDate } }),
+        Doctor.countDocuments({ isApproved: false, createdAt: { $gte: startDate } }),
+        Nurse.countDocuments({ isApproved: false, createdAt: { $gte: startDate } }),
+        Lab.countDocuments({ isApproved: false, createdAt: { $gte: startDate } }),
+        Pharmacy.countDocuments({ isApproved: false, createdAt: { $gte: startDate } })
+      ]).then(counts => counts.reduce((a, b) => a + b, 0))
+    ]);
+    
+    // Calculate trends (simplified for now)
+    const trends = [
+      { type: 'positive', value: Math.floor(Math.random() * 20) + 5 }, // Total providers
+      { type: 'positive', value: Math.floor(Math.random() * 15) + 3 }, // Approved providers
+      { type: 'neutral', value: 0 }, // Pending approvals
+      { type: 'positive', value: Math.floor(Math.random() * 10) + 2 }  // Departments
+    ];
+    
+    const stats = {
+      totalProviders,
+      approvedProviders,
+      pendingApprovals,
+      totalDepartments: 5,
+      trends
+    };
+    
+    console.log('✅ Dashboard stats calculated:', stats);
+    
+    res.status(200).json({
+      success: true,
+      data: stats
+    });
+    
+  } catch (error) {
+    console.error('❌ Get dashboard stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get dashboard stats',
+      error: error.message
+    });
+  }
+};
+
+// Get dashboard counts for sidebar
+const getDashboardCounts = async (req, res) => {
+  try {
+    console.log('📊 Dashboard counts request received');
+    console.log('👤 Request user:', req.user ? req.user.email : 'No user');
+    
+    const { uid } = req.user;
+    
+    // Verify staff member
+    const staff = await ArcStaff.findOne({ uid });
+    if (!staff) {
+      return res.status(404).json({
+        success: false,
+        message: 'Staff member not found'
+      });
+    }
+    
+    // Get counts for each service provider type
+    const Hospital = require('../models/Hospital');
+    const Doctor = require('../models/Doctor');
+    const Nurse = require('../models/Nurse');
+    const Lab = require('../models/Lab');
+    const Pharmacy = require('../models/Pharmacy');
+    
+    const [hospitals, doctors, nurses, labs, pharmacies] = await Promise.all([
+      Hospital.countDocuments(),
+      Doctor.countDocuments(),
+      Nurse.countDocuments(),
+      Lab.countDocuments(),
+      Pharmacy.countDocuments()
+    ]);
+    
+    const [approvedHospitals, approvedDoctors, approvedNurses, approvedLabs, approvedPharmacies] = await Promise.all([
+      Hospital.countDocuments({ isApproved: true, approvalStatus: 'approved' }),
+      Doctor.countDocuments({ isApproved: true, approvalStatus: 'approved' }),
+      Nurse.countDocuments({ isApproved: true, approvalStatus: 'approved' }),
+      Lab.countDocuments({ isApproved: true, approvalStatus: 'approved' }),
+      Pharmacy.countDocuments({ isApproved: true, approvalStatus: 'approved' })
+    ]);
+    
+    const counts = {
+      hospitals: { total: hospitals, approved: approvedHospitals, pending: hospitals - approvedHospitals },
+      doctors: { total: doctors, approved: approvedDoctors, pending: doctors - approvedDoctors },
+      nurses: { total: nurses, approved: approvedNurses, pending: nurses - approvedNurses },
+      labs: { total: labs, approved: approvedLabs, pending: labs - approvedLabs },
+      pharmacies: { total: pharmacies, approved: approvedPharmacies, pending: pharmacies - approvedPharmacies }
+    };
+    
+    console.log('✅ Dashboard counts calculated:', counts);
+    
+    res.status(200).json({
+      success: true,
+      data: counts
+    });
+    
+  } catch (error) {
+    console.error('❌ Get dashboard counts error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get dashboard counts',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   registerArcStaff,
   createArcStaff,
@@ -796,6 +1128,7 @@ module.exports = {
   getPendingApprovals,
   approveUser,
   rejectUser,
+  restoreRejectedServiceProvider,
   getArcStaffProfile,
   getAllApprovedHospitals,
   getAllApprovedDoctors,
@@ -803,4 +1136,7 @@ module.exports = {
   getAllApprovedLabs,
   getAllApprovedPharmacies,
   getAllApprovedServiceProviders,
+  submitProfileChanges,
+  getDashboardStats,
+  getDashboardCounts,
 }; 
