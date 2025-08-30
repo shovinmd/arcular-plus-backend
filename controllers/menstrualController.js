@@ -15,6 +15,10 @@ exports.createMenstrual = async (req, res) => {
     console.log('🔍 Creating/updating menstrual data:', req.body);
     console.log('🔍 Reminder time type:', typeof req.body.reminderTime);
     console.log('🔍 Reminder time value:', req.body.reminderTime);
+    console.log('🔍 Reminder preferences received:');
+    console.log('   - remindNextPeriod:', req.body.remindNextPeriod, '(', typeof req.body.remindNextPeriod, ')');
+    console.log('   - remindFertileWindow:', req.body.remindFertileWindow, '(', typeof req.body.remindFertileWindow, ')');
+    console.log('   - remindOvulation:', req.body.remindOvulation, '(', typeof req.body.remindOvulation, ')');
     
     // Check if user already has menstrual cycle data
     const existingData = await MenstrualCycle.findOne({ userId: req.body.userId });
@@ -48,6 +52,11 @@ exports.createMenstrual = async (req, res) => {
       );
       console.log('✅ Updated menstrual data successfully');
       console.log('🔍 Updated cycle history entries:', updated.cycleHistory?.length || 0);
+      console.log('🔍 Stored reminder preferences:');
+      console.log('   - remindNextPeriod:', updated.remindNextPeriod, '(', typeof updated.remindNextPeriod, ')');
+      console.log('   - remindFertileWindow:', updated.remindFertileWindow, '(', typeof updated.remindFertileWindow, ')');
+      console.log('   - remindOvulation:', updated.remindOvulation, '(', typeof updated.remindOvulation, ')');
+      console.log('   - reminderTime:', updated.reminderTime, '(', typeof updated.reminderTime, ')');
       res.json(updated);
     } else {
       console.log('🔍 Creating new data for user:', req.body.userId);
@@ -75,6 +84,11 @@ exports.createMenstrual = async (req, res) => {
       await entry.save();
       console.log('✅ Created new menstrual data successfully');
       console.log('🔍 Created cycle history entries:', entry.cycleHistory?.length || 0);
+      console.log('🔍 Stored reminder preferences:');
+      console.log('   - remindNextPeriod:', entry.remindNextPeriod, '(', typeof entry.remindNextPeriod, ')');
+      console.log('   - remindFertileWindow:', entry.remindFertileWindow, '(', typeof entry.remindFertileWindow, ')');
+      console.log('   - remindOvulation:', entry.remindOvulation, '(', typeof entry.remindOvulation, ')');
+      console.log('   - reminderTime:', entry.reminderTime, '(', typeof entry.reminderTime, ')');
       res.status(201).json(entry);
     }
   } catch (err) {
