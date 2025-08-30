@@ -22,42 +22,95 @@ exports.createMenstrual = async (req, res) => {
     if (existingData) {
       console.log('🔍 Updating existing data for user:', req.body.userId);
       
-      // If there's new cycle data to add to history
-      if (req.body.cycleHistory && req.body.cycleHistory.length > 0) {
-        // Merge new cycle history with existing
-        const newHistory = req.body.cycleHistory.filter(newEntry => 
-          !existingData.cycleHistory.some(existingEntry => 
-            existingEntry.startDate?.toString() === newEntry.startDate?.toString()
-          )
-        );
-        
-        if (newHistory.length > 0) {
-          req.body.cycleHistory = [...existingData.cycleHistory, ...newHistory];
-          console.log('🔍 Merged cycle history. Total entries:', req.body.cycleHistory.length);
-        }
-      }
+      // Only update with what's explicitly sent - don't auto-merge cycle history
+      const updateData = {
+        lastPeriodStartDate: req.body.lastPeriodStartDate,
+        cycleLength: req.body.cycleLength,
+        periodDuration: req.body.periodDuration,
+        cycleHistory: req.body.cycleHistory || [], // Use only what's sent
+      };
       
       // Update existing data
       const updated = await MenstrualCycle.findByIdAndUpdate(
         existingData._id, 
-        req.body, 
+        updateData, 
         { new: true }
       );
       console.log('✅ Updated menstrual data successfully');
-      console.log('🔍 Updated data reminder time:', updated.reminderTime);
+      console.log('🔍 Updated cycle history entries:', updated.cycleHistory?.length || 0);
       res.json(updated);
     } else {
       console.log('🔍 Creating new data for user:', req.body.userId);
-      // Create new entry
-      const entry = new MenstrualCycle(req.body);
+      
+      // Only create with essential data - don't auto-create cycle history
+      const newData = {
+        userId: req.body.userId,
+        lastPeriodStartDate: req.body.lastPeriodStartDate,
+        cycleLength: req.body.cycleLength,
+        periodDuration: req.body.periodDuration,
+        cycleHistory: req.body.cycleHistory || [], // Use only what's sent
+      };
+      
+      const entry = new MenstrualCycle(newData);
       await entry.save();
       console.log('✅ Created new menstrual data successfully');
-      console.log('🔍 Created data reminder time:', entry.reminderTime);
+      console.log('🔍 Created cycle history entries:', entry.cycleHistory?.length || 0);
       res.status(201).json(entry);
     }
   } catch (err) {
     console.error('❌ Error in createMenstrual:', err);
     res.status(400).json({ error: err.message });
+  }
+};
+
+// Add a new cycle entry to history (separate from basic data update)
+exports.addCycleEntry = async (req, res) => {
+  try {
+    const { userId, startDate, cycleLength, periodDuration } = req.body;
+    
+    if (!userId || !startDate || !cycleLength || !periodDuration) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: userId, startDate, cycleLength, periodDuration' 
+      });
+    }
+
+    // Find existing user data
+    let userData = await MenstrualCycle.findOne({ userId });
+    
+    if (!userData) {
+      return res.status(404).json({ error: 'User menstrual data not found. Please save basic cycle data first.' });
+    }
+
+    // Create new cycle entry
+    const newEntry = {
+      id: Date.now().toString(), // Simple ID generation
+      startDate: startDate,
+      cycleLength: cycleLength,
+      periodDuration: periodDuration,
+      createdAt: new Date().toISOString(),
+    };
+
+    // Add to cycle history
+    if (!userData.cycleHistory) {
+      userData.cycleHistory = [];
+    }
+    
+    userData.cycleHistory.push(newEntry);
+    
+    // Save updated data
+    await userData.save();
+    
+    console.log('✅ Added new cycle entry to history for user:', userId);
+    console.log('🔍 Total cycle history entries:', userData.cycleHistory.length);
+    
+    res.json({ 
+      success: true, 
+      message: 'Cycle entry added successfully',
+      cycleHistory: userData.cycleHistory 
+    });
+  } catch (err) {
+    console.error('❌ Error in addCycleEntry:', err);
+    res.status(500).json({ error: err.message });
   }
 };
 

@@ -18,4 +18,7 @@ router.post('/calculate-predictions', authenticateToken, menstrualController.cal
 // Get upcoming reminders based on standardized calculations
 router.get('/:userId/upcoming-reminders', authenticateToken, menstrualController.getUpcomingReminders);
 
+// Add new cycle entry to history
+router.post('/add-cycle-entry', authenticateToken, menstrualController.addCycleEntry);
+
 module.exports = router; 
