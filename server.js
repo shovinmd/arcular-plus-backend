@@ -247,6 +247,11 @@ app.get('/api/test-firebase-storage', (req, res) => {
   }
 });
 
+// Simple ping endpoint for health checks
+app.get("/ping", (req, res) => {
+  res.json({ status: "UP", timestamp: Date.now() });
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
