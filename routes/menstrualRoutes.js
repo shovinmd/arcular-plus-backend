@@ -12,4 +12,10 @@ router.put('/:id', authenticateToken, menstrualController.updateMenstrual);
 // Delete individual cycle entry
 router.delete('/:userId/:entryId', authenticateToken, menstrualController.deleteCycleEntry);
 
+// Calculate predictions using standardized formula
+router.post('/calculate-predictions', authenticateToken, menstrualController.calculatePredictions);
+
+// Get upcoming reminders based on standardized calculations
+router.get('/:userId/upcoming-reminders', authenticateToken, menstrualController.getUpcomingReminders);
+
 module.exports = router; 
