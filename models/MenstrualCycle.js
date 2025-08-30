@@ -10,11 +10,15 @@ const menstrualCycleSchema = new mongoose.Schema({
     endDate: Date,
     notes: String
   }],
-  reminders: {
-    nextPeriod: { type: Boolean, default: false },
-    fertileWindow: { type: Boolean, default: false },
-    ovulation: { type: Boolean, default: false }
-  },
+  // Frontend calculated predictions stored in backend
+  nextPeriod: { type: Date },
+  ovulationDay: { type: Date },
+  fertileWindow: [{ type: Date }],
+  periodEnd: { type: Date },
+  // Reminder preferences
+  remindNextPeriod: { type: Boolean, default: false },
+  remindFertileWindow: { type: Boolean, default: false },
+  remindOvulation: { type: Boolean, default: false },
   reminderTime: { type: String },
   createdAt: { type: Date, default: Date.now }
 }, { timestamps: true });
