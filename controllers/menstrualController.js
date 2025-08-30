@@ -44,6 +44,36 @@ exports.createMenstrual = async (req, res) => {
     // Check if user already has menstrual cycle data
     const existingData = await MenstrualCycle.findOne({ userId: req.body.userId });
     
+    // Special case: If only preferences are sent (no cycle data), create basic entry
+    const isPreferenceOnly = !req.body.lastPeriodStartDate && !req.body.cycleLength && 
+                             !req.body.periodDuration && !req.body.nextPeriod && 
+                             !req.body.ovulationDay && !req.body.fertileWindow && 
+                             !req.body.periodEnd;
+    
+    if (isPreferenceOnly && !existingData) {
+      console.log('🔍 Creating preference-only entry for new user:', req.body.userId);
+      
+      const preferenceData = {
+        userId: req.body.userId,
+        // Set default values for required fields
+        lastPeriodStartDate: new Date(), // Today as default
+        cycleLength: 28, // Default cycle length
+        periodDuration: 5, // Default period duration
+        cycleHistory: [],
+        // Reminder preferences
+        remindNextPeriod: req.body.remindNextPeriod !== undefined ? req.body.remindNextPeriod : false,
+        remindFertileWindow: req.body.remindFertileWindow !== undefined ? req.body.remindFertileWindow : false,
+        remindOvulation: req.body.remindOvulation !== undefined ? req.body.remindOvulation : false,
+        reminderTime: req.body.reminderTime || '09:00',
+      };
+      
+      const entry = new MenstrualCycle(preferenceData);
+      await entry.save();
+      console.log('✅ Created preference-only entry successfully');
+      res.status(201).json(entry);
+      return;
+    }
+    
     if (existingData) {
       console.log('🔍 Updating existing data for user:', req.body.userId);
       
@@ -114,21 +144,24 @@ exports.createMenstrual = async (req, res) => {
       // Create with frontend calculations and preferences
       const newData = {
         userId: req.body.userId,
-        lastPeriodStartDate: req.body.lastPeriodStartDate,
-        cycleLength: req.body.cycleLength,
-        periodDuration: req.body.periodDuration,
-        cycleHistory: req.body.cycleHistory || [], // Use only what's sent
-        // Store frontend calculated predictions
-        nextPeriod: req.body.nextPeriod ? new Date(req.body.nextPeriod) : undefined,
-        ovulationDay: req.body.ovulationDay ? new Date(req.body.ovulationDay) : undefined,
-        fertileWindow: req.body.fertileWindow ? req.body.fertileWindow.map(date => new Date(date)) : undefined,
-        periodEnd: req.body.periodEnd ? new Date(req.body.periodEnd) : undefined,
-        // Always include reminder preferences (including false values)
-        remindNextPeriod: req.body.remindNextPeriod,
-        remindFertileWindow: req.body.remindFertileWindow,
-        remindOvulation: req.body.remindOvulation,
-        reminderTime: req.body.reminderTime,
+        // Include cycle data only if sent
+        ...(req.body.lastPeriodStartDate && { lastPeriodStartDate: req.body.lastPeriodStartDate }),
+        ...(req.body.cycleLength && { cycleLength: req.body.cycleLength }),
+        ...(req.body.periodDuration && { periodDuration: req.body.periodDuration }),
+        ...(req.body.cycleHistory && { cycleHistory: req.body.cycleHistory }),
+        // Include predictions only if sent
+        ...(req.body.nextPeriod && { nextPeriod: new Date(req.body.nextPeriod) }),
+        ...(req.body.ovulationDay && { ovulationDay: new Date(req.body.ovulationDay) }),
+        ...(req.body.fertileWindow && { fertileWindow: req.body.fertileWindow.map(date => new Date(date)) }),
+        ...(req.body.periodEnd && { periodEnd: new Date(req.body.periodEnd) }),
+        // Always include reminder preferences if sent (including false values)
+        ...(req.body.remindNextPeriod !== undefined && { remindNextPeriod: req.body.remindNextPeriod }),
+        ...(req.body.remindFertileWindow !== undefined && { remindFertileWindow: req.body.remindFertileWindow }),
+        ...(req.body.remindOvulation !== undefined && { remindOvulation: req.body.remindOvulation }),
+        ...(req.body.reminderTime && { reminderTime: req.body.reminderTime }),
       };
+      
+      console.log('🔍 New data to be created:', newData);
       
       const entry = new MenstrualCycle(newData);
       await entry.save();
