@@ -103,56 +103,7 @@ exports.createMenstrual = async (req, res) => {
   }
 };
 
-// Add a new cycle entry to history (separate from basic data update)
-exports.addCycleEntry = async (req, res) => {
-  try {
-    const { userId, startDate, cycleLength, periodDuration } = req.body;
-    
-    if (!userId || !startDate || !cycleLength || !periodDuration) {
-      return res.status(400).json({ 
-        error: 'Missing required fields: userId, startDate, cycleLength, periodDuration' 
-      });
-    }
 
-    // Find existing user data
-    let userData = await MenstrualCycle.findOne({ userId });
-    
-    if (!userData) {
-      return res.status(404).json({ error: 'User menstrual data not found. Please save basic cycle data first.' });
-    }
-
-    // Create new cycle entry
-    const newEntry = {
-      id: Date.now().toString(), // Simple ID generation
-      startDate: startDate,
-      cycleLength: cycleLength,
-      periodDuration: periodDuration,
-      createdAt: new Date().toISOString(),
-    };
-
-    // Add to cycle history
-    if (!userData.cycleHistory) {
-      userData.cycleHistory = [];
-    }
-    
-    userData.cycleHistory.push(newEntry);
-    
-    // Save updated data
-    await userData.save();
-    
-    console.log('✅ Added new cycle entry to history for user:', userId);
-    console.log('🔍 Total cycle history entries:', userData.cycleHistory.length);
-    
-    res.json({ 
-      success: true, 
-      message: 'Cycle entry added successfully',
-      cycleHistory: userData.cycleHistory 
-    });
-  } catch (err) {
-    console.error('❌ Error in addCycleEntry:', err);
-    res.status(500).json({ error: err.message });
-  }
-};
 
 exports.updateMenstrual = async (req, res) => {
   try {
@@ -193,62 +144,7 @@ exports.deleteCycleEntry = async (req, res) => {
   }
 };
 
-// Standardized menstrual cycle calculation methods
-exports.calculatePredictions = async (req, res) => {
-  try {
-    const { lastPeriodStartDate, cycleLength, periodDuration } = req.body;
-    
-    if (!lastPeriodStartDate || !cycleLength || !periodDuration) {
-      return res.status(400).json({ 
-        error: 'Missing required fields: lastPeriodStartDate, cycleLength, periodDuration' 
-      });
-    }
 
-    // Convert string date to Date object
-    const lmp = new Date(lastPeriodStartDate);
-    
-    // Apply standardized formula (same as frontend)
-    // NextPeriod = LMP + CycleLength
-    const nextPeriod = new Date(lmp.getTime() + (cycleLength * 24 * 60 * 60 * 1000));
-    
-    // OvulationDay = NextPeriod - 14
-    const ovulationDay = new Date(nextPeriod.getTime() - (14 * 24 * 60 * 60 * 1000));
-    
-    // FertileWindow = [OvulationDay - 5, OvulationDay + 1]
-    const fertileWindowStart = new Date(ovulationDay.getTime() - (5 * 24 * 60 * 60 * 1000));
-    const fertileWindowEnd = new Date(ovulationDay.getTime() + (1 * 24 * 60 * 60 * 1000));
-    
-    // PeriodEnd = NextPeriod + (PeriodDuration - 1)
-    const periodEnd = new Date(nextPeriod.getTime() + ((periodDuration - 1) * 24 * 60 * 60 * 1000));
-
-    // Generate fertile window dates array
-    const fertileWindow = [];
-    let currentDate = new Date(fertileWindowStart);
-    while (currentDate <= fertileWindowEnd) {
-      fertileWindow.push(new Date(currentDate));
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
-
-    const predictions = {
-      nextPeriod: nextPeriod.toISOString().split('T')[0],
-      ovulationDay: ovulationDay.toISOString().split('T')[0],
-      fertileWindow: fertileWindow.map(date => date.toISOString().split('T')[0]),
-      periodEnd: periodEnd.toISOString().split('T')[0],
-      formula: {
-        nextPeriod: 'LMP + CycleLength',
-        ovulationDay: 'NextPeriod - 14',
-        fertileWindow: '[OvulationDay - 5, OvulationDay + 1]',
-        periodEnd: 'NextPeriod + (PeriodDuration - 1)'
-      }
-    };
-
-    console.log('✅ Calculated predictions using standardized formula:', predictions);
-    res.json({ success: true, data: predictions });
-  } catch (err) {
-    console.error('❌ Error in calculatePredictions:', err);
-    res.status(500).json({ error: err.message });
-  }
-};
 
 // Get upcoming reminders based on standardized calculations
 exports.getUpcomingReminders = async (req, res) => {
