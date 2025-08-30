@@ -111,20 +111,25 @@ exports.createMenstrual = async (req, res) => {
       // Always update reminder preferences if sent (including false values)
       if (req.body.remindNextPeriod !== undefined) {
         updateData.remindNextPeriod = req.body.remindNextPeriod;
+        console.log('🔍 Will update remindNextPeriod to:', req.body.remindNextPeriod);
       }
       if (req.body.remindFertileWindow !== undefined) {
         updateData.remindFertileWindow = req.body.remindFertileWindow;
+        console.log('🔍 Will update remindFertileWindow to:', req.body.remindFertileWindow);
       }
       if (req.body.remindOvulation !== undefined) {
         updateData.remindOvulation = req.body.remindOvulation;
+        console.log('🔍 Will update remindOvulation to:', req.body.remindOvulation);
       }
       if (req.body.reminderTime !== undefined) {
         updateData.reminderTime = req.body.reminderTime;
+        console.log('🔍 Will update reminderTime to:', req.body.reminderTime);
       }
       
       console.log('🔍 Update data to be applied:', updateData);
       
       // Update existing data
+      console.log('🔍 Executing database update with data:', updateData);
       const updated = await MenstrualCycle.findByIdAndUpdate(
         existingData._id, 
         updateData, 
@@ -137,6 +142,15 @@ exports.createMenstrual = async (req, res) => {
       console.log('   - remindFertileWindow:', updated.remindFertileWindow, '(', typeof updated.remindFertileWindow, ')');
       console.log('   - remindOvulation:', updated.remindOvulation, '(', typeof updated.remindOvulation, ')');
       console.log('   - reminderTime:', updated.reminderTime, '(', typeof updated.reminderTime, ')');
+      
+      // Verify the update worked
+      console.log('🔍 Verification - checking if preferences were actually saved:');
+      const verification = await MenstrualCycle.findById(existingData._id);
+      console.log('   - remindNextPeriod in DB:', verification.remindNextPeriod);
+      console.log('   - remindFertileWindow in DB:', verification.remindFertileWindow);
+      console.log('   - remindOvulation in DB:', verification.remindOvulation);
+      console.log('   - reminderTime in DB:', verification.reminderTime);
+      
       res.json(updated);
     } else {
       console.log('🔍 Creating new data for user:', req.body.userId);
