@@ -193,64 +193,11 @@ exports.deleteCycleEntry = async (req, res) => {
   }
 };
 
-// Standardized menstrual cycle calculation methods
-exports.calculatePredictions = async (req, res) => {
-  try {
-    const { lastPeriodStartDate, cycleLength, periodDuration } = req.body;
-    
-    if (!lastPeriodStartDate || !cycleLength || !periodDuration) {
-      return res.status(400).json({ 
-        error: 'Missing required fields: lastPeriodStartDate, cycleLength, periodDuration' 
-      });
-    }
+// REMOVED: calculatePredictions function - using frontend calculations only
+// Frontend calculates: NextPeriod = LMP + CycleLength, OvulationDay = NextPeriod - 14, etc.
+// Backend only stores and uses these frontend-calculated values for FCM and reminders
 
-    // Convert string date to Date object
-    const lmp = new Date(lastPeriodStartDate);
-    
-    // Apply standardized formula (same as frontend)
-    // NextPeriod = LMP + CycleLength
-    const nextPeriod = new Date(lmp.getTime() + (cycleLength * 24 * 60 * 60 * 1000));
-    
-    // OvulationDay = NextPeriod - 14
-    const ovulationDay = new Date(nextPeriod.getTime() - (14 * 24 * 60 * 60 * 1000));
-    
-    // FertileWindow = [OvulationDay - 5, OvulationDay + 1]
-    const fertileWindowStart = new Date(ovulationDay.getTime() - (5 * 24 * 60 * 60 * 1000));
-    const fertileWindowEnd = new Date(ovulationDay.getTime() + (1 * 24 * 60 * 60 * 1000));
-    
-    // PeriodEnd = NextPeriod + (PeriodDuration - 1)
-    const periodEnd = new Date(nextPeriod.getTime() + ((periodDuration - 1) * 24 * 60 * 60 * 1000));
-
-    // Generate fertile window dates array
-    const fertileWindow = [];
-    let currentDate = new Date(fertileWindowStart);
-    while (currentDate <= fertileWindowEnd) {
-      fertileWindow.push(new Date(currentDate));
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
-
-    const predictions = {
-      nextPeriod: nextPeriod.toISOString().split('T')[0],
-      ovulationDay: ovulationDay.toISOString().split('T')[0],
-      fertileWindow: fertileWindow.map(date => date.toISOString().split('T')[0]),
-      periodEnd: periodEnd.toISOString().split('T')[0],
-      formula: {
-        nextPeriod: 'LMP + CycleLength',
-        ovulationDay: 'NextPeriod - 14',
-        fertileWindow: '[OvulationDay - 5, OvulationDay + 1]',
-        periodEnd: 'NextPeriod + (PeriodDuration - 1)'
-      }
-    };
-
-    console.log('✅ Calculated predictions using standardized formula:', predictions);
-    res.json({ success: true, data: predictions });
-  } catch (err) {
-    console.error('❌ Error in calculatePredictions:', err);
-    res.status(500).json({ error: err.message });
-  }
-};
-
-// Get upcoming reminders based on standardized calculations
+// Get upcoming reminders using frontend-calculated predictions only
 exports.getUpcomingReminders = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -261,31 +208,19 @@ exports.getUpcomingReminders = async (req, res) => {
       return res.status(404).json({ error: 'User data not found' });
     }
 
-    const { lastPeriodStartDate, cycleLength, periodDuration } = userData;
-    
-    if (!lastPeriodStartDate || !cycleLength || !periodDuration) {
-      return res.status(400).json({ error: 'Incomplete cycle data' });
+    // Only use stored frontend calculations - no backend calculations
+    if (!userData.nextPeriod || !userData.ovulationDay || !userData.fertileWindow) {
+      console.log('⚠️ No frontend calculations available, skipping reminders');
+      return res.json({ success: true, data: [] });
     }
 
-    // Use stored frontend calculations instead of recalculating
-    let nextPeriod, ovulationDay, fertileWindowStart, fertileWindowEnd;
+    // Use stored frontend calculations
+    const nextPeriod = new Date(userData.nextPeriod);
+    const ovulationDay = new Date(userData.ovulationDay);
+    const fertileWindowStart = new Date(userData.fertileWindow[0]);
+    const fertileWindowEnd = new Date(userData.fertileWindow[userData.fertileWindow.length - 1]);
     
-    if (userData.nextPeriod && userData.ovulationDay && userData.fertileWindow) {
-      // Use stored frontend calculations
-      nextPeriod = new Date(userData.nextPeriod);
-      ovulationDay = new Date(userData.ovulationDay);
-      fertileWindowStart = new Date(userData.fertileWindow[0]);
-      fertileWindowEnd = new Date(userData.fertileWindow[userData.fertileWindow.length - 1]);
-      console.log('✅ Using stored frontend calculations for reminders');
-    } else {
-      // Fallback to backend calculation if frontend data not available
-      const lmp = new Date(lastPeriodStartDate);
-      nextPeriod = new Date(lmp.getTime() + (cycleLength * 24 * 60 * 60 * 1000));
-      ovulationDay = new Date(nextPeriod.getTime() - (14 * 24 * 60 * 60 * 1000));
-      fertileWindowStart = new Date(ovulationDay.getTime() - (5 * 24 * 60 * 60 * 1000));
-      fertileWindowEnd = new Date(ovulationDay.getTime() + (1 * 24 * 60 * 60 * 1000));
-      console.log('⚠️ Using fallback backend calculations for reminders');
-    }
+    console.log('✅ Using stored frontend calculations for reminders');
 
     // Generate upcoming reminders
     const reminders = [];

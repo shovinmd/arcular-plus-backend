@@ -12,10 +12,9 @@ router.put('/:id', authenticateToken, menstrualController.updateMenstrual);
 // Delete individual cycle entry
 router.delete('/:userId/:entryId', authenticateToken, menstrualController.deleteCycleEntry);
 
-// Calculate predictions using standardized formula
-router.post('/calculate-predictions', authenticateToken, menstrualController.calculatePredictions);
+// REMOVED: calculate-predictions route - using frontend calculations only
 
-// Get upcoming reminders based on standardized calculations
+// Get upcoming reminders using frontend-calculated predictions
 router.get('/:userId/upcoming-reminders', authenticateToken, menstrualController.getUpcomingReminders);
 
 // Add new cycle entry to history
