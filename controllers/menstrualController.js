@@ -15,10 +15,16 @@ exports.createMenstrual = async (req, res) => {
     console.log('🔍 Creating/updating menstrual data:', req.body);
     console.log('🔍 Reminder time type:', typeof req.body.reminderTime);
     console.log('🔍 Reminder time value:', req.body.reminderTime);
-    console.log('🔍 Reminder preferences received:');
-    console.log('   - remindNextPeriod:', req.body.remindNextPeriod, '(', typeof req.body.remindNextPeriod, ')');
-    console.log('   - remindFertileWindow:', req.body.remindFertileWindow, '(', typeof req.body.remindFertileWindow, ')');
-    console.log('   - remindOvulation:', req.body.remindOvulation, '(', typeof req.body.remindOvulation, ')');
+          console.log('🔍 Reminder preferences received:');
+      console.log('   - remindNextPeriod:', req.body.remindNextPeriod, '(', typeof req.body.remindNextPeriod, ')');
+      console.log('   - remindFertileWindow:', req.body.remindFertileWindow, '(', typeof req.body.remindFertileWindow, ')');
+      console.log('   - remindOvulation:', req.body.remindOvulation, '(', typeof req.body.remindOvulation, ')');
+      console.log('🔍 Reminder preferences will be updated:', {
+        remindNextPeriod: req.body.remindNextPeriod !== undefined,
+        remindFertileWindow: req.body.remindFertileWindow !== undefined,
+        remindOvulation: req.body.remindOvulation !== undefined,
+        reminderTime: req.body.reminderTime !== undefined
+      });
     
     // Check if user already has menstrual cycle data
     const existingData = await MenstrualCycle.findOne({ userId: req.body.userId });
@@ -37,11 +43,11 @@ exports.createMenstrual = async (req, res) => {
         ovulationDay: req.body.ovulationDay ? new Date(req.body.ovulationDay) : undefined,
         fertileWindow: req.body.fertileWindow ? req.body.fertileWindow.map(date => new Date(date)) : undefined,
         periodEnd: req.body.periodEnd ? new Date(req.body.periodEnd) : undefined,
-        // Store reminder preferences
-        remindNextPeriod: req.body.remindNextPeriod,
-        remindFertileWindow: req.body.remindFertileWindow,
-        remindOvulation: req.body.remindOvulation,
-        reminderTime: req.body.reminderTime,
+        // Only update reminder preferences if they are explicitly sent
+        ...(req.body.remindNextPeriod !== undefined && { remindNextPeriod: req.body.remindNextPeriod }),
+        ...(req.body.remindFertileWindow !== undefined && { remindFertileWindow: req.body.remindFertileWindow }),
+        ...(req.body.remindOvulation !== undefined && { remindOvulation: req.body.remindOvulation }),
+        ...(req.body.reminderTime !== undefined && { reminderTime: req.body.reminderTime }),
       };
       
       // Update existing data
@@ -73,11 +79,11 @@ exports.createMenstrual = async (req, res) => {
         ovulationDay: req.body.ovulationDay ? new Date(req.body.ovulationDay) : undefined,
         fertileWindow: req.body.fertileWindow ? req.body.fertileWindow.map(date => new Date(date)) : undefined,
         periodEnd: req.body.periodEnd ? new Date(req.body.periodEnd) : undefined,
-        // Store reminder preferences
-        remindNextPeriod: req.body.remindNextPeriod,
-        remindFertileWindow: req.body.remindFertileWindow,
-        remindOvulation: req.body.remindOvulation,
-        reminderTime: req.body.reminderTime,
+        // Only include reminder preferences if they are explicitly sent
+        ...(req.body.remindNextPeriod !== undefined && { remindNextPeriod: req.body.remindNextPeriod }),
+        ...(req.body.remindFertileWindow !== undefined && { remindFertileWindow: req.body.remindFertileWindow }),
+        ...(req.body.remindOvulation !== undefined && { remindOvulation: req.body.remindOvulation }),
+        ...(req.body.reminderTime !== undefined && { reminderTime: req.body.reminderTime }),
       };
       
       const entry = new MenstrualCycle(newData);
