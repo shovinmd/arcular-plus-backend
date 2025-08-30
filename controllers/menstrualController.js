@@ -25,111 +25,32 @@ exports.createMenstrual = async (req, res) => {
         remindOvulation: req.body.remindOvulation !== undefined,
         reminderTime: req.body.reminderTime !== undefined
       });
-      
-      console.log('🔍 Complete data received:', {
-        userId: req.body.userId,
-        lastPeriodStartDate: req.body.lastPeriodStartDate,
-        cycleLength: req.body.cycleLength,
-        periodDuration: req.body.periodDuration,
-        nextPeriod: req.body.nextPeriod,
-        ovulationDay: req.body.ovulationDay,
-        fertileWindow: req.body.fertileWindow,
-        periodEnd: req.body.periodEnd,
-        remindNextPeriod: req.body.remindNextPeriod,
-        remindFertileWindow: req.body.remindFertileWindow,
-        remindOvulation: req.body.remindOvulation,
-        reminderTime: req.body.reminderTime,
-      });
     
     // Check if user already has menstrual cycle data
     const existingData = await MenstrualCycle.findOne({ userId: req.body.userId });
     
-    // Special case: If only preferences are sent (no cycle data), create basic entry
-    const isPreferenceOnly = !req.body.lastPeriodStartDate && !req.body.cycleLength && 
-                             !req.body.periodDuration && !req.body.nextPeriod && 
-                             !req.body.ovulationDay && !req.body.fertileWindow && 
-                             !req.body.periodEnd;
-    
-    if (isPreferenceOnly && !existingData) {
-      console.log('🔍 Creating preference-only entry for new user:', req.body.userId);
-      
-      const preferenceData = {
-        userId: req.body.userId,
-        // Set default values for required fields
-        lastPeriodStartDate: new Date(), // Today as default
-        cycleLength: 28, // Default cycle length
-        periodDuration: 5, // Default period duration
-        cycleHistory: [],
-        // Reminder preferences
-        remindNextPeriod: req.body.remindNextPeriod !== undefined ? req.body.remindNextPeriod : false,
-        remindFertileWindow: req.body.remindFertileWindow !== undefined ? req.body.remindFertileWindow : false,
-        remindOvulation: req.body.remindOvulation !== undefined ? req.body.remindOvulation : false,
-        reminderTime: req.body.reminderTime || '09:00',
-      };
-      
-      const entry = new MenstrualCycle(preferenceData);
-      await entry.save();
-      console.log('✅ Created preference-only entry successfully');
-      res.status(201).json(entry);
-      return;
-    }
-    
     if (existingData) {
       console.log('🔍 Updating existing data for user:', req.body.userId);
       
-      // Build update data - only update fields that are sent
-      const updateData = {};
-      
-      // Update cycle data only if sent
-      if (req.body.lastPeriodStartDate !== undefined) {
-        updateData.lastPeriodStartDate = req.body.lastPeriodStartDate;
-      }
-      if (req.body.cycleLength !== undefined) {
-        updateData.cycleLength = req.body.cycleLength;
-      }
-      if (req.body.periodDuration !== undefined) {
-        updateData.periodDuration = req.body.periodDuration;
-      }
-      if (req.body.cycleHistory !== undefined) {
-        updateData.cycleHistory = req.body.cycleHistory;
-      }
-      
-      // Update predictions only if sent
-      if (req.body.nextPeriod !== undefined) {
-        updateData.nextPeriod = req.body.nextPeriod ? new Date(req.body.nextPeriod) : undefined;
-      }
-      if (req.body.ovulationDay !== undefined) {
-        updateData.ovulationDay = req.body.ovulationDay ? new Date(req.body.ovulationDay) : undefined;
-      }
-      if (req.body.fertileWindow !== undefined) {
-        updateData.fertileWindow = req.body.fertileWindow ? req.body.fertileWindow.map(date => new Date(date)) : undefined;
-      }
-      if (req.body.periodEnd !== undefined) {
-        updateData.periodEnd = req.body.periodEnd ? new Date(req.body.periodEnd) : undefined;
-      }
-      
-      // Always update reminder preferences if sent (including false values)
-      if (req.body.remindNextPeriod !== undefined) {
-        updateData.remindNextPeriod = req.body.remindNextPeriod;
-        console.log('🔍 Will update remindNextPeriod to:', req.body.remindNextPeriod);
-      }
-      if (req.body.remindFertileWindow !== undefined) {
-        updateData.remindFertileWindow = req.body.remindFertileWindow;
-        console.log('🔍 Will update remindFertileWindow to:', req.body.remindFertileWindow);
-      }
-      if (req.body.remindOvulation !== undefined) {
-        updateData.remindOvulation = req.body.remindOvulation;
-        console.log('🔍 Will update remindOvulation to:', req.body.remindOvulation);
-      }
-      if (req.body.reminderTime !== undefined) {
-        updateData.reminderTime = req.body.reminderTime;
-        console.log('🔍 Will update reminderTime to:', req.body.reminderTime);
-      }
-      
-      console.log('🔍 Update data to be applied:', updateData);
+      // Update with frontend calculations and preferences
+      const updateData = {
+        lastPeriodStartDate: req.body.lastPeriodStartDate,
+        cycleLength: req.body.cycleLength,
+        periodDuration: req.body.periodDuration,
+        cycleHistory: req.body.cycleHistory || [], // Use only what's sent
+        // Store frontend calculated predictions
+        nextPeriod: req.body.nextPeriod ? new Date(req.body.nextPeriod) : undefined,
+        ovulationDay: req.body.ovulationDay ? new Date(req.body.ovulationDay) : undefined,
+        fertileWindow: req.body.fertileWindow ? req.body.fertileWindow.map(date => new Date(date)) : undefined,
+        periodEnd: req.body.periodEnd ? new Date(req.body.periodEnd) : undefined,
+        // Only update reminder preferences if they are explicitly sent
+        ...(req.body.remindNextPeriod !== undefined && { remindNextPeriod: req.body.remindNextPeriod }),
+        ...(req.body.remindFertileWindow !== undefined && { remindFertileWindow: req.body.remindFertileWindow }),
+        ...(req.body.remindOvulation !== undefined && { remindOvulation: req.body.remindOvulation }),
+        ...(req.body.reminderTime !== undefined && { reminderTime: req.body.reminderTime }),
+      };
       
       // Update existing data
-      console.log('🔍 Executing database update with data:', updateData);
       const updated = await MenstrualCycle.findByIdAndUpdate(
         existingData._id, 
         updateData, 
@@ -142,15 +63,6 @@ exports.createMenstrual = async (req, res) => {
       console.log('   - remindFertileWindow:', updated.remindFertileWindow, '(', typeof updated.remindFertileWindow, ')');
       console.log('   - remindOvulation:', updated.remindOvulation, '(', typeof updated.remindOvulation, ')');
       console.log('   - reminderTime:', updated.reminderTime, '(', typeof updated.reminderTime, ')');
-      
-      // Verify the update worked
-      console.log('🔍 Verification - checking if preferences were actually saved:');
-      const verification = await MenstrualCycle.findById(existingData._id);
-      console.log('   - remindNextPeriod in DB:', verification.remindNextPeriod);
-      console.log('   - remindFertileWindow in DB:', verification.remindFertileWindow);
-      console.log('   - remindOvulation in DB:', verification.remindOvulation);
-      console.log('   - reminderTime in DB:', verification.reminderTime);
-      
       res.json(updated);
     } else {
       console.log('🔍 Creating new data for user:', req.body.userId);
@@ -158,24 +70,21 @@ exports.createMenstrual = async (req, res) => {
       // Create with frontend calculations and preferences
       const newData = {
         userId: req.body.userId,
-        // Include cycle data only if sent
-        ...(req.body.lastPeriodStartDate && { lastPeriodStartDate: req.body.lastPeriodStartDate }),
-        ...(req.body.cycleLength && { cycleLength: req.body.cycleLength }),
-        ...(req.body.periodDuration && { periodDuration: req.body.periodDuration }),
-        ...(req.body.cycleHistory && { cycleHistory: req.body.cycleHistory }),
-        // Include predictions only if sent
-        ...(req.body.nextPeriod && { nextPeriod: new Date(req.body.nextPeriod) }),
-        ...(req.body.ovulationDay && { ovulationDay: new Date(req.body.ovulationDay) }),
-        ...(req.body.fertileWindow && { fertileWindow: req.body.fertileWindow.map(date => new Date(date)) }),
-        ...(req.body.periodEnd && { periodEnd: new Date(req.body.periodEnd) }),
-        // Always include reminder preferences if sent (including false values)
+        lastPeriodStartDate: req.body.lastPeriodStartDate,
+        cycleLength: req.body.cycleLength,
+        periodDuration: req.body.periodDuration,
+        cycleHistory: req.body.cycleHistory || [], // Use only what's sent
+        // Store frontend calculated predictions
+        nextPeriod: req.body.nextPeriod ? new Date(req.body.nextPeriod) : undefined,
+        ovulationDay: req.body.ovulationDay ? new Date(req.body.ovulationDay) : undefined,
+        fertileWindow: req.body.fertileWindow ? req.body.fertileWindow.map(date => new Date(date)) : undefined,
+        periodEnd: req.body.periodEnd ? new Date(req.body.periodEnd) : undefined,
+        // Only include reminder preferences if they are explicitly sent
         ...(req.body.remindNextPeriod !== undefined && { remindNextPeriod: req.body.remindNextPeriod }),
         ...(req.body.remindFertileWindow !== undefined && { remindFertileWindow: req.body.remindFertileWindow }),
         ...(req.body.remindOvulation !== undefined && { remindOvulation: req.body.remindOvulation }),
-        ...(req.body.reminderTime && { reminderTime: req.body.reminderTime }),
+        ...(req.body.reminderTime !== undefined && { reminderTime: req.body.reminderTime }),
       };
-      
-      console.log('🔍 New data to be created:', newData);
       
       const entry = new MenstrualCycle(newData);
       await entry.save();
@@ -284,11 +193,64 @@ exports.deleteCycleEntry = async (req, res) => {
   }
 };
 
-// REMOVED: calculatePredictions function - using frontend calculations only
-// Frontend calculates: NextPeriod = LMP + CycleLength, OvulationDay = NextPeriod - 14, etc.
-// Backend only stores and uses these frontend-calculated values for FCM and reminders
+// Standardized menstrual cycle calculation methods
+exports.calculatePredictions = async (req, res) => {
+  try {
+    const { lastPeriodStartDate, cycleLength, periodDuration } = req.body;
+    
+    if (!lastPeriodStartDate || !cycleLength || !periodDuration) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: lastPeriodStartDate, cycleLength, periodDuration' 
+      });
+    }
 
-// Get upcoming reminders using frontend-calculated predictions only
+    // Convert string date to Date object
+    const lmp = new Date(lastPeriodStartDate);
+    
+    // Apply standardized formula (same as frontend)
+    // NextPeriod = LMP + CycleLength
+    const nextPeriod = new Date(lmp.getTime() + (cycleLength * 24 * 60 * 60 * 1000));
+    
+    // OvulationDay = NextPeriod - 14
+    const ovulationDay = new Date(nextPeriod.getTime() - (14 * 24 * 60 * 60 * 1000));
+    
+    // FertileWindow = [OvulationDay - 5, OvulationDay + 1]
+    const fertileWindowStart = new Date(ovulationDay.getTime() - (5 * 24 * 60 * 60 * 1000));
+    const fertileWindowEnd = new Date(ovulationDay.getTime() + (1 * 24 * 60 * 60 * 1000));
+    
+    // PeriodEnd = NextPeriod + (PeriodDuration - 1)
+    const periodEnd = new Date(nextPeriod.getTime() + ((periodDuration - 1) * 24 * 60 * 60 * 1000));
+
+    // Generate fertile window dates array
+    const fertileWindow = [];
+    let currentDate = new Date(fertileWindowStart);
+    while (currentDate <= fertileWindowEnd) {
+      fertileWindow.push(new Date(currentDate));
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    const predictions = {
+      nextPeriod: nextPeriod.toISOString().split('T')[0],
+      ovulationDay: ovulationDay.toISOString().split('T')[0],
+      fertileWindow: fertileWindow.map(date => date.toISOString().split('T')[0]),
+      periodEnd: periodEnd.toISOString().split('T')[0],
+      formula: {
+        nextPeriod: 'LMP + CycleLength',
+        ovulationDay: 'NextPeriod - 14',
+        fertileWindow: '[OvulationDay - 5, OvulationDay + 1]',
+        periodEnd: 'NextPeriod + (PeriodDuration - 1)'
+      }
+    };
+
+    console.log('✅ Calculated predictions using standardized formula:', predictions);
+    res.json({ success: true, data: predictions });
+  } catch (err) {
+    console.error('❌ Error in calculatePredictions:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Get upcoming reminders based on standardized calculations
 exports.getUpcomingReminders = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -299,19 +261,31 @@ exports.getUpcomingReminders = async (req, res) => {
       return res.status(404).json({ error: 'User data not found' });
     }
 
-    // Only use stored frontend calculations - no backend calculations
-    if (!userData.nextPeriod || !userData.ovulationDay || !userData.fertileWindow) {
-      console.log('⚠️ No frontend calculations available, skipping reminders');
-      return res.json({ success: true, data: [] });
+    const { lastPeriodStartDate, cycleLength, periodDuration } = userData;
+    
+    if (!lastPeriodStartDate || !cycleLength || !periodDuration) {
+      return res.status(400).json({ error: 'Incomplete cycle data' });
     }
 
-    // Use stored frontend calculations
-    const nextPeriod = new Date(userData.nextPeriod);
-    const ovulationDay = new Date(userData.ovulationDay);
-    const fertileWindowStart = new Date(userData.fertileWindow[0]);
-    const fertileWindowEnd = new Date(userData.fertileWindow[userData.fertileWindow.length - 1]);
+    // Use stored frontend calculations instead of recalculating
+    let nextPeriod, ovulationDay, fertileWindowStart, fertileWindowEnd;
     
-    console.log('✅ Using stored frontend calculations for reminders');
+    if (userData.nextPeriod && userData.ovulationDay && userData.fertileWindow) {
+      // Use stored frontend calculations
+      nextPeriod = new Date(userData.nextPeriod);
+      ovulationDay = new Date(userData.ovulationDay);
+      fertileWindowStart = new Date(userData.fertileWindow[0]);
+      fertileWindowEnd = new Date(userData.fertileWindow[userData.fertileWindow.length - 1]);
+      console.log('✅ Using stored frontend calculations for reminders');
+    } else {
+      // Fallback to backend calculation if frontend data not available
+      const lmp = new Date(lastPeriodStartDate);
+      nextPeriod = new Date(lmp.getTime() + (cycleLength * 24 * 60 * 60 * 1000));
+      ovulationDay = new Date(nextPeriod.getTime() - (14 * 24 * 60 * 60 * 1000));
+      fertileWindowStart = new Date(ovulationDay.getTime() - (5 * 24 * 60 * 60 * 1000));
+      fertileWindowEnd = new Date(ovulationDay.getTime() + (1 * 24 * 60 * 60 * 1000));
+      console.log('⚠️ Using fallback backend calculations for reminders');
+    }
 
     // Generate upcoming reminders
     const reminders = [];
