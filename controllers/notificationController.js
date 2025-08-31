@@ -36,21 +36,24 @@ const scheduleMedicineReminder = async (req, res) => {
     // Calculate delay in milliseconds
     const delay = scheduledTimeDate.getTime() - now.getTime();
 
-    // Schedule the notification
+    // Schedule the notification using setTimeout for reliable delivery
     setTimeout(async () => {
       try {
         await sendMedicineReminderNotification(fcmToken, medicineData);
-        console.log(`✅ Medicine reminder sent for ${medicineData.name} at ${scheduledTime}`);
+        console.log(`✅ FCM: Medicine reminder delivered for ${medicineData.name} at ${scheduledTime}`);
       } catch (error) {
-        console.error(`❌ Failed to send medicine reminder: ${error.message}`);
+        console.error(`❌ FCM: Failed to deliver medicine reminder: ${error.message}`);
       }
     }, delay);
 
+    console.log(`📅 FCM: Medicine reminder scheduled for ${medicineData.name} at ${scheduledTime} (${delay}ms delay)`);
+
     res.status(200).json({
       success: true,
-      message: 'Medicine reminder scheduled successfully',
+      message: 'Medicine reminder scheduled successfully via FCM',
       scheduledTime: scheduledTime,
-      delay: delay
+      delay: delay,
+      deliveryMethod: 'FCM (works for all app states)'
     });
 
   } catch (error) {
