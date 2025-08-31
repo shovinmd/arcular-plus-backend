@@ -263,6 +263,13 @@ const markAsTaken = async (req, res) => {
     medication.isTaken = true;
     medication.status = 'completed';
     medication.completedAt = new Date();
+    medication.lastAction = 'taken';
+    
+    // Add to action history
+    medication.actionHistory.push({
+      action: 'taken',
+      timestamp: new Date()
+    });
     
     await medication.save();
 
@@ -272,7 +279,8 @@ const markAsTaken = async (req, res) => {
     res.json({
       success: true,
       data: medication,
-      message: 'Medication marked as taken'
+      message: 'Medication marked as taken',
+      completedAt: medication.completedAt
     });
   } catch (error) {
     console.error('Error marking medication as taken:', error);

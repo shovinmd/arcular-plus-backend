@@ -38,9 +38,9 @@ router.get('/pending/:userId', medicationController.getPendingMedications);
 router.get('/:id', medicationController.getMedicationById);
 router.post('/', validateMedication, medicationController.createMedication);
 router.post('/user-add', authenticateToken, validateUserMedication, medicationController.createUserMedication);
-router.put('/:id', medicationController.updateMedication);
-router.delete('/:id', medicationController.deleteMedication);
-router.patch('/:id/taken', medicationController.markAsTaken);
-router.patch('/:id/not-taken', medicationController.markAsNotTaken);
+router.put('/:id', authenticateToken, medicationController.updateMedication);
+router.delete('/:id', authenticateToken, medicationController.deleteMedication);
+router.patch('/:id/taken', authenticateToken, medicationController.markAsTaken);
+router.patch('/:id/not-taken', authenticateToken, medicationController.markAsNotTaken);
 
 module.exports = router; 
