@@ -8,53 +8,11 @@ class MenstrualReminderService {
       NEXT_PERIOD: 'next_period',
       OVULATION: 'ovulation',
       FERTILE_WINDOW: 'fertile_window',
-      PERIOD_START: 'period_start'
+      PERIOD_END: 'period_end'
     };
   }
 
-  // Calculate next period start date
-  calculateNextPeriod(lastPeriodStart, cycleLength) {
-    if (!lastPeriodStart || !cycleLength) return null;
-    
-    const lastDate = new Date(lastPeriodStart);
-    const nextDate = new Date(lastDate);
-    nextDate.setDate(lastDate.getDate() + cycleLength);
-    
-    return nextDate;
-  }
-
-  // Calculate ovulation date
-  calculateOvulation(lastPeriodStart, cycleLength) {
-    if (!lastPeriodStart || !cycleLength) return null;
-    
-    const lastDate = new Date(lastPeriodStart);
-    const ovulationDate = new Date(lastDate);
-    ovulationDate.setDate(lastDate.getDate() + (cycleLength - 14));
-    
-    return ovulationDate;
-  }
-
-  // Calculate fertile window (5 days around ovulation)
-  calculateFertileWindow(lastPeriodStart, cycleLength) {
-    if (!lastPeriodStart || !cycleLength) return null;
-    
-    const ovulationDate = this.calculateOvulation(lastPeriodStart, cycleLength);
-    if (!ovulationDate) return null;
-    
-    const fertileStart = new Date(ovulationDate);
-    fertileStart.setDate(ovulationDate.getDate() - 2);
-    
-    const fertileEnd = new Date(ovulationDate);
-    fertileEnd.setDate(ovulationDate.getDate() + 2);
-    
-    return {
-      start: fertileStart,
-      end: fertileEnd,
-      ovulation: ovulationDate
-    };
-  }
-
-  // Check if today is a reminder day for a user
+  // Check if today is a reminder day for a user using STORED predictions
   async checkUserReminders(userId) {
     try {
       const user = await User.findOne({ uid: userId });
@@ -63,73 +21,121 @@ class MenstrualReminderService {
       }
 
       const menstrualData = await MenstrualCycle.findOne({ userId });
-      if (!menstrualData || !menstrualData.lastPeriodStartDate) {
+      if (!menstrualData) {
+        return null;
+      }
+
+      // Use STORED predictions from database (calculated by frontend)
+      const nextPeriod = menstrualData.nextPeriod;
+      const ovulationDay = menstrualData.ovulationDay;
+      const fertileWindow = menstrualData.fertileWindow;
+      const periodEnd = menstrualData.periodEnd;
+
+      if (!nextPeriod && !ovulationDay && !fertileWindow && !periodEnd) {
+        console.log(`⚠️ No stored predictions found for user ${userId}`);
         return null;
       }
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
-      const nextPeriod = this.calculateNextPeriod(
-        menstrualData.lastPeriodStartDate, 
-        menstrualData.cycleLength
-      );
-      
-      const ovulation = this.calculateOvulation(
-        menstrualData.lastPeriodStartDate, 
-        menstrualData.cycleLength
-      );
-      
-      const fertileWindow = this.calculateFertileWindow(
-        menstrualData.lastPeriodStartDate, 
-        menstrualData.cycleLength
-      );
-
       const reminders = [];
 
-      // Check next period reminder
-      if (menstrualData.reminders?.nextPeriod && nextPeriod) {
+      // Check next period reminder (1 day before)
+      if (menstrualData.remindNextPeriod && nextPeriod) {
         const nextPeriodDate = new Date(nextPeriod);
         nextPeriodDate.setHours(0, 0, 0, 0);
         
-        if (this.isSameDay(today, nextPeriodDate)) {
+        // Send reminder 1 day before
+        const reminderDate = new Date(nextPeriodDate);
+        reminderDate.setDate(nextPeriodDate.getDate() - 1);
+        
+        if (this.isSameDay(today, reminderDate)) {
           reminders.push({
             type: this.reminderTypes.NEXT_PERIOD,
             title: '🩸 Period Reminder',
-            body: 'Your period is predicted to start today. Take care!',
-            data: { screen: 'menstrual-cycle' }
+            body: 'Your period is predicted to start tomorrow. Take care!',
+            data: { 
+              screen: 'menstrual-cycle',
+              reminderType: 'next_period',
+              predictedDate: nextPeriodDate.toISOString()
+            }
           });
         }
       }
 
-      // Check ovulation reminder
-      if (menstrualData.reminders?.ovulation && ovulation) {
-        const ovulationDate = new Date(ovulation);
+      // Check ovulation reminder (1 day before)
+      if (menstrualData.remindOvulation && ovulationDay) {
+        const ovulationDate = new Date(ovulationDay);
         ovulationDate.setHours(0, 0, 0, 0);
         
-        if (this.isSameDay(today, ovulationDate)) {
+        // Send reminder 1 day before
+        const reminderDate = new Date(ovulationDate);
+        reminderDate.setDate(ovulationDate.getDate() - 1);
+        
+        if (this.isSameDay(today, reminderDate)) {
           reminders.push({
             type: this.reminderTypes.OVULATION,
-            title: '🥚 Ovulation Day',
-            body: 'Today is your predicted ovulation day.',
-            data: { screen: 'menstrual-cycle' }
+            title: '🥚 Ovulation Reminder',
+            body: 'Your ovulation day is predicted for tomorrow.',
+            data: { 
+              screen: 'menstrual-cycle',
+              reminderType: 'ovulation',
+              predictedDate: ovulationDate.toISOString()
+            }
           });
         }
       }
 
-      // Check fertile window reminder
-      if (menstrualData.reminders?.fertileWindow && fertileWindow) {
+      // Check fertile window reminder (1 day before start)
+      if (menstrualData.remindFertileWindow && fertileWindow && fertileWindow.start) {
         const fertileStart = new Date(fertileWindow.start);
         fertileStart.setHours(0, 0, 0, 0);
         
-        if (this.isSameDay(today, fertileStart)) {
+        // Send reminder 1 day before fertile window starts
+        const reminderDate = new Date(fertileStart);
+        reminderDate.setDate(fertileStart.getDate() - 1);
+        
+        if (this.isSameDay(today, reminderDate)) {
           reminders.push({
             type: this.reminderTypes.FERTILE_WINDOW,
-            title: '🌱 Fertile Window',
-            body: 'Your fertile window starts today and lasts for 5 days.',
-            data: { screen: 'menstrual-cycle' }
+            title: '🌱 Fertile Window Reminder',
+            body: 'Your fertile window starts tomorrow and lasts for 5 days.',
+            data: { 
+              screen: 'menstrual-cycle',
+              reminderType: 'fertile_window',
+              startDate: fertileStart.toISOString(),
+              endDate: fertileWindow.end ? fertileWindow.end.toISOString() : null
+            }
           });
         }
+      }
+
+      // Check period end reminder (1 day before)
+      if (periodEnd) {
+        const periodEndDate = new Date(periodEnd);
+        periodEndDate.setHours(0, 0, 0, 0);
+        
+        // Send reminder 1 day before period ends
+        const reminderDate = new Date(periodEndDate);
+        reminderDate.setDate(periodEndDate.getDate() - 1);
+        
+        if (this.isSameDay(today, reminderDate)) {
+          reminders.push({
+            type: this.reminderTypes.PERIOD_END,
+            title: '🩸 Period Ending Soon',
+            body: 'Your period is predicted to end tomorrow.',
+            data: { 
+              screen: 'menstrual-cycle',
+              reminderType: 'period_end',
+              predictedDate: periodEndDate.toISOString()
+            }
+          });
+        }
+      }
+
+      if (reminders.length > 0) {
+        console.log(`📅 Found ${reminders.length} reminders for user ${userId} on ${today.toDateString()}`);
       }
 
       return reminders;
@@ -147,10 +153,24 @@ class MenstrualReminderService {
         return false;
       }
 
+      console.log(`📱 Sending ${reminders.length} reminders to user ${userId}`);
+
       let sentCount = 0;
       for (const reminder of reminders) {
-        const success = await fcmService.sendToUser(userId, reminder);
-        if (success) sentCount++;
+        try {
+          const success = await fcmService.sendToUser(userId, reminder);
+          if (success) {
+            sentCount++;
+            console.log(`✅ Sent ${reminder.type} reminder to user ${userId}`);
+          } else {
+            console.log(`❌ Failed to send ${reminder.type} reminder to user ${userId}`);
+          }
+          
+          // Small delay between notifications
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } catch (error) {
+          console.error(`❌ Error sending ${reminder.type} reminder to user ${userId}:`, error);
+        }
       }
 
       console.log(`✅ Sent ${sentCount}/${reminders.length} reminders to user ${userId}`);
@@ -176,26 +196,44 @@ class MenstrualReminderService {
 
       let processedCount = 0;
       let successCount = 0;
+      let totalRemindersSent = 0;
 
       for (const user of users) {
         processedCount++;
         
         try {
+          console.log(`\n👤 Processing user ${user.uid} (${user.fullName || 'Unknown'})`);
+          
           const success = await this.sendUserReminders(user.uid);
-          if (success) successCount++;
+          if (success) {
+            successCount++;
+            // Count how many reminders were sent
+            const reminders = await this.checkUserReminders(user.uid);
+            if (reminders) {
+              totalRemindersSent += reminders.length;
+            }
+          }
           
           // Add small delay to avoid overwhelming FCM
-          await new Promise(resolve => setTimeout(resolve, 100));
+          await new Promise(resolve => setTimeout(resolve, 1000));
         } catch (error) {
           console.error(`❌ Error processing user ${user.uid}:`, error);
         }
       }
 
-      console.log(`✅ Daily reminder processing complete: ${successCount}/${processedCount} users processed successfully`);
-      return { processed: processedCount, success: successCount };
+      console.log(`\n📊 Daily reminder processing complete:`);
+      console.log(`   - Users processed: ${processedCount}`);
+      console.log(`   - Users with successful reminders: ${successCount}`);
+      console.log(`   - Total reminders sent: ${totalRemindersSent}`);
+      
+      return { 
+        processed: processedCount, 
+        success: successCount, 
+        totalReminders: totalRemindersSent 
+      };
     } catch (error) {
       console.error('❌ Error in daily reminder processing:', error);
-      return { processed: 0, success: 0, error: error.message };
+      return { processed: 0, success: 0, totalReminders: 0, error: error.message };
     }
   }
 
@@ -206,67 +244,65 @@ class MenstrualReminderService {
            date1.getDate() === date2.getDate();
   }
 
-  // Get upcoming reminders for a user (next 30 days)
-  async getUpcomingReminders(userId) {
+  // Get upcoming reminders for a user (for dashboard display)
+  async getUpcomingReminders(userId, days = 30) {
     try {
-      const user = await User.findOne({ uid: userId });
-      if (!user || !user.notificationPreferences?.menstrualReminders) {
-        return [];
-      }
-
       const menstrualData = await MenstrualCycle.findOne({ userId });
-      if (!menstrualData || !menstrualData.lastPeriodStartDate) {
+      if (!menstrualData) {
         return [];
       }
 
       const today = new Date();
-      const thirtyDaysFromNow = new Date();
-      thirtyDaysFromNow.setDate(today.getDate() + 30);
+      const futureDate = new Date();
+      futureDate.setDate(today.getDate() + days);
 
       const reminders = [];
-      let currentDate = new Date(menstrualData.lastPeriodStartDate);
-      
-      // Generate reminders for next 3 cycles
-      for (let cycle = 0; cycle < 3; cycle++) {
-        const nextPeriod = new Date(currentDate);
-        nextPeriod.setDate(currentDate.getDate() + menstrualData.cycleLength);
-        
-        if (nextPeriod >= today && nextPeriod <= thirtyDaysFromNow) {
+
+      // Check next period
+      if (menstrualData.remindNextPeriod && menstrualData.nextPeriod) {
+        const nextPeriod = new Date(menstrualData.nextPeriod);
+        if (nextPeriod >= today && nextPeriod <= futureDate) {
           reminders.push({
+            type: 'next_period',
+            title: '🩸 Period Reminder',
+            body: 'Your period is predicted to start',
             date: nextPeriod,
-            type: 'Next Period',
-            description: 'Your period is predicted to start'
+            daysUntil: Math.ceil((nextPeriod - today) / (1000 * 60 * 60 * 24))
           });
         }
+      }
 
-        const ovulation = new Date(nextPeriod);
-        ovulation.setDate(nextPeriod.getDate() - 14);
-        
-        if (ovulation >= today && ovulation <= thirtyDaysFromNow) {
+      // Check ovulation
+      if (menstrualData.remindOvulation && menstrualData.ovulationDay) {
+        const ovulation = new Date(menstrualData.ovulationDay);
+        if (ovulation >= today && ovulation <= futureDate) {
           reminders.push({
+            type: 'ovulation',
+            title: '🥚 Ovulation Day',
+            body: 'Your ovulation day is predicted',
             date: ovulation,
-            type: 'Ovulation',
-            description: 'Your ovulation day'
+            daysUntil: Math.ceil((ovulation - today) / (1000 * 60 * 60 * 24))
           });
         }
+      }
 
-        const fertileStart = new Date(ovulation);
-        fertileStart.setDate(ovulation.getDate() - 2);
-        
-        if (fertileStart >= today && fertileStart <= thirtyDaysFromNow) {
+      // Check fertile window
+      if (menstrualData.remindFertileWindow && menstrualData.fertileWindow && menstrualData.fertileWindow.start) {
+        const fertileStart = new Date(menstrualData.fertileWindow.start);
+        if (fertileStart >= today && fertileStart <= futureDate) {
           reminders.push({
+            type: 'fertile_window',
+            title: '🌱 Fertile Window',
+            body: 'Your fertile window starts',
             date: fertileStart,
-            type: 'Fertile Window',
-            description: 'Your fertile window starts'
+            daysUntil: Math.ceil((fertileStart - today) / (1000 * 60 * 60 * 24))
           });
         }
-
-        currentDate = nextPeriod;
       }
 
       // Sort by date
       reminders.sort((a, b) => a.date - b.date);
-      
+
       return reminders;
     } catch (error) {
       console.error(`❌ Error getting upcoming reminders for user ${userId}:`, error);

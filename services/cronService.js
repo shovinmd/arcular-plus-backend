@@ -1,5 +1,6 @@
 const cron = require('node-cron');
 const menstrualReminderService = require('./menstrualReminderService');
+const fcmService = require('./fcmService');
 
 class CronService {
   constructor() {
@@ -17,7 +18,10 @@ class CronService {
     try {
       console.log('🚀 Initializing cron service...');
       
-      // Schedule daily menstrual reminder processing at 9:00 AM
+      // Check FCM service status first
+      await this.checkFCMStatus();
+      
+      // Schedule daily menstrual reminder processing at 12:00 PM (noon)
       this.scheduleMenstrualReminders();
       
       // Schedule health check every hour
@@ -34,20 +38,56 @@ class CronService {
     }
   }
 
+  // Check FCM service status
+  async checkFCMStatus() {
+    try {
+      console.log('🔍 Checking FCM service status...');
+      
+      // Wait a bit for FCM service to initialize
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      const fcmStatus = fcmService.getStatus();
+      console.log('📱 FCM Service Status:', fcmStatus);
+      
+      if (!fcmStatus.isInitialized) {
+        console.log('⚠️ FCM service not fully initialized, but continuing...');
+      } else {
+        console.log('✅ FCM service is ready for notifications');
+      }
+    } catch (error) {
+      console.error('❌ Error checking FCM status:', error);
+    }
+  }
+
   // Schedule daily menstrual reminder processing
   scheduleMenstrualReminders() {
     try {
-      // Run every day at 9:00 AM
-      const job = cron.schedule('0 9 * * *', async () => {
+      // Run every day at 12:00 PM (noon)
+      const job = cron.schedule('0 12 * * *', async () => {
         console.log('🕐 Running daily menstrual reminder processing...');
+        console.log('📅 Date:', new Date().toLocaleDateString('en-US', { 
+          timeZone: 'Asia/Kolkata',
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        }));
         
         try {
+          // Check FCM status before processing
+          const fcmStatus = fcmService.getStatus();
+          if (!fcmStatus.isInitialized) {
+            console.log('⚠️ FCM service not ready, attempting to initialize...');
+            await fcmService.initialize();
+          }
+          
           const startTime = Date.now();
           const result = await menstrualReminderService.processDailyReminders();
           const endTime = Date.now();
           
           console.log(`✅ Daily reminder processing completed in ${endTime - startTime}ms`);
           console.log(`📊 Results: ${result.success}/${result.processed} users processed successfully`);
+          console.log(`📱 Total reminders sent: ${result.totalReminders || 0}`);
           
           // Log to monitoring system if available
           this.logReminderProcessing(result);
@@ -61,7 +101,7 @@ class CronService {
       });
 
       this.jobs.set('menstrualReminders', job);
-      console.log('✅ Scheduled daily menstrual reminders at 9:00 AM IST');
+      console.log('✅ Scheduled daily menstrual reminders at 12:00 PM IST (noon)');
     } catch (error) {
       console.error('❌ Error scheduling menstrual reminders:', error);
     }
@@ -77,6 +117,11 @@ class CronService {
         try {
           const healthStatus = await this.performHealthCheck();
           console.log('✅ Health check completed:', healthStatus);
+          
+          // Check FCM service health
+          const fcmStatus = fcmService.getStatus();
+          console.log('📱 FCM Service Health:', fcmStatus);
+          
         } catch (error) {
           console.error('❌ Health check failed:', error);
         }
@@ -125,7 +170,8 @@ class CronService {
         service: 'CronService',
         status: 'healthy',
         activeJobs: this.jobs.size,
-        jobDetails: []
+        jobDetails: [],
+        fcmStatus: fcmService.getStatus()
       };
 
       // Check each job status
@@ -169,12 +215,20 @@ class CronService {
     try {
       console.log('🚀 Manually triggering menstrual reminder processing...');
       
+      // Check FCM status first
+      const fcmStatus = fcmService.getStatus();
+      if (!fcmStatus.isInitialized) {
+        console.log('⚠️ FCM service not ready, attempting to initialize...');
+        await fcmService.initialize();
+      }
+      
       const startTime = Date.now();
       const result = await menstrualReminderService.processDailyReminders();
       const endTime = Date.now();
       
       console.log(`✅ Manual reminder processing completed in ${endTime - startTime}ms`);
       console.log(`📊 Results: ${result.success}/${result.processed} users processed successfully`);
+      console.log(`📱 Total reminders sent: ${result.totalReminders || 0}`);
       
       return result;
     } catch (error) {
@@ -239,6 +293,7 @@ class CronService {
     console.log(`   - Processed: ${result.processed}`);
     console.log(`   - Successful: ${result.success}`);
     console.log(`   - Failed: ${result.processed - result.success}`);
+    console.log(`   - Total Reminders: ${result.totalReminders || 0}`);
   }
 
   // Log errors
