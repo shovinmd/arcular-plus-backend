@@ -17,11 +17,17 @@ class MenstrualReminderService {
     try {
       const user = await User.findOne({ uid: userId });
       if (!user || !user.fcmToken || !user.notificationPreferences?.menstrualReminders) {
+        console.log(`⚠️ User ${userId} not eligible for reminders:`, {
+          hasUser: !!user,
+          hasFcmToken: !!user?.fcmToken,
+          menstrualRemindersEnabled: user?.notificationPreferences?.menstrualReminders
+        });
         return null;
       }
 
       const menstrualData = await MenstrualCycle.findOne({ userId });
       if (!menstrualData) {
+        console.log(`⚠️ No menstrual data found for user ${userId}`);
         return null;
       }
 
@@ -31,6 +37,16 @@ class MenstrualReminderService {
       const fertileWindow = menstrualData.fertileWindow;
       const periodEnd = menstrualData.periodEnd;
 
+      console.log(`🔍 Checking reminders for user ${userId}:`, {
+        nextPeriod: nextPeriod,
+        ovulationDay: ovulationDay,
+        fertileWindow: fertileWindow,
+        periodEnd: periodEnd,
+        remindNextPeriod: menstrualData.remindNextPeriod,
+        remindOvulation: menstrualData.remindOvulation,
+        remindFertileWindow: menstrualData.remindFertileWindow
+      });
+
       if (!nextPeriod && !ovulationDay && !fertileWindow && !periodEnd) {
         console.log(`⚠️ No stored predictions found for user ${userId}`);
         return null;
@@ -38,6 +54,8 @@ class MenstrualReminderService {
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
+      
+      console.log(`📅 Today's date: ${today.toDateString()} (${today.toISOString()})`);
       
       const reminders = [];
 
@@ -49,6 +67,13 @@ class MenstrualReminderService {
         // Send reminder 1 day before
         const reminderDate = new Date(nextPeriodDate);
         reminderDate.setDate(nextPeriodDate.getDate() - 1);
+        
+        console.log(`🔍 Next period check:`, {
+          nextPeriodDate: nextPeriodDate.toDateString(),
+          reminderDate: reminderDate.toDateString(),
+          today: today.toDateString(),
+          isReminderDay: this.isSameDay(today, reminderDate)
+        });
         
         if (this.isSameDay(today, reminderDate)) {
           reminders.push({
