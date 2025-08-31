@@ -167,9 +167,17 @@ const createUserMedication = async (req, res) => {
 
     await medication.save();
 
+    // Transform MongoDB _id to id for frontend compatibility
+    const medObj = medication.toObject();
+    const transformedMedication = {
+      ...medObj,
+      id: medObj._id.toString(), // Convert _id to id
+      _id: undefined // Remove _id to avoid confusion
+    };
+
     res.status(201).json({
       success: true,
-      data: medication,
+      data: transformedMedication,
       message: 'Medicine added successfully'
     });
   } catch (error) {
@@ -214,9 +222,17 @@ const updateMedication = async (req, res) => {
 
     await medication.save();
 
+    // Transform MongoDB _id to id for frontend compatibility
+    const medObj = medication.toObject();
+    const transformedMedication = {
+      ...medObj,
+      id: medObj._id.toString(), // Convert _id to id
+      _id: undefined // Remove _id to avoid confusion
+    };
+
     res.json({
       success: true,
-      data: medication,
+      data: transformedMedication,
       message: 'Medication updated successfully'
     });
   } catch (error) {
@@ -286,9 +302,17 @@ const markAsTaken = async (req, res) => {
     // Log the action for notification screen
     await logMedicineAction(medication.patientId, medication.name, 'taken');
 
+    // Transform MongoDB _id to id for frontend compatibility
+    const medObj = medication.toObject();
+    const transformedMedication = {
+      ...medObj,
+      id: medObj._id.toString(), // Convert _id to id
+      _id: undefined // Remove _id to avoid confusion
+    };
+
     res.json({
       success: true,
-      data: medication,
+      data: transformedMedication,
       message: 'Medication marked as taken',
       completedAt: medication.completedAt
     });
@@ -324,9 +348,17 @@ const markAsNotTaken = async (req, res) => {
     // Log the action for notification screen
     await logMedicineAction(medication.patientId, medication.name, 'skipped');
 
+    // Transform MongoDB _id to id for frontend compatibility
+    const medObj = medication.toObject();
+    const transformedMedication = {
+      ...medObj,
+      id: medObj._id.toString(), // Convert _id to id
+      _id: undefined // Remove _id to avoid confusion
+    };
+
     res.json({
       success: true,
-      data: medication,
+      data: transformedMedication,
       message: 'Medication marked as not taken'
     });
   } catch (error) {
@@ -344,10 +376,20 @@ const getPendingMedications = async (req, res) => {
     const { userId } = req.params;
     const medications = await Medication.findPendingByPatient(userId);
 
+    // Transform MongoDB _id to id for frontend compatibility
+    const transformedMedications = medications.map(med => {
+      const medObj = med.toObject();
+      return {
+        ...medObj,
+        id: medObj._id.toString(), // Convert _id to id
+        _id: undefined // Remove _id to avoid confusion
+      };
+    });
+
     res.json({
       success: true,
-      data: medications,
-      count: medications.length
+      data: transformedMedications,
+      count: transformedMedications.length
     });
   } catch (error) {
     console.error('Error fetching pending medications:', error);
@@ -356,7 +398,7 @@ const getPendingMedications = async (req, res) => {
       error: 'Failed to fetch pending medications'
     });
   }
-};
+ };
 
 // Get medication by ID
 const getMedicationById = async (req, res) => {
@@ -371,9 +413,17 @@ const getMedicationById = async (req, res) => {
       });
     }
 
+    // Transform MongoDB _id to id for frontend compatibility
+    const medObj = medication.toObject();
+    const transformedMedication = {
+      ...medObj,
+      id: medObj._id.toString(), // Convert _id to id
+      _id: undefined // Remove _id to avoid confusion
+    };
+
     res.json({
       success: true,
-      data: medication
+      data: transformedMedication
     });
   } catch (error) {
     console.error('Error fetching medication:', error);
@@ -412,30 +462,53 @@ function validateTimesForFrequency(frequency, times) {
   }
 
   let requiredCount = 0;
+  let minCount = 0;
+  let maxCount = 0;
+  
   switch (frequency) {
     case 'Once daily':
       requiredCount = 1;
+      minCount = 1;
+      maxCount = 1;
       break;
     case 'Twice daily':
       requiredCount = 2;
+      minCount = 2;
+      maxCount = 2;
       break;
     case 'Three times daily':
       requiredCount = 3;
+      minCount = 3;
+      maxCount = 3;
       break;
     case 'Every 4 hours':
+      requiredCount = 2; // Start and end time only
+      minCount = 2;
+      maxCount = 2;
+      break;
     case 'Every 6 hours':
+      requiredCount = 2; // Start and end time only
+      minCount = 2;
+      maxCount = 2;
+      break;
     case 'Every 8 hours':
+      requiredCount = 2; // Start and end time only
+      minCount = 2;
+      maxCount = 2;
+      break;
     case 'Every 12 hours':
-      requiredCount = 6; // Maximum for hourly frequencies
+      requiredCount = 2; // Start and end time only
+      minCount = 2;
+      maxCount = 2;
       break;
     default:
       return { isValid: false, message: 'Invalid frequency' };
   }
 
-  if (times.length !== requiredCount) {
+  if (times.length < minCount || times.length > maxCount) {
     return { 
       isValid: false, 
-      message: `Frequency '${frequency}' requires exactly ${requiredCount} time(s), but ${times.length} provided` 
+      message: `Frequency '${frequency}' requires ${minCount} time(s), but ${times.length} provided` 
     };
   }
 
