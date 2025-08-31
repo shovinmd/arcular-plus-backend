@@ -129,6 +129,15 @@ const createUserMedication = async (req, res) => {
       }
     }
 
+    // Validate times based on frequency
+    const timeValidation = validateTimesForFrequency(frequency, times);
+    if (!timeValidation.isValid) {
+      return res.status(400).json({
+        success: false,
+        error: timeValidation.message
+      });
+    }
+
     const medication = new Medication({
       name,
       dose: dosage, // Map dosage to dose field for compatibility
@@ -340,6 +349,51 @@ const getMedicationById = async (req, res) => {
     });
   }
 };
+
+// Validate times based on frequency
+function validateTimesForFrequency(frequency, times) {
+  if (!Array.isArray(times) || times.length === 0) {
+    return { isValid: false, message: 'Times array is required' };
+  }
+
+  let requiredCount = 0;
+  switch (frequency) {
+    case 'Once daily':
+      requiredCount = 1;
+      break;
+    case 'Twice daily':
+      requiredCount = 2;
+      break;
+    case 'Three times daily':
+      requiredCount = 3;
+      break;
+    case 'Every 4 hours':
+    case 'Every 6 hours':
+    case 'Every 8 hours':
+    case 'Every 12 hours':
+      requiredCount = 6; // Maximum for hourly frequencies
+      break;
+    default:
+      return { isValid: false, message: 'Invalid frequency' };
+  }
+
+  if (times.length !== requiredCount) {
+    return { 
+      isValid: false, 
+      message: `Frequency '${frequency}' requires exactly ${requiredCount} time(s), but ${times.length} provided` 
+    };
+  }
+
+  // Validate time format (HH:MM)
+  const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+  for (const time of times) {
+    if (!timeRegex.test(time)) {
+      return { isValid: false, message: `Invalid time format: ${time}. Use HH:MM format` };
+    }
+  }
+
+  return { isValid: true, message: 'Times validation passed' };
+}
 
 module.exports = {
   getMedicationsByUser,
