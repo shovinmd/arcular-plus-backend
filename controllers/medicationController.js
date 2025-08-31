@@ -148,19 +148,22 @@ const createUserMedication = async (req, res) => {
 
     await medication.save();
 
-    // Schedule FCM notifications for this medicine
-    await scheduleMedicineNotifications(medication);
-
     res.status(201).json({
       success: true,
       data: medication,
       message: 'Medicine added successfully'
     });
   } catch (error) {
-    console.error('Error creating user medication:', error);
+    console.error('❌ Error creating user medication:', error);
+    console.error('❌ Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
     res.status(500).json({
       success: false,
-      error: 'Failed to add medicine'
+      error: 'Failed to add medicine',
+      details: error.message
     });
   }
 };
