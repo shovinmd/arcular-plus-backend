@@ -259,7 +259,15 @@ const markAsTaken = async (req, res) => {
       });
     }
 
-    await medication.markAsTaken();
+    // Update medicine status
+    medication.isTaken = true;
+    medication.status = 'completed';
+    medication.completedAt = new Date();
+    
+    await medication.save();
+
+    // Log the action for notification screen
+    await logMedicineAction(medication.patientId, medication.name, 'taken');
 
     res.json({
       success: true,
@@ -288,7 +296,15 @@ const markAsNotTaken = async (req, res) => {
       });
     }
 
-    await medication.markAsNotTaken();
+    // Update medicine status
+    medication.isTaken = false;
+    medication.status = 'active';
+    medication.completedAt = null;
+    
+    await medication.save();
+
+    // Log the action for notification screen
+    await logMedicineAction(medication.patientId, medication.name, 'skipped');
 
     res.json({
       success: true,
@@ -349,6 +365,27 @@ const getMedicationById = async (req, res) => {
     });
   }
 };
+
+// Log medicine actions for notification screen
+async function logMedicineAction(patientId, medicineName, action) {
+  try {
+    // This would save to a MedicineActionLog collection
+    // For now, we'll just log to console
+    console.log(`📝 Medicine Action Log: ${patientId} - ${medicineName} - ${action} at ${new Date()}`);
+    
+    // TODO: Implement actual logging to database
+    // const actionLog = new MedicineActionLog({
+    //   patientId,
+    //   medicineName,
+    //   action,
+    //   timestamp: new Date()
+    // });
+    // await actionLog.save();
+    
+  } catch (error) {
+    console.error('Error logging medicine action:', error);
+  }
+}
 
 // Validate times based on frequency
 function validateTimesForFrequency(frequency, times) {

@@ -90,7 +90,26 @@ const medicationSchema = new mongoose.Schema({
   },
   nextNotificationTime: {
     type: Date
-  }
+  },
+  // Medicine completion tracking
+  completedAt: {
+    type: Date
+  },
+  lastAction: {
+    type: String,
+    enum: ['taken', 'skipped', 'snoozed'],
+    default: null
+  },
+  actionHistory: [{
+    action: {
+      type: String,
+      enum: ['taken', 'skipped', 'snoozed']
+    },
+    timestamp: {
+      type: Date,
+      default: Date.now
+    }
+  }]
 }, {
   timestamps: true
 });
