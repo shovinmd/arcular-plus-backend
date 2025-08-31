@@ -1,6 +1,7 @@
 const express = require('express');
 const { body } = require('express-validator');
 const medicationController = require('../controllers/medicationController');
+const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -27,7 +28,8 @@ const validateUserMedication = [
   body('times').isArray().withMessage('Times must be an array'),
   body('times.*').isString().withMessage('Each time must be a string'),
   body('startDate').optional().isISO8601().withMessage('Valid start date is required'),
-  body('endDate').optional().isISO8601().withMessage('Valid end date is required')
+  body('endDate').optional().isISO8601().withMessage('Valid end date is required'),
+  body('patientId').notEmpty().withMessage('Patient ID is required')
 ];
 
 // Routes
@@ -35,7 +37,7 @@ router.get('/user/:userId', medicationController.getMedicationsByUser);
 router.get('/pending/:userId', medicationController.getPendingMedications);
 router.get('/:id', medicationController.getMedicationById);
 router.post('/', validateMedication, medicationController.createMedication);
-router.post('/user-add', validateUserMedication, medicationController.createUserMedication);
+router.post('/user-add', authenticateToken, validateUserMedication, medicationController.createUserMedication);
 router.put('/:id', medicationController.updateMedication);
 router.delete('/:id', medicationController.deleteMedication);
 router.patch('/:id/taken', medicationController.markAsTaken);
