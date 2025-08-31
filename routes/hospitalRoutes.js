@@ -97,6 +97,9 @@ router.get('/:id/notifications', firebaseAuthMiddleware, hospitalController.getN
 // Settings
 router.put('/:id/settings', firebaseAuthMiddleware, hospitalController.updateSettings);
 
+// Get nearby hospitals for SOS
+router.get('/nearby', firebaseAuthMiddleware, hospitalController.getNearbyHospitals);
+
 // Hospital registration
 router.post('/register', firebaseAuthMiddleware, hospitalController.registerHospital);
 

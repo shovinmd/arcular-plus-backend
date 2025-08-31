@@ -575,3 +575,103 @@ exports.rejectHospitalByStaff = async (req, res) => {
     });
   }
 };
+
+// Get nearby hospitals for SOS based on location
+exports.getNearbyHospitals = async (req, res) => {
+  try {
+    const { latitude, longitude, city, pincode, radius = 10 } = req.query;
+    const firebaseUser = req.user;
+    
+    if (!firebaseUser || !firebaseUser.uid) {
+      return res.status(401).json({
+        success: false,
+        error: 'User not authenticated'
+      });
+    }
+
+    console.log('🏥 Fetching nearby hospitals for SOS');
+    console.log('📍 Location params:', { latitude, longitude, city, pincode, radius });
+
+    let query = { isApproved: true, status: 'active' };
+    
+    // If coordinates are provided, use them for proximity search
+    if (latitude && longitude) {
+      const lat = parseFloat(latitude);
+      const lng = parseFloat(longitude);
+      const radiusKm = parseFloat(radius);
+      
+      // Find hospitals within the specified radius
+      // Note: This is a simplified approach. For production, consider using MongoDB's $geoNear
+      const hospitals = await Hospital.find(query);
+      
+      // Filter hospitals by distance
+      const hospitalsWithDistance = hospitals
+        .map(hospital => {
+          if (hospital.geoCoordinates && hospital.geoCoordinates.lat && hospital.geoCoordinates.lng) {
+            const distance = _calculateDistance(
+              lat, lng, 
+              hospital.geoCoordinates.lat, hospital.geoCoordinates.lng
+            );
+            return { ...hospital.toObject(), distance };
+          }
+          return null;
+        })
+        .where((hospital) => hospital != null && hospital.distance <= radiusKm)
+        .sort((a, b) => a.distance - b.distance);
+      
+      console.log(`✅ Found ${hospitalsWithDistance.length} hospitals within ${radiusKm}km`);
+      
+      res.json({
+        success: true,
+        data: hospitalsWithDistance,
+        count: hospitalsWithDistance.length
+      });
+    } else if (city || pincode) {
+      // Fallback to city/pincode search
+      if (city) query.city = { $regex: city, $options: 'i' };
+      if (pincode) query.pincode = pincode;
+      
+      const hospitals = await Hospital.find(query);
+      console.log(`✅ Found ${hospitals.length} hospitals by city/pincode`);
+      
+      res.json({
+        success: true,
+        data: hospitals,
+        count: hospitals.length
+      });
+    } else {
+      // Return all approved hospitals if no location specified
+      const hospitals = await Hospital.find(query).limit(20);
+      console.log(`✅ Found ${hospitals.length} approved hospitals`);
+      
+      res.json({
+        success: true,
+        data: hospitals,
+        count: hospitals.length
+      });
+    }
+  } catch (error) {
+    console.error('❌ Error fetching nearby hospitals:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch nearby hospitals'
+    });
+  }
+};
+
+// Helper function to calculate distance between two coordinates (Haversine formula)
+function _calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Earth's radius in kilometers
+  const dLat = _toRadians(lat2 - lat1);
+  const dLon = _toRadians(lon2 - lon1);
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(_toRadians(lat1)) * Math.cos(_toRadians(lat2)) * 
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+function _toRadians(degrees) {
+  return degrees * (Math.PI / 180);
+}
