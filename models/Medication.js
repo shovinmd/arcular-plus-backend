@@ -18,7 +18,7 @@ const medicationSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['tablet', 'syrup', 'injection', 'drops', 'cream', 'other'],
+    enum: ['tablet', 'syrup', 'drops', 'cream', 'other'],
     default: 'tablet'
   },
   isTaken: {
@@ -32,7 +32,7 @@ const medicationSchema = new mongoose.Schema({
   },
   doctorId: {
     type: String,
-    required: true,
+    required: false, // Made optional for user-added medicines
     index: true
   },
   prescribedDate: {
@@ -63,6 +63,33 @@ const medicationSchema = new mongoose.Schema({
     type: String,
     enum: ['active', 'completed', 'discontinued'],
     default: 'active'
+  },
+  // New fields for enhanced medicine tracking
+  dosage: {
+    type: String, // e.g., "500mg", "10ml"
+    trim: true
+  },
+  duration: {
+    type: String, // e.g., "7 days", "2 weeks"
+    trim: true
+  },
+  times: [{
+    type: String // Array of times like ["09:00", "21:00"]
+  }],
+  startDate: {
+    type: Date,
+    default: Date.now
+  },
+  // FCM notification fields
+  notificationEnabled: {
+    type: Boolean,
+    default: true
+  },
+  lastNotificationSent: {
+    type: Date
+  },
+  nextNotificationTime: {
+    type: Date
   }
 }, {
   timestamps: true

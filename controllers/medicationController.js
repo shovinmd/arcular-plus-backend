@@ -84,6 +84,87 @@ const createMedication = async (req, res) => {
   }
 };
 
+// Create new medication for user (self-added)
+const createUserMedication = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
+      });
+    }
+
+    const {
+      name,
+      dosage,
+      frequency,
+      type,
+      duration,
+      times,
+      instructions,
+      startDate,
+      endDate
+    } = req.body;
+
+    // Get patient ID from authenticated user
+    const patientId = req.user?.uid || req.body.patientId;
+    if (!patientId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Patient ID is required'
+      });
+    }
+
+    // Calculate end date if not provided
+    let calculatedEndDate = endDate;
+    if (!calculatedEndDate && duration) {
+      const start = startDate ? new Date(startDate) : new Date();
+      if (duration.includes('days')) {
+        const days = parseInt(duration.split(' ')[0]) || 7;
+        calculatedEndDate = new Date(start.getTime() + (days * 24 * 60 * 60 * 1000));
+      } else if (duration.includes('week')) {
+        const weeks = parseInt(duration.split(' ')[0]) || 1;
+        calculatedEndDate = new Date(start.getTime() + (weeks * 7 * 24 * 60 * 60 * 1000));
+      }
+    }
+
+    const medication = new Medication({
+      name,
+      dose: dosage, // Map dosage to dose field for compatibility
+      frequency,
+      type,
+      patientId,
+      doctorId: null, // User-added medicines don't have a doctor
+      startDate: startDate ? new Date(startDate) : new Date(),
+      endDate: calculatedEndDate,
+      instructions,
+      dosage,
+      duration,
+      times,
+      status: 'active',
+      notificationEnabled: true
+    });
+
+    await medication.save();
+
+    // Schedule FCM notifications for this medicine
+    await scheduleMedicineNotifications(medication);
+
+    res.status(201).json({
+      success: true,
+      data: medication,
+      message: 'Medicine added successfully'
+    });
+  } catch (error) {
+    console.error('Error creating user medication:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to add medicine'
+    });
+  }
+};
+
 // Update medication
 const updateMedication = async (req, res) => {
   try {
@@ -260,6 +341,7 @@ const getMedicationById = async (req, res) => {
 module.exports = {
   getMedicationsByUser,
   createMedication,
+  createUserMedication,
   updateMedication,
   deleteMedication,
   markAsTaken,
