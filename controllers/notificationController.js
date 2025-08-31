@@ -71,59 +71,102 @@ const sendMedicineReminderNotification = async (fcmToken, medicineData) => {
   try {
     const message = {
       token: fcmToken,
+      // Notification payload for when app is in background/closed
       notification: {
-        title: 'Medicine Reminder',
-        body: `Time to take ${medicineData.name}`,
+        title: '💊 Medicine Reminder',
+        body: `Time to take ${medicineData.name}${medicineData.dosage ? ' - ${medicineData.dosage}' : ''}`,
+        icon: 'notify_icon',
+        color: '#32CCBC',
+        click_action: 'FLUTTER_NOTIFICATION_CLICK',
       },
+      // Data payload for when app is open
       data: {
         type: 'medicine_reminder',
         medicineId: medicineData.id || medicineData.name,
         medicineName: medicineData.name,
         dosage: medicineData.dosage || '',
         instructions: medicineData.instructions || '',
+        scheduledTime: new Date().toISOString(),
         click_action: 'FLUTTER_NOTIFICATION_CLICK',
       },
+      // Android specific configuration
       android: {
+        priority: 'high',
         notification: {
           icon: 'notify_icon',
           color: '#32CCBC',
           priority: 'high',
           channel_id: 'medicine_reminders',
+          sound: 'default',
+          vibrate_timings: [0, 250, 250, 250],
+          default_vibrate_timings: true,
+          default_sound: true,
+          visibility: 'public',
           actions: [
             {
-              title: 'Take',
+              title: '✅ Take',
               action: 'take',
               icon: 'ic_action_take'
             },
             {
-              title: 'Skip',
+              title: '⏭️ Skip',
               action: 'skip',
               icon: 'ic_action_skip'
             },
             {
-              title: 'Snooze (15min)',
+              title: '⏰ Snooze (15min)',
               action: 'snooze',
               icon: 'ic_action_snooze'
             }
           ]
         }
       },
+      // iOS specific configuration
       apns: {
         payload: {
           aps: {
             category: 'medicine_reminder',
-            'mutable-content': 1
+            'mutable-content': 1,
+            sound: 'default',
+            badge: 1,
+            alert: {
+              title: '💊 Medicine Reminder',
+              body: `Time to take ${medicineData.name}${medicineData.dosage ? ' - ${medicineData.dosage}' : ''}`
+            }
           }
+        }
+      },
+      // Web push configuration
+      webpush: {
+        notification: {
+          title: '💊 Medicine Reminder',
+          body: `Time to take ${medicineData.name}${medicineData.dosage ? ' - ${medicineData.dosage}' : ''}`,
+          icon: '/notify_icon.png',
+          badge: '/badge-icon.png',
+          actions: [
+            {
+              action: 'take',
+              title: '✅ Take'
+            },
+            {
+              action: 'skip',
+              title: '⏭️ Skip'
+            },
+            {
+              action: 'snooze',
+              title: '⏰ Snooze (15min)'
+            }
+          ]
         }
       }
     };
 
     const response = await admin.messaging().send(message);
-    console.log(`✅ FCM notification sent successfully: ${response}`);
+    console.log(`✅ FCM: Medicine reminder notification delivered successfully for ${medicineData.name}`);
     return response;
 
   } catch (error) {
-    console.error('❌ Error sending FCM notification:', error);
+    console.error('❌ FCM: Error delivering medicine reminder notification:', error);
     throw error;
   }
 };
