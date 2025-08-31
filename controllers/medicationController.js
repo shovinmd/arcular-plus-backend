@@ -14,10 +14,20 @@ const getMedicationsByUser = async (req, res) => {
       medications = await Medication.findByPatient(userId);
     }
 
+    // Transform MongoDB _id to id for frontend compatibility
+    const transformedMedications = medications.map(med => {
+      const medObj = med.toObject();
+      return {
+        ...medObj,
+        id: medObj._id.toString(), // Convert _id to id
+        _id: undefined // Remove _id to avoid confusion
+      };
+    });
+
     res.json({
       success: true,
-      data: medications,
-      count: medications.length
+      data: transformedMedications,
+      count: transformedMedications.length
     });
   } catch (error) {
     console.error('Error fetching medications:', error);
