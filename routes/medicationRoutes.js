@@ -42,5 +42,6 @@ router.put('/:id', authenticateToken, medicationController.updateMedication);
 router.delete('/:id', authenticateToken, medicationController.deleteMedication);
 router.patch('/:id/taken', authenticateToken, medicationController.markAsTaken);
 router.patch('/:id/not-taken', authenticateToken, medicationController.markAsNotTaken);
+router.patch('/:id', authenticateToken, medicationController.updateMedication); // General PATCH route for other updates
 
 module.exports = router; 
