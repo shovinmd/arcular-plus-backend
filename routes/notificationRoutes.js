@@ -21,4 +21,8 @@ router.get('/:userId/unread-count', authenticateToken, notificationController.ge
 router.post('/register-token', notificationController.registerDeviceToken);
 router.post('/send-to-user-type', authenticateToken, notificationController.sendNotificationToUserType);
 
+// SOS Emergency routes
+router.post('/sos/activate', authenticateToken, notificationController.activateSOS);
+router.post('/sos/accept', authenticateToken, notificationController.acceptEmergency);
+
 module.exports = router; 

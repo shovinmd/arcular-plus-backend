@@ -295,6 +295,177 @@ const sendNotificationToUserType = async (req, res) => {
   }
 };
 
+// SOS Emergency System
+const activateSOS = async (req, res) => {
+  try {
+    const { latitude, longitude, city, state, pincode, userInfo } = req.body;
+    const userId = req.user?.uid;
+    
+    if (!userId || !latitude || !longitude) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: userId, latitude, longitude'
+      });
+    }
+
+    console.log('🚨 SOS Emergency activated by user:', userId);
+    console.log('📍 Location:', { latitude, longitude, city, state, pincode });
+
+    // Get nearby hospitals
+    const Hospital = require('../models/Hospital');
+    const hospitals = await Hospital.find({ 
+      isApproved: true, 
+      status: 'active',
+      geoCoordinates: { $exists: true }
+    });
+
+    // Filter hospitals by proximity (within 50km radius)
+    const nearbyHospitals = hospitals
+      .map(hospital => {
+        if (hospital.geoCoordinates && hospital.geoCoordinates.lat && hospital.geoCoordinates.lng) {
+          const distance = _calculateDistance(
+            parseFloat(latitude), parseFloat(longitude),
+            hospital.geoCoordinates.lat, hospital.geoCoordinates.lng
+          );
+          return { ...hospital.toObject(), distance };
+        }
+        return null;
+      })
+      .where((hospital) => hospital != null && hospital.distance <= 50)
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, 10); // Top 10 nearest hospitals
+
+    console.log(`🏥 Found ${nearbyHospitals.length} nearby hospitals for SOS`);
+
+    // Send emergency alerts to all nearby hospitals
+    const alertPromises = nearbyHospitals.map(async (hospital) => {
+      try {
+        await sendEmergencyAlertToHospital(hospital, {
+          userId,
+          latitude,
+          longitude,
+          city,
+          state,
+          pincode,
+          userInfo,
+          timestamp: new Date().toISOString()
+        });
+        return { hospitalId: hospital._id, success: true };
+      } catch (error) {
+        console.error(`❌ Failed to send alert to hospital ${hospital.hospitalName}:`, error);
+        return { hospitalId: hospital._id, success: false, error: error.message };
+      }
+    });
+
+    const alertResults = await Promise.all(alertPromises);
+    const successfulAlerts = alertResults.filter(result => result.success).length;
+
+    console.log(`✅ SOS alerts sent to ${successfulAlerts}/${nearbyHospitals.length} hospitals`);
+
+    res.status(200).json({
+      success: true,
+      message: 'SOS emergency activated successfully',
+      data: {
+        userId,
+        location: { latitude, longitude, city, state, pincode },
+        nearbyHospitals: nearbyHospitals.length,
+        alertsSent: successfulAlerts,
+        hospitals: nearbyHospitals.map(h => ({
+          id: h._id,
+          name: h.hospitalName,
+          distance: h.distance,
+          phone: h.mobileNumber,
+          address: h.address
+        }))
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error activating SOS emergency:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to activate SOS emergency',
+      details: error.message
+    });
+  }
+};
+
+// Send emergency alert to a specific hospital
+const sendEmergencyAlertToHospital = async (hospital, emergencyData) => {
+  try {
+    // For now, we'll log the emergency alert
+    // In production, you would send FCM notifications to hospital devices
+    console.log(`🚨 EMERGENCY ALERT to ${hospital.hospitalName}:`);
+    console.log(`📍 Patient Location: ${emergencyData.latitude}, ${emergencyData.longitude}`);
+    console.log(`🏥 Hospital: ${hospital.hospitalName} (${hospital.distance.toFixed(2)}km away)`);
+    console.log(`📞 Contact: ${hospital.mobileNumber}`);
+    console.log(`⏰ Time: ${emergencyData.timestamp}`);
+    
+    // TODO: Implement FCM notification to hospital devices
+    // This would require storing hospital FCM tokens and sending notifications
+    
+    return true;
+  } catch (error) {
+    console.error('❌ Error sending emergency alert to hospital:', error);
+    throw error;
+  }
+};
+
+// Accept emergency by hospital
+const acceptEmergency = async (req, res) => {
+  try {
+    const { emergencyId, hospitalId, hospitalName } = req.body;
+    
+    if (!emergencyId || !hospitalId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: emergencyId, hospitalId'
+      });
+    }
+
+    console.log(`✅ Emergency ${emergencyId} accepted by hospital: ${hospitalName}`);
+
+    // TODO: Notify other hospitals that this emergency has been accepted
+    // TODO: Notify the patient that help is on the way
+
+    res.status(200).json({
+      success: true,
+      message: 'Emergency accepted successfully',
+      data: {
+        emergencyId,
+        hospitalId,
+        hospitalName,
+        acceptedAt: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error accepting emergency:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to accept emergency',
+      details: error.message
+    });
+  }
+};
+
+// Helper function to calculate distance between two coordinates (Haversine formula)
+function _calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Earth's radius in kilometers
+  const dLat = _toRadians(lat2 - lat1);
+  const dLon = _toRadians(lon2 - lon1);
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(_toRadians(lat1)) * Math.cos(_toRadians(lat2)) * 
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+function _toRadians(degrees) {
+  return degrees * (Math.PI / 180);
+}
+
 module.exports = {
   scheduleMedicineReminder,
   getUserNotifications,
@@ -303,5 +474,7 @@ module.exports = {
   getNotificationsByUser,
   getUnreadNotificationsCount,
   registerDeviceToken,
-  sendNotificationToUserType
+  sendNotificationToUserType,
+  activateSOS,
+  acceptEmergency
 }; 
