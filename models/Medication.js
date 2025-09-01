@@ -109,7 +109,26 @@ const medicationSchema = new mongoose.Schema({
       type: Date,
       default: Date.now
     }
-  }]
+  }],
+  // Daily tracking for medicine taken
+  dailyTaken: [{
+    date: {
+      type: Date,
+      required: true
+    },
+    timestamp: {
+      type: Date,
+      default: Date.now
+    },
+    action: {
+      type: String,
+      enum: ['taken', 'skipped'],
+      default: 'taken'
+    }
+  }],
+  lastTakenAt: {
+    type: Date
+  }
 }, {
   timestamps: true
 });

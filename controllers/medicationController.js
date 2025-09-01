@@ -285,11 +285,39 @@ const markAsTaken = async (req, res) => {
       });
     }
 
-    // Update medicine status
-    medication.isTaken = true;
-    medication.status = 'completed';
-    medication.completedAt = new Date();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Check if already taken today
+    const todayTaken = medication.dailyTaken || [];
+    const alreadyTakenToday = todayTaken.some(entry => {
+      const entryDate = new Date(entry.date);
+      entryDate.setHours(0, 0, 0, 0);
+      return entryDate.getTime() === today.getTime();
+    });
+
+    if (alreadyTakenToday) {
+      return res.status(400).json({
+        success: false,
+        error: 'Medication already taken today'
+      });
+    }
+
+    // Add today's taken record
+    const takenRecord = {
+      date: today,
+      timestamp: new Date(),
+      action: 'taken'
+    };
+    
+    if (!medication.dailyTaken) {
+      medication.dailyTaken = [];
+    }
+    medication.dailyTaken.push(takenRecord);
+    
+    // Update last action and timestamp
     medication.lastAction = 'taken';
+    medication.lastTakenAt = new Date();
     
     // Add to action history
     medication.actionHistory.push({
@@ -313,8 +341,9 @@ const markAsTaken = async (req, res) => {
     res.json({
       success: true,
       data: transformedMedication,
-      message: 'Medication marked as taken',
-      completedAt: medication.completedAt
+      message: 'Medication marked as taken for today',
+      takenToday: true,
+      lastTakenAt: medication.lastTakenAt
     });
   } catch (error) {
     console.error('Error marking medication as taken:', error);
@@ -482,22 +511,22 @@ function validateTimesForFrequency(frequency, times) {
       maxCount = 3;
       break;
     case 'Every 4 hours':
-      requiredCount = 2; // Start and end time only
+      requiredCount = 6; // 24/4 = 6 times per day
       minCount = 2;
-      maxCount = 2;
+      maxCount = 6;
       break;
     case 'Every 6 hours':
-      requiredCount = 2; // Start and end time only
+      requiredCount = 4; // 24/6 = 4 times per day
       minCount = 2;
-      maxCount = 2;
+      maxCount = 4;
       break;
     case 'Every 8 hours':
-      requiredCount = 2; // Start and end time only
+      requiredCount = 3; // 24/8 = 3 times per day
       minCount = 2;
-      maxCount = 2;
+      maxCount = 3;
       break;
     case 'Every 12 hours':
-      requiredCount = 2; // Start and end time only
+      requiredCount = 2; // 24/12 = 2 times per day
       minCount = 2;
       maxCount = 2;
       break;
