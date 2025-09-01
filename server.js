@@ -31,6 +31,7 @@ const arcStaffRoutes = require('./routes/arcStaffRoutes');
 const nurseRoutes = require('./routes/nurseRoutes');
 const pharmacyRoutes = require('./routes/pharmacyRoutes');
 const labRoutes = require('./routes/labRoutes');
+const healthHistoryRoutes = require('./routes/healthHistoryRoutes');
 
 // Import web interface routes
 const adminWebRoutes = require('./routes/adminWebRoutes');
@@ -152,6 +153,7 @@ app.use('/api/arc-staff', arcStaffRoutes);
 app.use('/api/nurses', nurseRoutes);
 app.use('/api/pharmacies', pharmacyRoutes);
 app.use('/api/labs', labRoutes);
+app.use('/api/health-history', healthHistoryRoutes);
 
 // Test endpoint to verify CORS
 app.get('/api/test-cors', (req, res) => {

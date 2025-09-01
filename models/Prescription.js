@@ -6,6 +6,12 @@ const prescriptionSchema = new mongoose.Schema({
     required: true,
     index: true
   },
+  patientName: {
+    type: String,
+    required: true
+  },
+  patientMobile: String,
+  patientEmail: String,
   doctorId: {
     type: String,
     required: true
@@ -67,6 +73,16 @@ const prescriptionSchema = new mongoose.Schema({
     default: 'Active'
   },
   notes: String,
+  // Service provider fields
+  pharmacyId: String,
+  pharmacyName: String,
+  dispensedAt: Date,
+  dispensedBy: String,
+  refillRequested: { type: Boolean, default: false },
+  refillRequestDate: Date,
+  refillApproved: { type: Boolean, default: false },
+  refillApprovedDate: Date,
+  refillApprovedBy: String,
   attachments: [{
     fileName: String,
     fileUrl: String,
@@ -109,6 +125,22 @@ prescriptionSchema.statics.findByStatus = function(userId, status) {
   return this.find({ userId, status }).sort({ prescriptionDate: -1 });
 };
 
+prescriptionSchema.statics.findByDoctor = function(doctorId) {
+  return this.find({ doctorId }).sort({ prescriptionDate: -1 });
+};
+
+prescriptionSchema.statics.findByPharmacy = function(pharmacyId) {
+  return this.find({ pharmacyId }).sort({ prescriptionDate: -1 });
+};
+
+prescriptionSchema.statics.findPendingRefills = function(doctorId) {
+  return this.find({ doctorId, refillRequested: true, refillApproved: false }).sort({ refillRequestDate: -1 });
+};
+
+prescriptionSchema.statics.findDispensed = function(pharmacyId) {
+  return this.find({ pharmacyId, dispensedAt: { $exists: true } }).sort({ dispensedAt: -1 });
+};
+
 // Instance methods
 prescriptionSchema.methods.updateStatus = function(newStatus) {
   this.status = newStatus;
@@ -124,6 +156,30 @@ prescriptionSchema.methods.addMedication = function(medication) {
 
 prescriptionSchema.methods.addAttachment = function(attachment) {
   this.attachments.push(attachment);
+  this.updatedAt = new Date();
+  return this.save();
+};
+
+prescriptionSchema.methods.requestRefill = function() {
+  this.refillRequested = true;
+  this.refillRequestDate = new Date();
+  this.updatedAt = new Date();
+  return this.save();
+};
+
+prescriptionSchema.methods.approveRefill = function(approvedBy) {
+  this.refillApproved = true;
+  this.refillApprovedDate = new Date();
+  this.refillApprovedBy = approvedBy;
+  this.updatedAt = new Date();
+  return this.save();
+};
+
+prescriptionSchema.methods.dispenseMedication = function(pharmacyId, pharmacyName, dispensedBy) {
+  this.pharmacyId = pharmacyId;
+  this.pharmacyName = pharmacyName;
+  this.dispensedAt = new Date();
+  this.dispensedBy = dispensedBy;
   this.updatedAt = new Date();
   return this.save();
 };

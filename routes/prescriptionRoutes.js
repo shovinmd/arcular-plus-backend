@@ -30,6 +30,82 @@ router.get('/user/:userId', firebaseAuthMiddleware, async (req, res) => {
   }
 });
 
+// Get prescriptions for doctors
+router.get('/doctor/:doctorId', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    const { doctorId } = req.params;
+    const { status } = req.query;
+
+    let prescriptions;
+    if (status) {
+      prescriptions = await Prescription.find({ doctorId, status }).sort({ prescriptionDate: -1 });
+    } else {
+      prescriptions = await Prescription.findByDoctor(doctorId);
+    }
+
+    res.json({
+      success: true,
+      data: prescriptions,
+      count: prescriptions.length
+    });
+  } catch (error) {
+    console.error('Error fetching doctor prescriptions:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch doctor prescriptions'
+    });
+  }
+});
+
+// Get prescriptions for pharmacies
+router.get('/pharmacy/:pharmacyId', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    const { pharmacyId } = req.params;
+    const { status } = req.query;
+
+    let prescriptions;
+    if (status === 'dispensed') {
+      prescriptions = await Prescription.findDispensed(pharmacyId);
+    } else if (status) {
+      prescriptions = await Prescription.find({ pharmacyId, status }).sort({ prescriptionDate: -1 });
+    } else {
+      prescriptions = await Prescription.findByPharmacy(pharmacyId);
+    }
+
+    res.json({
+      success: true,
+      data: prescriptions,
+      count: prescriptions.length
+    });
+  } catch (error) {
+    console.error('Error fetching pharmacy prescriptions:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch pharmacy prescriptions'
+    });
+  }
+});
+
+// Get pending refill requests for doctors
+router.get('/doctor/:doctorId/pending-refills', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    const { doctorId } = req.params;
+    const prescriptions = await Prescription.findPendingRefills(doctorId);
+
+    res.json({
+      success: true,
+      data: prescriptions,
+      count: prescriptions.length
+    });
+  } catch (error) {
+    console.error('Error fetching pending refills:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch pending refills'
+    });
+  }
+});
+
 // Get prescription by ID
 router.get('/:id', firebaseAuthMiddleware, async (req, res) => {
   try {
@@ -61,6 +137,9 @@ router.post('/', firebaseAuthMiddleware, async (req, res) => {
   try {
     const {
       userId,
+      patientName,
+      patientMobile,
+      patientEmail,
       doctorId,
       doctorName,
       doctorSpecialty,
@@ -73,6 +152,9 @@ router.post('/', firebaseAuthMiddleware, async (req, res) => {
 
     const prescription = new Prescription({
       userId,
+      patientName,
+      patientMobile,
+      patientEmail,
       doctorId,
       doctorName,
       doctorSpecialty,
@@ -95,6 +177,97 @@ router.post('/', firebaseAuthMiddleware, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to create prescription'
+    });
+  }
+});
+
+// Request refill
+router.post('/:id/request-refill', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const prescription = await Prescription.findById(id);
+
+    if (!prescription) {
+      return res.status(404).json({
+        success: false,
+        error: 'Prescription not found'
+      });
+    }
+
+    await prescription.requestRefill();
+
+    res.json({
+      success: true,
+      data: prescription,
+      message: 'Refill request submitted successfully'
+    });
+  } catch (error) {
+    console.error('Error requesting refill:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to request refill'
+    });
+  }
+});
+
+// Approve refill (doctor only)
+router.post('/:id/approve-refill', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { approvedBy } = req.body;
+
+    const prescription = await Prescription.findById(id);
+
+    if (!prescription) {
+      return res.status(404).json({
+        success: false,
+        error: 'Prescription not found'
+      });
+    }
+
+    await prescription.approveRefill(approvedBy);
+
+    res.json({
+      success: true,
+      data: prescription,
+      message: 'Refill approved successfully'
+    });
+  } catch (error) {
+    console.error('Error approving refill:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to approve refill'
+    });
+  }
+});
+
+// Dispense medication (pharmacy only)
+router.post('/:id/dispense', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { pharmacyId, pharmacyName, dispensedBy } = req.body;
+
+    const prescription = await Prescription.findById(id);
+
+    if (!prescription) {
+      return res.status(404).json({
+        success: false,
+        error: 'Prescription not found'
+      });
+    }
+
+    await prescription.dispenseMedication(pharmacyId, pharmacyName, dispensedBy);
+
+    res.json({
+      success: true,
+      data: prescription,
+      message: 'Medication dispensed successfully'
+    });
+  } catch (error) {
+    console.error('Error dispensing medication:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to dispense medication'
     });
   }
 });
