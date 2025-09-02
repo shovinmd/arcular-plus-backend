@@ -299,8 +299,14 @@ class MenstrualReminderService {
 
       // Check ovulation
       if (menstrualData.remindOvulation && menstrualData.ovulationDay) {
-        const ovulation = new Date(menstrualData.ovulationDay);
-        if (ovulation >= today && ovulation <= futureDate) {
+        let ovulation = new Date(menstrualData.ovulationDay);
+        
+        // If ovulation date is in the past, calculate the next one
+        while (ovulation < today) {
+          ovulation = new Date(ovulation.getTime() + (menstrualData.cycleLength * 24 * 60 * 60 * 1000));
+        }
+        
+        if (ovulation <= futureDate) {
           reminders.push({
             type: 'ovulation',
             title: '🥚 Ovulation Day',
@@ -312,9 +318,15 @@ class MenstrualReminderService {
       }
 
       // Check fertile window
-      if (menstrualData.remindFertileWindow && menstrualData.fertileWindow && menstrualData.fertileWindow.start) {
-        const fertileStart = new Date(menstrualData.fertileWindow.start);
-        if (fertileStart >= today && fertileStart <= futureDate) {
+      if (menstrualData.remindFertileWindow && menstrualData.fertileWindow && menstrualData.fertileWindow.length > 0) {
+        let fertileStart = new Date(menstrualData.fertileWindow[0]);
+        
+        // If fertile window start is in the past, calculate the next one
+        while (fertileStart < today) {
+          fertileStart = new Date(fertileStart.getTime() + (menstrualData.cycleLength * 24 * 60 * 60 * 1000));
+        }
+        
+        if (fertileStart <= futureDate) {
           reminders.push({
             type: 'fertile_window',
             title: '🌱 Fertile Window',
