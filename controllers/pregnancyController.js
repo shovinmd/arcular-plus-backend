@@ -30,3 +30,39 @@ exports.updatePregnancy = async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 }; 
+
+// Get doctor's weekly notes for a user
+exports.getWeeklyNotes = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { week } = req.query;
+    const records = await PregnancyTracking.findOne({ userId }, { weeklyNotes: 1, _id: 0 });
+    if (!records || !records.weeklyNotes) return res.json([]);
+    if (week) {
+      const w = parseInt(week);
+      return res.json(records.weeklyNotes.filter(n => n.week === w));
+    }
+    res.json(records.weeklyNotes);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Post/update doctor weekly note
+exports.upsertWeeklyNote = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { week, title, content, postedBy } = req.body;
+    if (!week) return res.status(400).json({ error: 'week is required' });
+    const doc = await PregnancyTracking.findOneAndUpdate(
+      { userId },
+      { $pull: { weeklyNotes: { week } } },
+      { new: true, upsert: true }
+    );
+    doc.weeklyNotes.push({ week, title, content, postedBy });
+    await doc.save();
+    res.json({ success: true, data: doc.weeklyNotes.filter(n => n.week === week) });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};

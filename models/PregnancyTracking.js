@@ -7,6 +7,14 @@ const pregnancyTrackingSchema = new mongoose.Schema({
   babyName: { type: String },
   babyWeightAtBirth: { type: Number },
   notes: { type: String },
+  // Doctor posted weekly tips/notes keyed by week number
+  weeklyNotes: [{
+    week: { type: Number, required: true },
+    title: String,
+    content: String,
+    postedBy: String,
+    postedAt: { type: Date, default: Date.now }
+  }],
   createdAt: { type: Date, default: Date.now }
 }, { timestamps: true });
 
