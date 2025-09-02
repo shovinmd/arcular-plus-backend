@@ -2,6 +2,7 @@ const express = require('express');
 const { body } = require('express-validator');
 const medicationController = require('../controllers/medicationController');
 const { authenticateToken } = require('../middleware/auth');
+const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
 
 const router = express.Router();
 
@@ -37,11 +38,12 @@ router.get('/user/:userId', medicationController.getMedicationsByUser);
 router.get('/pending/:userId', medicationController.getPendingMedications);
 router.get('/:id', medicationController.getMedicationById);
 router.post('/', validateMedication, medicationController.createMedication);
-router.post('/user-add', authenticateToken, validateUserMedication, medicationController.createUserMedication);
-router.put('/:id', authenticateToken, medicationController.updateMedication);
-router.delete('/:id', authenticateToken, medicationController.deleteMedication);
-router.patch('/:id/taken', authenticateToken, medicationController.markAsTaken);
-router.patch('/:id/not-taken', authenticateToken, medicationController.markAsNotTaken);
-router.patch('/:id', authenticateToken, medicationController.updateMedication); // General PATCH route for other updates
+// Accept Firebase auth for mobile clients while keeping existing auth for server clients
+router.post('/user-add', firebaseAuthMiddleware, validateUserMedication, medicationController.createUserMedication);
+router.put('/:id', firebaseAuthMiddleware, medicationController.updateMedication);
+router.delete('/:id', firebaseAuthMiddleware, medicationController.deleteMedication);
+router.patch('/:id/taken', firebaseAuthMiddleware, medicationController.markAsTaken);
+router.patch('/:id/not-taken', firebaseAuthMiddleware, medicationController.markAsNotTaken);
+router.patch('/:id', firebaseAuthMiddleware, medicationController.updateMedication); // General PATCH route for other updates
 
 module.exports = router; 
