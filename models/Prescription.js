@@ -50,6 +50,8 @@ const prescriptionSchema = new mongoose.Schema({
       type: String,
       required: true
     },
+    // Optional exact reminder times (e.g., ["09:00","21:00"]) – optional to avoid breaking existing data
+    times: [String],
     instructions: String,
     beforeMeal: {
       type: Boolean,

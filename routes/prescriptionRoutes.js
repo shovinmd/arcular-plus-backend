@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
 const Prescription = require('../models/Prescription');
+const prescriptionController = require('../controllers/prescriptionController');
 
 // Get all prescriptions for a user
 router.get('/user/:userId', firebaseAuthMiddleware, async (req, res) => {
@@ -29,6 +30,12 @@ router.get('/user/:userId', firebaseAuthMiddleware, async (req, res) => {
     });
   }
 });
+
+// Optimized endpoint for app tabs (Active/Completed/Archived)
+router.get('/user/:userId/by-status', firebaseAuthMiddleware, prescriptionController.getByUserAndStatus);
+
+// Transform a prescription to medicine payloads for client import
+router.get('/:id/transform-to-medicines', firebaseAuthMiddleware, prescriptionController.transformToMedicines);
 
 // Get prescriptions for doctors
 router.get('/doctor/:doctorId', firebaseAuthMiddleware, async (req, res) => {
