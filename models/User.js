@@ -27,6 +27,7 @@ const UserSchema = new mongoose.Schema({
   bmiCategory: String,
   isPregnant: Boolean,
   pregnancyTrackingEnabled: Boolean, // Added missing field
+  pregnancyStartDate: Date, // Pregnancy start date (LMP or conception date)
   babyName: String, // Added missing field
   dueDate: Date, // Added missing field
   babyWeightAtBirth: Number, // Added missing field
