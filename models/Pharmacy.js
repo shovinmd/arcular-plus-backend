@@ -48,6 +48,65 @@ const pharmacySchema = new mongoose.Schema({
     trim: true
   }],
   
+  // Medicine Inventory
+  medicineInventory: [{
+    medicineId: {
+      type: String,
+      required: true
+    },
+    medicineName: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    category: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    price: {
+      type: Number,
+      required: true,
+      min: 0
+    },
+    description: {
+      type: String,
+      trim: true
+    },
+    requiresPrescription: {
+      type: Boolean,
+      default: false
+    },
+    inStock: {
+      type: Boolean,
+      default: true
+    },
+    stockQuantity: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    rating: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5
+    },
+    reviews: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    addedAt: {
+      type: Date,
+      default: Date.now
+    },
+    updatedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  
   // Address Information
   address: {
     type: String,
@@ -174,6 +233,63 @@ pharmacySchema.statics.rejectPharmacy = function(pharmacyId, rejectedBy, reason 
     rejectedAt: new Date(),
     rejectionReason: reason
   });
+};
+
+// Medicine inventory management methods
+pharmacySchema.statics.addMedicine = function(pharmacyId, medicineData) {
+  return this.findByIdAndUpdate(
+    pharmacyId,
+    { $push: { medicineInventory: medicineData } },
+    { new: true }
+  );
+};
+
+pharmacySchema.statics.updateMedicine = function(pharmacyId, medicineId, updateData) {
+  return this.findOneAndUpdate(
+    { _id: pharmacyId, 'medicineInventory.medicineId': medicineId },
+    { 
+      $set: { 
+        'medicineInventory.$.updatedAt': new Date(),
+        ...Object.keys(updateData).reduce((acc, key) => {
+          acc[`medicineInventory.$.${key}`] = updateData[key];
+          return acc;
+        }, {})
+      }
+    },
+    { new: true }
+  );
+};
+
+pharmacySchema.statics.removeMedicine = function(pharmacyId, medicineId) {
+  return this.findByIdAndUpdate(
+    pharmacyId,
+    { $pull: { medicineInventory: { medicineId } } },
+    { new: true }
+  );
+};
+
+pharmacySchema.statics.getMedicineInventory = function(pharmacyId) {
+  return this.findById(pharmacyId).select('medicineInventory pharmacyName city state');
+};
+
+pharmacySchema.statics.searchMedicines = function(searchQuery, city = null) {
+  const query = {
+    isApproved: true,
+    'medicineInventory': { $exists: true, $ne: [] }
+  };
+  
+  if (city) {
+    query.city = new RegExp(city, 'i');
+  }
+  
+  if (searchQuery) {
+    query.$or = [
+      { 'medicineInventory.medicineName': new RegExp(searchQuery, 'i') },
+      { 'medicineInventory.category': new RegExp(searchQuery, 'i') }
+    ];
+  }
+  
+  return this.find(query).select('pharmacyName city state address medicineInventory');
 };
 
 module.exports = mongoose.model('Pharmacy', pharmacySchema); 
