@@ -5,7 +5,10 @@ const User = require('../models/User');
 const { getUserProfile, getUserByArcId } = require('../controllers/userController');
 const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
 
-// Get user profile
+// Current user's profile must be defined BEFORE param routes to avoid catching 'profile' as :uid
+router.get('/profile', firebaseAuthMiddleware, getUserProfile);
+
+// Get user by UID
 router.get('/:uid', firebaseAuthMiddleware, async (req, res) => {
   const { uid } = req.params;
   const user = await User.findOne({ uid });
@@ -18,7 +21,6 @@ router.put('/:uid', firebaseAuthMiddleware, require('../controllers/userControll
 
 // Add user registration/sync endpoint
 router.post('/register', firebaseAuthMiddleware, require('../controllers/userController').registerOrSyncUser);
-router.get('/profile', firebaseAuthMiddleware, getUserProfile);
 
 // Add public endpoint to get user by ARC ID
 router.get('/arc/:arcId', getUserByArcId);
