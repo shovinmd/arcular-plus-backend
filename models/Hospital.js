@@ -25,6 +25,8 @@ const HospitalSchema = new mongoose.Schema({
   state: { type: String, required: true },
   pincode: { type: String, required: true },
   geoCoordinates: { lat: Number, lng: Number },
+  longitude: { type: Number, required: false },
+  latitude: { type: Number, required: false },
   
   // Operational Details
   numberOfBeds: { type: Number, required: true },

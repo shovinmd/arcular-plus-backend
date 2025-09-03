@@ -13,6 +13,8 @@ const DoctorSchema = new mongoose.Schema({
   state: { type: String, required: true },
   pincode: { type: String, required: true },
   geoCoordinates: { lat: Number, lng: Number },
+  longitude: { type: Number, required: false },
+  latitude: { type: Number, required: false },
   
   // Professional Information
   medicalRegistrationNumber: { type: String, required: true, unique: true },
@@ -24,7 +26,14 @@ const DoctorSchema = new mongoose.Schema({
   bio: String,
   
   // Employment Details
-  affiliatedHospitals: [{ type: String }],
+  affiliatedHospitals: [{
+    hospitalId: { type: String, ref: 'Hospital' },
+    hospitalName: { type: String, required: true },
+    role: { type: String, enum: ['Primary', 'Secondary', 'Consultant', 'Visiting', 'Emergency'], default: 'Consultant' },
+    startDate: { type: Date, default: Date.now },
+    endDate: { type: Date, required: false },
+    isActive: { type: Boolean, default: true }
+  }],
   currentHospital: String,
   workingHours: {
     start: String,

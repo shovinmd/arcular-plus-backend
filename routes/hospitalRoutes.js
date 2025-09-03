@@ -106,4 +106,10 @@ router.post('/register', firebaseAuthMiddleware, hospitalController.registerHosp
 // Fetch all hospitals
 router.get('/', firebaseAuthMiddleware, hospitalController.getAllHospitals);
 
+// Get approved hospitals for affiliation selection
+router.get('/affiliation/approved', firebaseAuthMiddleware, hospitalController.getApprovedHospitalsForAffiliation);
+
+// Search hospitals for affiliation
+router.get('/affiliation/search', firebaseAuthMiddleware, hospitalController.searchHospitalsForAffiliation);
+
 module.exports = router; 

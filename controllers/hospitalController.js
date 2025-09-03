@@ -56,7 +56,7 @@ const validateRequiredFields = (body) => {
   return missingFields;
 };
 
-exports.registerHospital = async (req, res) => {
+const registerHospital = async (req, res) => {
   try {
     const firebaseUser = req.user; // set by auth middleware
     if (!firebaseUser || !firebaseUser.uid) {
@@ -171,7 +171,7 @@ exports.registerHospital = async (req, res) => {
 };
 
 // Get all pending hospitals for admin approval
-exports.getPendingHospitals = async (req, res) => {
+const getPendingHospitals = async (req, res) => {
   try {
     const hospitals = await Hospital.find({ 
       approvalStatus: 'pending' 
@@ -184,7 +184,7 @@ exports.getPendingHospitals = async (req, res) => {
 };
 
 // Get all hospitals with approval status
-exports.getAllHospitals = async (req, res) => {
+const getAllHospitals = async (req, res) => {
   try {
     const { status, page = 1, limit = 10 } = req.query;
     const query = {};
@@ -212,7 +212,7 @@ exports.getAllHospitals = async (req, res) => {
 };
 
 // Approve a hospital
-exports.approveHospital = async (req, res) => {
+const approveHospital = async (req, res) => {
   try {
     const { hospitalId } = req.params;
     const { approvedBy, notes } = req.body;
@@ -257,7 +257,7 @@ exports.approveHospital = async (req, res) => {
 };
 
 // Reject a hospital
-exports.rejectHospital = async (req, res) => {
+const rejectHospital = async (req, res) => {
   try {
     const { hospitalId } = req.params;
     const { rejectedBy, reason } = req.body;
@@ -289,7 +289,7 @@ exports.rejectHospital = async (req, res) => {
 };
 
 // Update hospital approval status
-exports.updateApprovalStatus = async (req, res) => {
+const updateApprovalStatus = async (req, res) => {
   try {
     const { hospitalId } = req.params;
     const { status, notes, updatedBy } = req.body;
@@ -334,7 +334,7 @@ exports.updateApprovalStatus = async (req, res) => {
 };
 
 // Get hospital approval status
-exports.getHospitalApprovalStatus = async (req, res) => {
+const getHospitalApprovalStatus = async (req, res) => {
   try {
     const { uid } = req.params;
     const hospital = await Hospital.findOne({ uid });
@@ -359,7 +359,7 @@ exports.getHospitalApprovalStatus = async (req, res) => {
   }
 };
 
-exports.getHospitalProfile = async (req, res) => {
+const getHospitalProfile = async (req, res) => {
   try {
     const { uid } = req.params;
     const hospital = await Hospital.findOne({ uid });
@@ -374,7 +374,7 @@ exports.getHospitalProfile = async (req, res) => {
   }
 };
 
-exports.getHospitalByEmail = async (req, res) => {
+const getHospitalByEmail = async (req, res) => {
   try {
     const { email } = req.params;
     const hospital = await Hospital.findOne({ email: email });
@@ -399,7 +399,7 @@ exports.getHospitalByEmail = async (req, res) => {
   }
 };
 
-exports.updateHospitalProfile = async (req, res) => {
+const updateHospitalProfile = async (req, res) => {
   try {
     const { uid } = req.params;
     const updateData = req.body;
@@ -426,44 +426,44 @@ exports.updateHospitalProfile = async (req, res) => {
 };
 
 // Placeholder functions for future implementation
-exports.getDoctors = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-exports.addDoctor = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-exports.removeDoctor = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-exports.getDepartments = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-exports.addDepartment = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-exports.removeDepartment = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-exports.getAppointments = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-exports.createAppointment = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-exports.updateAppointment = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-exports.getAdmissions = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-exports.admitPatient = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-exports.updateAdmission = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-exports.getPharmacyItems = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-exports.addPharmacyItem = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-exports.updatePharmacyItem = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-exports.removePharmacyItem = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-exports.getLabTests = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-exports.addLabTest = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-exports.updateLabTest = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-exports.removeLabTest = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-exports.getQrRecords = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-exports.getAnalytics = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-exports.getReports = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-exports.getChatMessages = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-exports.sendChatMessage = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-exports.getShifts = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-exports.createShift = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-exports.updateShift = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-exports.deleteShift = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-exports.getBilling = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-exports.createBillingEntry = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-exports.getDocuments = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-exports.uploadDocument = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-exports.getNotifications = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-exports.updateSettings = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+const getDoctors = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+const addDoctor = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+const removeDoctor = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+const getDepartments = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+const addDepartment = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+const removeDepartment = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+const getAppointments = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+const createAppointment = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+const updateAppointment = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+const getAdmissions = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+const admitPatient = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+const updateAdmission = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+const getPharmacyItems = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+const addPharmacyItem = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+const updatePharmacyItem = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+const removePharmacyItem = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+const getLabTests = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+const addLabTest = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+const updateLabTest = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+const removeLabTest = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+const getQrRecords = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+const getAnalytics = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+const getReports = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+const getChatMessages = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+const sendChatMessage = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+const getShifts = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+const createShift = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+const updateShift = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+const deleteShift = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+const getBilling = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+const createBillingEntry = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+const getDocuments = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+const uploadDocument = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+const getNotifications = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+const updateSettings = async (req, res) => res.status(501).json({ error: 'Not implemented' });
 
 // Get pending approvals for staff
-exports.getPendingApprovalsForStaff = async (req, res) => {
+const getPendingApprovalsForStaff = async (req, res) => {
   try {
     const pendingHospitals = await Hospital.find({ 
       isApproved: false, 
@@ -485,7 +485,7 @@ exports.getPendingApprovalsForStaff = async (req, res) => {
 };
 
 // Approve hospital by staff
-exports.approveHospitalByStaff = async (req, res) => {
+const approveHospitalByStaff = async (req, res) => {
   try {
     const { hospitalId } = req.params;
     const { approvedBy, notes } = req.body;
@@ -530,7 +530,7 @@ exports.approveHospitalByStaff = async (req, res) => {
 };
 
 // Reject hospital by staff
-exports.rejectHospitalByStaff = async (req, res) => {
+const rejectHospitalByStaff = async (req, res) => {
   try {
     const { hospitalId } = req.params;
     const { rejectedBy, reason, category, nextSteps } = req.body;
@@ -577,7 +577,7 @@ exports.rejectHospitalByStaff = async (req, res) => {
 };
 
 // Get nearby hospitals for SOS based on location
-exports.getNearbyHospitals = async (req, res) => {
+const getNearbyHospitals = async (req, res) => {
   try {
     const { latitude, longitude, city, pincode, radius = 10 } = req.query;
     const firebaseUser = req.user;
@@ -675,3 +675,169 @@ function _calculateDistance(lat1, lon1, lat2, lon2) {
 function _toRadians(degrees) {
   return degrees * (Math.PI / 180);
 }
+
+// Get approved hospitals for affiliation selection
+const getApprovedHospitalsForAffiliation = async (req, res) => {
+  try {
+    console.log('🏥 Fetching approved hospitals for affiliation selection...');
+    
+    const hospitals = await Hospital.find({
+      isApproved: true,
+      approvalStatus: 'approved',
+      status: 'active'
+    })
+    .select('_id hospitalName city state hospitalType address pincode longitude latitude')
+    .sort({ hospitalName: 1 });
+    
+    console.log(`✅ Found ${hospitals.length} approved hospitals`);
+    
+    res.status(200).json({
+      success: true,
+      message: 'Approved hospitals fetched successfully',
+      data: {
+        hospitals: hospitals.map(hospital => ({
+          id: hospital._id,
+          name: hospital.hospitalName,
+          city: hospital.city,
+          state: hospital.state,
+          type: hospital.hospitalType,
+          address: hospital.address,
+          pincode: hospital.pincode,
+          location: {
+            longitude: hospital.longitude,
+            latitude: hospital.latitude
+          }
+        }))
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error fetching approved hospitals:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch approved hospitals',
+      error: error.message
+    });
+  }
+};
+
+// Search hospitals for affiliation
+const searchHospitalsForAffiliation = async (req, res) => {
+  try {
+    const { query, city, state } = req.query;
+    console.log('🔍 Searching hospitals for affiliation:', { query, city, state });
+    
+    let searchCriteria = {
+      isApproved: true,
+      approvalStatus: 'approved',
+      status: 'active'
+    };
+    
+    // Add search conditions
+    if (query) {
+      searchCriteria.$or = [
+        { hospitalName: { $regex: query, $options: 'i' } },
+        { city: { $regex: query, $options: 'i' } },
+        { state: { $regex: query, $options: 'i' } }
+      ];
+    }
+    
+    if (city) {
+      searchCriteria.city = { $regex: city, $options: 'i' };
+    }
+    
+    if (state) {
+      searchCriteria.state = { $regex: state, $options: 'i' };
+    }
+    
+    const hospitals = await Hospital.find(searchCriteria)
+      .select('_id hospitalName city state hospitalType address pincode longitude latitude')
+      .sort({ hospitalName: 1 })
+      .limit(50); // Limit results for performance
+    
+    console.log(`✅ Found ${hospitals.length} hospitals matching search criteria`);
+    
+    res.status(200).json({
+      success: true,
+      message: 'Hospitals search completed successfully',
+      data: {
+        hospitals: hospitals.map(hospital => ({
+          id: hospital._id,
+          name: hospital.hospitalName,
+          city: hospital.city,
+          state: hospital.state,
+          type: hospital.hospitalType,
+          address: hospital.address,
+          pincode: hospital.pincode,
+          location: {
+            longitude: hospital.longitude,
+            latitude: hospital.latitude
+          }
+        }))
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error searching hospitals:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to search hospitals',
+      error: error.message
+    });
+  }
+};
+
+
+
+module.exports = {
+  registerHospital,
+  getPendingHospitals,
+  getAllHospitals,
+  approveHospital,
+  rejectHospital,
+  updateApprovalStatus,
+  getHospitalApprovalStatus,
+  getHospitalProfile,
+  getHospitalByEmail,
+  updateHospitalProfile,
+  getPendingApprovalsForStaff,
+  approveHospitalByStaff,
+  rejectHospitalByStaff,
+  getNearbyHospitals,
+  getApprovedHospitalsForAffiliation,
+  searchHospitalsForAffiliation,
+  // Placeholder functions
+  getDoctors,
+  addDoctor,
+  removeDoctor,
+  getDepartments,
+  addDepartment,
+  removeDepartment,
+  getAppointments,
+  createAppointment,
+  updateAppointment,
+  getAdmissions,
+  admitPatient,
+  updateAdmission,
+  getPharmacyItems,
+  addPharmacyItem,
+  updatePharmacyItem,
+  removePharmacyItem,
+  getLabTests,
+  addLabTest,
+  updateLabTest,
+  removeLabTest,
+  getQrRecords,
+  getAnalytics,
+  getReports,
+  getChatMessages,
+  sendChatMessage,
+  getShifts,
+  createShift,
+  updateShift,
+  deleteShift,
+  getBilling,
+  createBillingEntry,
+  getDocuments,
+  uploadDocument,
+  getNotifications,
+  updateSettings
+};

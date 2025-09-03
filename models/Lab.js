@@ -48,6 +48,16 @@ const labSchema = new mongoose.Schema({
     trim: true
   },
   
+  // Hospital Affiliations
+  affiliatedHospitals: [{
+    hospitalId: { type: String, ref: 'Hospital' },
+    hospitalName: { type: String, required: true },
+    role: { type: String, enum: ['Primary', 'Secondary', 'Consultant', 'Partner', 'Emergency'], default: 'Partner' },
+    startDate: { type: Date, default: Date.now },
+    endDate: { type: Date, required: false },
+    isActive: { type: Boolean, default: true }
+  }],
+  
   // Address Information
   address: {
     type: String,
@@ -69,6 +79,8 @@ const labSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  longitude: { type: Number, required: false },
+  latitude: { type: Number, required: false },
   
   // Profile and System
   profileImageUrl: {
