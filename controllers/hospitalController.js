@@ -65,6 +65,7 @@ const registerHospital = async (req, res) => {
     
     console.log('🏥 Hospital registration request received');
     console.log('📋 Request body:', JSON.stringify(req.body, null, 2));
+    console.log('🌍 Location data - Longitude:', req.body.longitude, 'Latitude:', req.body.latitude);
     
     // Map documents from RegistrationService format to expected format
     const { documents } = req.body;
@@ -136,6 +137,7 @@ const registerHospital = async (req, res) => {
       });
       await hospital.save();
       console.log('✅ New hospital created:', hospital.hospitalName);
+      console.log('🌍 Stored coordinates - Longitude:', hospital.longitude, 'Latitude:', hospital.latitude);
     } else {
       Object.assign(hospital, req.body);
       hospital.status = 'pending';
@@ -149,6 +151,7 @@ const registerHospital = async (req, res) => {
       }
       await hospital.save();
       console.log('✅ Existing hospital updated:', hospital.hospitalName);
+      console.log('🌍 Updated coordinates - Longitude:', hospital.longitude, 'Latitude:', hospital.latitude);
     }
     
     // Send registration confirmation email
