@@ -32,6 +32,19 @@ const registerPharmacy = async (req, res) => {
       return res.status(400).json({ error: 'Pharmacy already registered' });
     }
 
+    // Check for any existing records with registrationNumber: null that might cause conflicts
+    const conflictingRecord = await Pharmacy.findOne({ registrationNumber: null });
+    if (conflictingRecord) {
+      console.log('⚠️ Found existing record with registrationNumber: null:', conflictingRecord._id);
+      // Try to update the conflicting record to remove the registrationNumber field
+      try {
+        await Pharmacy.findByIdAndUpdate(conflictingRecord._id, { $unset: { registrationNumber: 1 } });
+        console.log('✅ Removed registrationNumber field from conflicting record');
+      } catch (updateError) {
+        console.log('❌ Failed to update conflicting record:', updateError.message);
+      }
+    }
+
     // Create new pharmacy user in Pharmacy model
     // Remove any fields that might cause database index conflicts
     const { 
@@ -73,9 +86,52 @@ const registerPharmacy = async (req, res) => {
     
     console.log('🏗️ Creating pharmacy with data:', JSON.stringify(pharmacyData, null, 2));
     
+    // Create pharmacy instance and explicitly exclude registrationNumber
     const newPharmacy = new Pharmacy(pharmacyData);
+    
+    // Ensure no registrationNumber field exists in the document
+    if (newPharmacy.registrationNumber !== undefined) {
+      delete newPharmacy.registrationNumber;
+    }
+    
+    console.log('🔍 Final pharmacy document before save:', JSON.stringify(newPharmacy.toObject(), null, 2));
 
-    const savedPharmacy = await newPharmacy.save();
+    let savedPharmacy;
+    try {
+      savedPharmacy = await newPharmacy.save();
+    } catch (saveError) {
+      console.log('❌ Save failed, trying alternative approach:', saveError.message);
+      
+      // If save fails due to registrationNumber conflict, try to create without any potential conflicting fields
+      const cleanPharmacy = new Pharmacy({
+        uid: pharmacyData.uid,
+        pharmacyName: pharmacyData.pharmacyName,
+        email: pharmacyData.email,
+        ownerName: pharmacyData.ownerName,
+        mobileNumber: pharmacyData.mobileNumber,
+        licenseNumber: pharmacyData.licenseNumber,
+        licenseDocumentUrl: pharmacyData.licenseDocumentUrl,
+        address: pharmacyData.address,
+        city: pharmacyData.city,
+        state: pharmacyData.state,
+        pincode: pharmacyData.pincode,
+        longitude: pharmacyData.longitude,
+        latitude: pharmacyData.latitude,
+        pharmacistName: pharmacyData.pharmacistName,
+        homeDelivery: pharmacyData.homeDelivery,
+        onlineConsultation: pharmacyData.onlineConsultation,
+        prescriptionService: pharmacyData.prescriptionService,
+        profileImageUrl: pharmacyData.profileImageUrl,
+        affiliatedHospitals: pharmacyData.affiliatedHospitals,
+        status: pharmacyData.status,
+        isApproved: pharmacyData.isApproved,
+        approvalStatus: pharmacyData.approvalStatus,
+        registrationDate: pharmacyData.registrationDate,
+      });
+      
+      console.log('🔄 Retrying with clean pharmacy data...');
+      savedPharmacy = await cleanPharmacy.save();
+    }
 
     // Send registration confirmation email
     try {
