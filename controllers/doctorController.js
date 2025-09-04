@@ -43,7 +43,7 @@ const registerDoctor = async (req, res) => {
     const requiredFields = [
       'uid', 'fullName', 'email', 'mobileNumber', 'gender', 'dateOfBirth',
       'address', 'city', 'state', 'pincode', 'medicalRegistrationNumber',
-      'licenseNumber', 'specialization', 'experienceYears', 'consultationFee', 'licenseDocumentUrl'
+      'licenseNumber', 'specialization', 'experienceYears', 'consultationFee'
     ];
 
     const missingFields = requiredFields.filter(field => !req.body[field]);
@@ -138,7 +138,15 @@ const registerDoctor = async (req, res) => {
     // Set the licenseNumber explicitly to ensure it's not null
     doctor.licenseNumber = licenseNumber;
     
+    // Handle licenseDocumentUrl - use from documents if not provided directly
+    if (!licenseDocumentUrl && req.body.documents && req.body.documents.license_certificate) {
+      doctor.licenseDocumentUrl = req.body.documents.license_certificate;
+    } else if (licenseDocumentUrl) {
+      doctor.licenseDocumentUrl = licenseDocumentUrl;
+    }
+    
     console.log('🔍 Final doctor licenseNumber before save:', doctor.licenseNumber);
+    console.log('🔍 Final doctor licenseDocumentUrl before save:', doctor.licenseDocumentUrl);
 
     await doctor.save();
 
