@@ -6,6 +6,8 @@ const registerPharmacy = async (req, res) => {
   try {
     console.log('💊 Pharmacy registration request received');
     console.log('📋 Request body:', JSON.stringify(req.body, null, 2));
+    console.log('🔍 Checking for registrationNumber field:', req.body.registrationNumber);
+    console.log('🔍 LicenseNumber field:', req.body.licenseNumber);
 
     // Map documents from RegistrationService format to expected format
     const { documents } = req.body;
@@ -31,16 +33,47 @@ const registerPharmacy = async (req, res) => {
     }
 
     // Create new pharmacy user in Pharmacy model
-    // Remove any registrationNumber field to avoid database index conflicts
-    const { registrationNumber, ...cleanUserData } = userData;
+    // Remove any fields that might cause database index conflicts
+    const { 
+      registrationNumber, 
+      medicalRegistrationNumber, 
+      hospitalRegistrationNumber,
+      ...cleanUserData 
+    } = userData;
+    console.log('🧹 Removed conflicting fields:', { registrationNumber, medicalRegistrationNumber, hospitalRegistrationNumber });
+    console.log('✅ Clean user data keys:', Object.keys(cleanUserData));
+    console.log('🔍 Clean data licenseNumber:', cleanUserData.licenseNumber);
     
-    const newPharmacy = new Pharmacy({
-      ...cleanUserData,
-      status: 'active', // Changed from 'pending' to 'active' (valid enum value)
+    // Ensure only valid Pharmacy schema fields are included
+    const pharmacyData = {
+      uid: cleanUserData.uid,
+      pharmacyName: cleanUserData.pharmacyName,
+      email: cleanUserData.email,
+      ownerName: cleanUserData.ownerName,
+      mobileNumber: cleanUserData.mobileNumber,
+      licenseNumber: cleanUserData.licenseNumber,
+      licenseDocumentUrl: cleanUserData.licenseDocumentUrl,
+      address: cleanUserData.address,
+      city: cleanUserData.city,
+      state: cleanUserData.state,
+      pincode: cleanUserData.pincode,
+      longitude: cleanUserData.longitude,
+      latitude: cleanUserData.latitude,
+      pharmacistName: cleanUserData.pharmacistName,
+      homeDelivery: cleanUserData.homeDelivery,
+      onlineConsultation: cleanUserData.onlineConsultation,
+      prescriptionService: cleanUserData.prescriptionService,
+      profileImageUrl: cleanUserData.profileImageUrl,
+      affiliatedHospitals: cleanUserData.pharmacyAffiliatedHospitals || [],
+      status: 'active',
       isApproved: false,
       approvalStatus: 'pending',
       registrationDate: new Date(),
-    });
+    };
+    
+    console.log('🏗️ Creating pharmacy with data:', JSON.stringify(pharmacyData, null, 2));
+    
+    const newPharmacy = new Pharmacy(pharmacyData);
 
     const savedPharmacy = await newPharmacy.save();
 
