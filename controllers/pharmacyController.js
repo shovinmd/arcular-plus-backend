@@ -31,8 +31,11 @@ const registerPharmacy = async (req, res) => {
     }
 
     // Create new pharmacy user in Pharmacy model
+    // Remove any registrationNumber field to avoid database index conflicts
+    const { registrationNumber, ...cleanUserData } = userData;
+    
     const newPharmacy = new Pharmacy({
-      ...userData,
+      ...cleanUserData,
       status: 'active', // Changed from 'pending' to 'active' (valid enum value)
       isApproved: false,
       approvalStatus: 'pending',
