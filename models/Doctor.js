@@ -23,6 +23,8 @@ const DoctorSchema = new mongoose.Schema({
   experienceYears: { type: Number, required: true },
   consultationFee: { type: Number, required: true },
   education: String,
+  qualification: String, // Single qualification for backward compatibility
+  qualifications: [String], // Multiple qualifications
   bio: String,
   
   // Employment Details
