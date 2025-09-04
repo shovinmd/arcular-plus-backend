@@ -1,97 +1,183 @@
 const mongoose = require('mongoose');
 
 const appointmentSchema = new mongoose.Schema({
-  doctorName: {
+  // Basic Information
+  appointmentId: {
     type: String,
     required: true,
-    trim: true
+    unique: true
   },
+  
+  // User Information
+  userId: {
+    type: String,
+    required: true,
+    ref: 'User'
+  },
+  userEmail: {
+    type: String,
+    required: true
+  },
+  userName: {
+    type: String,
+    required: true
+  },
+  userPhone: {
+    type: String,
+    required: true
+  },
+  
+  // Doctor Information
   doctorId: {
     type: String,
     required: true,
-    index: true
+    ref: 'User'
   },
-  patientId: {
+  doctorName: {
     type: String,
-    required: true,
-    index: true
+    required: true
   },
-  dateTime: {
+  doctorEmail: {
+    type: String,
+    required: true
+  },
+  doctorPhone: {
+    type: String,
+    required: true
+  },
+  doctorSpecialization: {
+    type: String,
+    required: true
+  },
+  doctorConsultationFee: {
+    type: Number,
+    required: true
+  },
+  
+  // Hospital Information
+  hospitalId: {
+    type: String,
+    ref: 'Hospital'
+  },
+  hospitalName: {
+    type: String,
+    required: true
+  },
+  hospitalAddress: {
+    type: String,
+    required: true
+  },
+  
+  // Appointment Details
+  appointmentDate: {
     type: Date,
-    required: true,
-    index: true
+    required: true
   },
-  status: {
+  appointmentTime: {
     type: String,
-    enum: ['Scheduled', 'Confirmed', 'Cancelled', 'Rescheduled', 'Completed'],
-    default: 'Scheduled'
+    required: true
   },
+  appointmentType: {
+    type: String,
+    enum: ['consultation', 'follow-up', 'emergency', 'routine'],
+    default: 'consultation'
+  },
+  appointmentStatus: {
+    type: String,
+    enum: ['pending', 'confirmed', 'completed', 'cancelled', 'rescheduled'],
+    default: 'pending'
+  },
+  
+  // Medical Information
+  reason: {
+    type: String,
+    required: true
+  },
+  symptoms: {
+    type: String
+  },
+  medicalHistory: {
+    type: String
+  },
+  
+  // Payment Information
+  consultationFee: {
+    type: Number,
+    required: true
+  },
+  paymentStatus: {
+    type: String,
+    enum: ['pending', 'paid', 'refunded'],
+    default: 'pending'
+  },
+  paymentMethod: {
+    type: String,
+    enum: ['cash', 'online', 'insurance'],
+    default: 'cash'
+  },
+  
+  // Communication
+  emailSent: {
+    type: Boolean,
+    default: false
+  },
+  smsSent: {
+    type: Boolean,
+    default: false
+  },
+  notificationSent: {
+    type: Boolean,
+    default: false
+  },
+  
+  // Timestamps
+  createdAt: {
+    type: Date,
+    default: Date.now
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
+  },
+  confirmedAt: {
+    type: Date
+  },
+  completedAt: {
+    type: Date
+  },
+  cancelledAt: {
+    type: Date
+  },
+  
+  // Additional Information
   notes: {
-    type: String,
-    trim: true
+    type: String
   },
-  duration: {
-    type: Number, // in minutes
-    default: 30
+  prescription: {
+    type: String
   },
-  location: {
-    type: String,
-    trim: true
+  followUpRequired: {
+    type: Boolean,
+    default: false
   },
-  type: {
-    type: String,
-    enum: ['Consultation', 'Follow-up', 'Emergency', 'Routine'],
-    default: 'Consultation'
+  followUpDate: {
+    type: Date
   }
-}, {
-  timestamps: true
 });
 
-// Indexes for better query performance
-appointmentSchema.index({ patientId: 1, dateTime: -1 });
-appointmentSchema.index({ doctorId: 1, dateTime: -1 });
-appointmentSchema.index({ status: 1, dateTime: 1 });
+// Indexes for better performance
+appointmentSchema.index({ userId: 1, appointmentDate: 1 });
+appointmentSchema.index({ doctorId: 1, appointmentDate: 1 });
+appointmentSchema.index({ appointmentStatus: 1 });
+appointmentSchema.index({ appointmentDate: 1, appointmentTime: 1 });
 
-// Virtual for formatted date
-appointmentSchema.virtual('formattedDate').get(function() {
-  return this.dateTime.toLocaleDateString();
+// Pre-save middleware to generate appointment ID
+appointmentSchema.pre('save', function(next) {
+  if (this.isNew && !this.appointmentId) {
+    this.appointmentId = `APT-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  }
+  this.updatedAt = new Date();
+  next();
 });
 
-// Virtual for formatted time
-appointmentSchema.virtual('formattedTime').get(function() {
-  return this.dateTime.toLocaleTimeString();
-});
-
-// Method to check if appointment is in the past
-appointmentSchema.methods.isPast = function() {
-  return this.dateTime < new Date();
-};
-
-// Method to check if appointment is today
-appointmentSchema.methods.isToday = function() {
-  const today = new Date();
-  const appointmentDate = new Date(this.dateTime);
-  return appointmentDate.toDateString() === today.toDateString();
-};
-
-// Static method to find appointments by patient
-appointmentSchema.statics.findByPatient = function(patientId) {
-  return this.find({ patientId }).sort({ dateTime: -1 });
-};
-
-// Static method to find appointments by doctor
-appointmentSchema.statics.findByDoctor = function(doctorId) {
-  return this.find({ doctorId }).sort({ dateTime: -1 });
-};
-
-// Static method to find upcoming appointments
-appointmentSchema.statics.findUpcoming = function(userId, userType = 'patient') {
-  const query = userType === 'doctor' ? { doctorId: userId } : { patientId: userId };
-  return this.find({
-    ...query,
-    dateTime: { $gte: new Date() },
-    status: { $nin: ['Cancelled', 'Completed'] }
-  }).sort({ dateTime: 1 });
-};
-
-module.exports = mongoose.model('Appointment', appointmentSchema); 
+module.exports = mongoose.model('Appointment', appointmentSchema);

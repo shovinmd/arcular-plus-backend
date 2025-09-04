@@ -1,34 +1,21 @@
 const express = require('express');
-const { body } = require('express-validator');
-const appointmentController = require('../controllers/appointmentController');
-
 const router = express.Router();
+const appointmentController = require('../controllers/appointmentController');
+const { verifyFirebaseToken } = require('../middleware/firebaseAuth');
 
-// Validation middleware
-const validateAppointment = [
-  body('doctorName').notEmpty().withMessage('Doctor name is required'),
-  body('doctorId').notEmpty().withMessage('Doctor ID is required'),
-  body('patientId').notEmpty().withMessage('Patient ID is required'),
-  body('dateTime').isISO8601().withMessage('Valid date and time is required'),
-  body('status').optional().isIn(['Scheduled', 'Confirmed', 'Cancelled', 'Rescheduled', 'Completed']).withMessage('Invalid status'),
-  body('duration').optional().isInt({ min: 15, max: 480 }).withMessage('Duration must be between 15 and 480 minutes'),
-  body('type').optional().isIn(['Consultation', 'Follow-up', 'Emergency', 'Routine']).withMessage('Invalid appointment type')
-];
+// Create appointment
+router.post('/create', verifyFirebaseToken, appointmentController.createAppointment);
 
-const validateAppointmentUpdate = [
-  body('doctorName').optional().notEmpty().withMessage('Doctor name cannot be empty'),
-  body('dateTime').optional().isISO8601().withMessage('Valid date and time is required'),
-  body('status').optional().isIn(['Scheduled', 'Confirmed', 'Cancelled', 'Rescheduled', 'Completed']).withMessage('Invalid status'),
-  body('duration').optional().isInt({ min: 15, max: 480 }).withMessage('Duration must be between 15 and 480 minutes'),
-  body('type').optional().isIn(['Consultation', 'Follow-up', 'Emergency', 'Routine']).withMessage('Invalid appointment type')
-];
+// Get user appointments
+router.get('/user', verifyFirebaseToken, appointmentController.getUserAppointments);
 
-// Routes
-router.get('/user/:userId', appointmentController.getAppointmentsByUser);
-router.get('/upcoming/:userId', appointmentController.getUpcomingAppointments);
-router.get('/:id', appointmentController.getAppointmentById);
-router.post('/', validateAppointment, appointmentController.createAppointment);
-router.put('/:id', validateAppointmentUpdate, appointmentController.updateAppointment);
-router.delete('/:id', appointmentController.deleteAppointment);
+// Get doctor appointments
+router.get('/doctor', verifyFirebaseToken, appointmentController.getDoctorAppointments);
 
-module.exports = router; 
+// Update appointment status
+router.put('/:appointmentId/status', verifyFirebaseToken, appointmentController.updateAppointmentStatus);
+
+// Get available time slots
+router.get('/available-slots', verifyFirebaseToken, appointmentController.getAvailableTimeSlots);
+
+module.exports = router;
