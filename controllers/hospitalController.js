@@ -676,10 +676,11 @@ function _toRadians(degrees) {
   return degrees * (Math.PI / 180);
 }
 
-// Get approved hospitals for affiliation selection
+// Get approved hospitals for affiliation selection (public endpoint for registration)
 const getApprovedHospitalsForAffiliation = async (req, res) => {
   try {
     console.log('🏥 Fetching approved hospitals for affiliation selection...');
+    console.log('🔐 Auth status:', req.user ? 'Authenticated' : 'Public access');
     
     // First try to find approved hospitals
     let hospitals = await Hospital.find({
@@ -745,11 +746,12 @@ const getApprovedHospitalsForAffiliation = async (req, res) => {
   }
 };
 
-// Search hospitals for affiliation
+// Search hospitals for affiliation (public endpoint for registration)
 const searchHospitalsForAffiliation = async (req, res) => {
   try {
     const { query, city, state } = req.query;
     console.log('🔍 Searching hospitals for affiliation:', { query, city, state });
+    console.log('🔐 Auth status:', req.user ? 'Authenticated' : 'Public access');
     
     let searchCriteria = {
       isApproved: true,

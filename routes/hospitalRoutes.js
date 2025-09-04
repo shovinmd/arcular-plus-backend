@@ -97,19 +97,19 @@ router.get('/:id/notifications', firebaseAuthMiddleware, hospitalController.getN
 // Settings
 router.put('/:id/settings', firebaseAuthMiddleware, hospitalController.updateSettings);
 
+// Get approved hospitals for affiliation selection (public - for registration)
+router.get('/affiliation/approved', hospitalController.getApprovedHospitalsForAffiliation);
+
+// Search hospitals for affiliation (public - for registration)
+router.get('/affiliation/search', hospitalController.searchHospitalsForAffiliation);
+
 // Get nearby hospitals for SOS
 router.get('/nearby', firebaseAuthMiddleware, hospitalController.getNearbyHospitals);
 
 // Hospital registration
 router.post('/register', firebaseAuthMiddleware, hospitalController.registerHospital);
 
-// Fetch all hospitals
+// Fetch all hospitals (must be last to avoid catching other routes)
 router.get('/', firebaseAuthMiddleware, hospitalController.getAllHospitals);
-
-// Get approved hospitals for affiliation selection
-router.get('/affiliation/approved', firebaseAuthMiddleware, hospitalController.getApprovedHospitalsForAffiliation);
-
-// Search hospitals for affiliation
-router.get('/affiliation/search', firebaseAuthMiddleware, hospitalController.searchHospitalsForAffiliation);
 
 module.exports = router; 
