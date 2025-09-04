@@ -53,6 +53,25 @@ const registerPharmacy = async (req, res) => {
     console.log('🔍 Extracted fields - licenseNumber:', licenseNumber);
     console.log('🔍 Extracted fields - pharmacyName:', pharmacyName);
     console.log('🔍 Extracted fields - uid:', uid);
+    console.log('🔍 All extracted fields:', Object.keys({
+      uid, fullName, email, mobileNumber, alternateMobile, address, city, state, pincode,
+      longitude, latitude, pharmacyName, licenseNumber, ownerName, pharmacistName,
+      homeDelivery, onlineConsultation, prescriptionService, profileImageUrl,
+      licenseDocumentUrl, pharmacyAffiliatedHospitals
+    }));
+    
+    // Check for any unexpected fields in userData that might cause issues
+    const unexpectedFields = Object.keys(userData).filter(key => 
+      !['uid', 'fullName', 'email', 'mobileNumber', 'alternateMobile', 'address', 'city', 'state', 'pincode',
+        'longitude', 'latitude', 'pharmacyName', 'licenseNumber', 'ownerName', 'pharmacistName',
+        'homeDelivery', 'onlineConsultation', 'prescriptionService', 'profileImageUrl',
+        'licenseDocumentUrl', 'pharmacyAffiliatedHospitals', 'documents', 'status', 'registrationDate',
+        'drugLicenseUrl', 'premisesCertificateUrl'].includes(key)
+    );
+    
+    if (unexpectedFields.length > 0) {
+      console.log('⚠️ Found unexpected fields in userData:', unexpectedFields);
+    }
 
     // Check if pharmacy already exists
     const existingPharmacy = await Pharmacy.findOne({ uid });
@@ -77,7 +96,7 @@ const registerPharmacy = async (req, res) => {
     }
 
     // Create new pharmacy with explicit field mapping (no spread operator)
-    const newPharmacy = new Pharmacy({
+    const pharmacyData = {
       uid,
       fullName,
       email,
@@ -103,27 +122,54 @@ const registerPharmacy = async (req, res) => {
       isApproved: false,
       approvalStatus: 'pending',
       registrationDate: new Date(),
-    });
+    };
     
-    console.log('🏗️ Created pharmacy instance with explicit fields');
-    console.log('🔍 Pharmacy licenseNumber:', newPharmacy.licenseNumber);
-    console.log('🔍 Pharmacy uid:', newPharmacy.uid);
+    console.log('🏗️ Created pharmacy data object');
+    console.log('🔍 Pharmacy data keys:', Object.keys(pharmacyData));
+    console.log('🔍 Pharmacy licenseNumber:', pharmacyData.licenseNumber);
+    console.log('🔍 Pharmacy uid:', pharmacyData.uid);
+    
+    // Create pharmacy instance
+    const newPharmacy = new Pharmacy(pharmacyData);
+    
+    // Explicitly ensure registrationNumber is not in the document
+    if (newPharmacy.registrationNumber !== undefined) {
+      delete newPharmacy.registrationNumber;
+      console.log('🧹 Removed registrationNumber from pharmacy instance');
+    }
+    
+    console.log('🔍 Final pharmacy document keys:', Object.keys(newPharmacy.toObject()));
 
     let savedPharmacy;
     try {
-      savedPharmacy = await newPharmacy.save();
-      console.log('✅ Pharmacy saved successfully:', savedPharmacy.pharmacyName);
+      // Try using insertOne to have more control over the document
+      const result = await Pharmacy.collection.insertOne(pharmacyData);
+      console.log('✅ Pharmacy inserted successfully with ID:', result.insertedId);
+      
+      // Fetch the saved pharmacy to return it
+      savedPharmacy = await Pharmacy.findById(result.insertedId);
+      console.log('✅ Pharmacy fetched successfully:', savedPharmacy.pharmacyName);
     } catch (saveError) {
-      console.error('❌ Pharmacy save failed:', saveError.message);
-      console.error('❌ Save error details:', saveError);
+      console.error('❌ Pharmacy insert failed:', saveError.message);
+      console.error('❌ Insert error details:', saveError);
       
       // If it's still a duplicate key error, try to provide more specific information
       if (saveError.code === 11000) {
         console.log('❌ Duplicate key error detected');
         console.log('❌ Error details:', saveError.keyPattern, saveError.keyValue);
+        
+        // Try one more approach - use create with explicit field selection
+        try {
+          console.log('🔄 Trying alternative create method...');
+          savedPharmacy = await Pharmacy.create(pharmacyData);
+          console.log('✅ Pharmacy created successfully with alternative method:', savedPharmacy.pharmacyName);
+        } catch (createError) {
+          console.error('❌ Alternative create also failed:', createError.message);
+          throw saveError; // Re-throw original error
+        }
+      } else {
+        throw saveError; // Re-throw to be handled by the outer catch
       }
-      
-      throw saveError; // Re-throw to be handled by the outer catch
     }
 
     // Send registration confirmation email
