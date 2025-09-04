@@ -267,7 +267,7 @@ const registerDeviceToken = async (req, res) => {
     res.status(200).json({ 
       success: true, 
       message: 'Device token registered', 
-      token,
+    token,
       userType 
     });
   } catch (error) {

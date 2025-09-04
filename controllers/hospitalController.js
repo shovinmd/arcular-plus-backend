@@ -681,7 +681,8 @@ const getApprovedHospitalsForAffiliation = async (req, res) => {
   try {
     console.log('🏥 Fetching approved hospitals for affiliation selection...');
     
-    const hospitals = await Hospital.find({
+    // First try to find approved hospitals
+    let hospitals = await Hospital.find({
       isApproved: true,
       approvalStatus: 'approved',
       status: 'active'
@@ -691,9 +692,33 @@ const getApprovedHospitalsForAffiliation = async (req, res) => {
     
     console.log(`✅ Found ${hospitals.length} approved hospitals`);
     
+    // If no approved hospitals, try to find any hospitals with pending status
+    if (hospitals.length === 0) {
+      console.log('⚠️ No approved hospitals found, trying to find pending hospitals...');
+      hospitals = await Hospital.find({
+        status: { $in: ['active', 'pending'] }
+      })
+      .select('_id hospitalName city state hospitalType address pincode longitude latitude')
+      .sort({ hospitalName: 1 });
+      
+      console.log(`✅ Found ${hospitals.length} hospitals (including pending)`);
+    }
+    
+    // If still no hospitals, return empty array with success
+    if (hospitals.length === 0) {
+      console.log('⚠️ No hospitals found in database');
+      return res.status(200).json({
+        success: true,
+        message: 'No hospitals available for affiliation',
+        data: {
+          hospitals: []
+        }
+      });
+    }
+    
     res.status(200).json({
       success: true,
-      message: 'Approved hospitals fetched successfully',
+      message: 'Hospitals fetched successfully',
       data: {
         hospitals: hospitals.map(hospital => ({
           id: hospital._id,
@@ -711,10 +736,10 @@ const getApprovedHospitalsForAffiliation = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ Error fetching approved hospitals:', error);
+    console.error('❌ Error fetching hospitals for affiliation:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch approved hospitals',
+      message: 'Failed to fetch hospitals for affiliation',
       error: error.message
     });
   }
