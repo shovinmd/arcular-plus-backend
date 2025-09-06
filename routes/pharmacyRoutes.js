@@ -38,4 +38,7 @@ router.put('/:id', firebaseAuthMiddleware, pharmacyController.updatePharmacy);
 // Delete pharmacy
 router.delete('/:id', firebaseAuthMiddleware, pharmacyController.deletePharmacy);
 
+// Database cleanup route (for fixing E11000 errors)
+router.post('/cleanup-database', pharmacyController.cleanupPharmacyDatabase);
+
 module.exports = router; 

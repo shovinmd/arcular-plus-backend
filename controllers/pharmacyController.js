@@ -30,9 +30,16 @@ const registerPharmacy = async (req, res) => {
       return res.status(400).json({ error: 'Pharmacy already registered' });
     }
 
+    // Remove problematic fields that might cause E11000 errors
+    // These fields don't exist in the current Pharmacy model but might be in old database indexes
+    const cleanUserData = { ...userData };
+    delete cleanUserData.registrationNumber;
+    delete cleanUserData.medicalRegistrationNumber;
+    delete cleanUserData.hospitalRegistrationNumber;
+
     // Create new pharmacy user in Pharmacy model (same as lab registration)
     const newPharmacy = new Pharmacy({
-      ...userData,
+      ...cleanUserData,
       status: 'active', // Changed from 'pending' to 'active' (valid enum value)
       isApproved: false,
       approvalStatus: 'pending',
@@ -61,6 +68,45 @@ const registerPharmacy = async (req, res) => {
     });
   } catch (error) {
     console.error('Pharmacy registration error:', error);
+    
+    // Handle specific E11000 duplicate key error
+    if (error.code === 11000) {
+      console.error('🔍 E11000 Error details:', {
+        code: error.code,
+        keyPattern: error.keyPattern,
+        keyValue: error.keyValue,
+        errmsg: error.errmsg
+      });
+      
+      // Check if it's the registrationNumber index issue
+      if (error.keyPattern && error.keyPattern.registrationNumber) {
+        return res.status(500).json({
+          success: false,
+          error: 'Database configuration error',
+          details: 'Please contact support - database index issue detected',
+          code: 'DB_INDEX_ERROR'
+        });
+      }
+      
+      // Check if it's a license number duplicate
+      if (error.keyPattern && error.keyPattern.licenseNumber) {
+        return res.status(400).json({
+          success: false,
+          error: 'License number already exists',
+          details: 'This license number is already registered with another pharmacy'
+        });
+      }
+      
+      // Check if it's a UID duplicate
+      if (error.keyPattern && error.keyPattern.uid) {
+        return res.status(400).json({
+          success: false,
+          error: 'User already registered',
+          details: 'This user is already registered as a pharmacy'
+        });
+      }
+    }
+    
     res.status(500).json({ 
       success: false,
       error: 'Pharmacy registration failed',
@@ -490,6 +536,95 @@ const rejectPharmacyByStaff = async (req, res) => {
   }
 };
 
+// Database cleanup function to fix E11000 errors
+const cleanupPharmacyDatabase = async (req, res) => {
+  try {
+    console.log('🧹 Starting pharmacy database cleanup...');
+    
+    // Get the pharmacies collection directly
+    const db = req.app.locals.db || require('mongoose').connection.db;
+    const collection = db.collection('pharmacies');
+    
+    // Check if collection exists
+    const collections = await db.listCollections().toArray();
+    const pharmacyCollectionExists = collections.some(col => col.name === 'pharmacies');
+    
+    if (!pharmacyCollectionExists) {
+      return res.json({
+        success: true,
+        message: 'Pharmacies collection does not exist - no cleanup needed'
+      });
+    }
+    
+    // Get current indexes
+    const indexes = await collection.indexes();
+    console.log('📋 Current indexes:', indexes.map(idx => ({ name: idx.name, key: idx.key })));
+    
+    // Drop problematic indexes
+    const problematicIndexes = [
+      'registrationNumber_1', 
+      'licenseNumber_1',
+      'registrationNumber_-1',
+      'licenseNumber_-1'
+    ];
+    
+    const droppedIndexes = [];
+    for (const indexName of problematicIndexes) {
+      try {
+        await collection.dropIndex(indexName);
+        droppedIndexes.push(indexName);
+        console.log(`✅ Dropped ${indexName} index`);
+      } catch (error) {
+        if (error.code === 27) {
+          console.log(`ℹ️ ${indexName} index does not exist`);
+        } else {
+          console.log(`⚠️ Error dropping ${indexName} index:`, error.message);
+        }
+      }
+    }
+    
+    // Clean up documents with problematic fields
+    const nullRegResult = await collection.deleteMany({
+      $or: [
+        { registrationNumber: null },
+        { registrationNumber: '' },
+        { registrationNumber: { $exists: false } }
+      ]
+    });
+    
+    const nullLicenseResult = await collection.deleteMany({
+      $or: [
+        { licenseNumber: null },
+        { licenseNumber: '' },
+        { licenseNumber: { $exists: false } }
+      ]
+    });
+    
+    console.log(`✅ Cleaned up ${nullRegResult.deletedCount} documents with problematic registrationNumber`);
+    console.log(`✅ Cleaned up ${nullLicenseResult.deletedCount} documents with problematic licenseNumber`);
+    
+    res.json({
+      success: true,
+      message: 'Pharmacy database cleanup completed',
+      details: {
+        droppedIndexes,
+        deletedDocuments: {
+          registrationNumber: nullRegResult.deletedCount,
+          licenseNumber: nullLicenseResult.deletedCount
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Database cleanup error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Database cleanup failed',
+      details: error.message
+    });
+  }
+};
+
 module.exports = {
   registerPharmacy,
   getAllPharmacies,
@@ -506,5 +641,6 @@ module.exports = {
   rejectPharmacy,
   getPendingApprovalsForStaff,
   approvePharmacyByStaff,
-  rejectPharmacyByStaff
+  rejectPharmacyByStaff,
+  cleanupPharmacyDatabase
 }; 
