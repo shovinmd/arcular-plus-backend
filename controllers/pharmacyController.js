@@ -40,14 +40,6 @@ const registerPharmacy = async (req, res) => {
     });
 
     const savedPharmacy = await newPharmacy.save();
-    console.log('✅ Pharmacy saved successfully with UID:', savedPharmacy.uid);
-    console.log('✅ Pharmacy details:', {
-      uid: savedPharmacy.uid,
-      pharmacyName: savedPharmacy.pharmacyName,
-      email: savedPharmacy.email,
-      status: savedPharmacy.status,
-      isApproved: savedPharmacy.isApproved
-    });
 
     // Send registration confirmation email
     try {
@@ -105,19 +97,7 @@ const getPharmacyById = async (req, res) => {
 // Get pharmacy by UID
 const getPharmacyByUID = async (req, res) => {
   try {
-    console.log('🔍 Looking for pharmacy with UID:', req.params.uid);
     const pharmacy = await Pharmacy.findOne({ uid: req.params.uid });
-    console.log('🔍 Pharmacy found:', pharmacy ? 'YES' : 'NO');
-    if (pharmacy) {
-      console.log('🔍 Pharmacy details:', {
-        uid: pharmacy.uid,
-        pharmacyName: pharmacy.pharmacyName,
-        email: pharmacy.email,
-        status: pharmacy.status,
-        isApproved: pharmacy.isApproved
-      });
-    }
-    
     if (!pharmacy) {
       return res.status(404).json({
         success: false,
@@ -131,7 +111,6 @@ const getPharmacyByUID = async (req, res) => {
       data
     });
   } catch (error) {
-    console.error('❌ Error getting pharmacy by UID:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to get pharmacy',
