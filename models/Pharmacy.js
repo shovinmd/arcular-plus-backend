@@ -24,6 +24,11 @@ const pharmacySchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  pharmacistName: {
+    type: String,
+    required: true,
+    trim: true
+  },
   mobileNumber: {
     type: String,
     required: true,
@@ -43,10 +48,18 @@ const pharmacySchema = new mongoose.Schema({
   },
   
   // Business Information
+  servicesProvided: [{
+    type: String,
+    trim: true
+  }],
   drugsAvailable: [{
     type: String,
     trim: true
   }],
+  homeDelivery: {
+    type: Boolean,
+    default: false
+  },
   
   // Hospital Affiliations
   affiliatedHospitals: [{

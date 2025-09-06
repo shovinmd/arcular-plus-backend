@@ -42,9 +42,8 @@ const registerPharmacy = async (req, res) => {
       licenseNumber,
       ownerName,
       pharmacistName,
+      servicesProvided,
       homeDelivery,
-      onlineConsultation,
-      prescriptionService,
       profileImageUrl,
       licenseDocumentUrl,
       pharmacyAffiliatedHospitals
@@ -56,7 +55,7 @@ const registerPharmacy = async (req, res) => {
     console.log('🔍 All extracted fields:', Object.keys({
       uid, fullName, email, mobileNumber, alternateMobile, address, city, state, pincode,
       longitude, latitude, pharmacyName, licenseNumber, ownerName, pharmacistName,
-      homeDelivery, onlineConsultation, prescriptionService, profileImageUrl,
+      servicesProvided, homeDelivery, profileImageUrl,
       licenseDocumentUrl, pharmacyAffiliatedHospitals
     }));
     
@@ -64,7 +63,7 @@ const registerPharmacy = async (req, res) => {
     const unexpectedFields = Object.keys(userData).filter(key => 
       !['uid', 'fullName', 'email', 'mobileNumber', 'alternateMobile', 'address', 'city', 'state', 'pincode',
         'longitude', 'latitude', 'pharmacyName', 'licenseNumber', 'ownerName', 'pharmacistName',
-        'homeDelivery', 'onlineConsultation', 'prescriptionService', 'profileImageUrl',
+        'servicesProvided', 'homeDelivery', 'profileImageUrl',
         'licenseDocumentUrl', 'pharmacyAffiliatedHospitals', 'documents', 'status', 'registrationDate',
         'drugLicenseUrl', 'premisesCertificateUrl'].includes(key)
     );
@@ -112,9 +111,8 @@ const registerPharmacy = async (req, res) => {
       licenseNumber,
       ownerName,
       pharmacistName,
+      servicesProvided: servicesProvided || [],
       homeDelivery: homeDelivery || false,
-      onlineConsultation: onlineConsultation || false,
-      prescriptionService: prescriptionService || false,
       profileImageUrl: profileImageUrl || '',
       licenseDocumentUrl: licenseDocumentUrl || '',
       affiliatedHospitals: pharmacyAffiliatedHospitals || [],
@@ -142,29 +140,29 @@ const registerPharmacy = async (req, res) => {
 
     let savedPharmacy;
     try {
-      // Try using insertOne to have more control over the document
-      const result = await Pharmacy.collection.insertOne(pharmacyData);
-      console.log('✅ Pharmacy inserted successfully with ID:', result.insertedId);
-      
-      // Fetch the saved pharmacy to return it
-      savedPharmacy = await Pharmacy.findById(result.insertedId);
-      console.log('✅ Pharmacy fetched successfully:', savedPharmacy.pharmacyName);
+      // Try using create method first (simpler approach)
+      savedPharmacy = await Pharmacy.create(pharmacyData);
+      console.log('✅ Pharmacy created successfully:', savedPharmacy.pharmacyName);
     } catch (saveError) {
-      console.error('❌ Pharmacy insert failed:', saveError.message);
-      console.error('❌ Insert error details:', saveError);
+      console.error('❌ Pharmacy create failed:', saveError.message);
+      console.error('❌ Create error details:', saveError);
       
-      // If it's still a duplicate key error, try to provide more specific information
+      // If it's still a duplicate key error, try insertOne as fallback
       if (saveError.code === 11000) {
         console.log('❌ Duplicate key error detected');
         console.log('❌ Error details:', saveError.keyPattern, saveError.keyValue);
         
-        // Try one more approach - use create with explicit field selection
+        // Try insertOne as fallback
         try {
-          console.log('🔄 Trying alternative create method...');
-          savedPharmacy = await Pharmacy.create(pharmacyData);
-          console.log('✅ Pharmacy created successfully with alternative method:', savedPharmacy.pharmacyName);
-        } catch (createError) {
-          console.error('❌ Alternative create also failed:', createError.message);
+          console.log('🔄 Trying insertOne fallback method...');
+          const result = await Pharmacy.collection.insertOne(pharmacyData);
+          console.log('✅ Pharmacy inserted successfully with ID:', result.insertedId);
+          
+          // Fetch the saved pharmacy to return it
+          savedPharmacy = await Pharmacy.findById(result.insertedId);
+          console.log('✅ Pharmacy fetched successfully:', savedPharmacy.pharmacyName);
+        } catch (insertError) {
+          console.error('❌ InsertOne fallback also failed:', insertError.message);
           throw saveError; // Re-throw original error
         }
       } else {
