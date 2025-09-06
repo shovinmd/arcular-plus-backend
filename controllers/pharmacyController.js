@@ -30,20 +30,9 @@ const registerPharmacy = async (req, res) => {
       return res.status(400).json({ error: 'Pharmacy already registered' });
     }
 
-    // Filter out problematic fields that don't exist in current model but might be in old database indexes
-    // This prevents E11000 errors from old indexes
-    const cleanUserData = { ...userData };
-    delete cleanUserData.registrationNumber;
-    delete cleanUserData.medicalRegistrationNumber;
-    delete cleanUserData.hospitalRegistrationNumber;
-    delete cleanUserData.drugLicenseNumber;
-    delete cleanUserData.drugLicense;
-    delete cleanUserData.premisesLicense;
-    delete cleanUserData.pharmacyLicense;
-
-    // Create new pharmacy user in Pharmacy model (like hospital registration)
+    // Create new pharmacy user in Pharmacy model (same as lab controller)
     const newPharmacy = new Pharmacy({
-      ...cleanUserData,
+      ...userData,
       status: 'active', // Changed from 'pending' to 'active' (valid enum value)
       isApproved: false,
       approvalStatus: 'pending',
@@ -72,52 +61,6 @@ const registerPharmacy = async (req, res) => {
     });
   } catch (error) {
     console.error('Pharmacy registration error:', error);
-    
-    // Handle specific E11000 duplicate key error
-    if (error.code === 11000) {
-      console.error('🔍 E11000 Error details:', {
-        code: error.code,
-        keyPattern: error.keyPattern,
-        keyValue: error.keyValue,
-        errmsg: error.errmsg
-      });
-      
-      // Check if it's a license number duplicate
-      if (error.keyPattern && error.keyPattern.licenseNumber) {
-        return res.status(400).json({
-          success: false,
-          error: 'License number already exists',
-          details: 'This license number is already registered with another pharmacy'
-        });
-      }
-      
-      // Check if it's a UID duplicate
-      if (error.keyPattern && error.keyPattern.uid) {
-        return res.status(400).json({
-          success: false,
-          error: 'User already registered',
-          details: 'This user is already registered as a pharmacy'
-        });
-      }
-      
-      // Check if it's an email duplicate
-      if (error.keyPattern && error.keyPattern.email) {
-        return res.status(400).json({
-          success: false,
-          error: 'Email already exists',
-          details: 'This email is already registered with another pharmacy'
-        });
-      }
-      
-      // Handle other duplicate key errors (like old indexes)
-      return res.status(500).json({
-        success: false,
-        error: 'Database configuration error',
-        details: 'Please contact support - database index issue detected',
-        code: 'DB_INDEX_ERROR'
-      });
-    }
-    
     res.status(500).json({ 
       success: false,
       error: 'Pharmacy registration failed',
