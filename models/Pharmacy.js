@@ -7,6 +7,11 @@ const pharmacySchema = new mongoose.Schema({
     required: true,
     unique: true
   },
+  fullName: {
+    type: String,
+    required: true,
+    trim: true
+  },
   pharmacyName: {
     type: String,
     required: true,
@@ -19,6 +24,16 @@ const pharmacySchema = new mongoose.Schema({
     lowercase: true,
     trim: true
   },
+  mobileNumber: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  alternateMobile: {
+    type: String,
+    required: false,
+    trim: true
+  },
   ownerName: {
     type: String,
     required: true,
@@ -29,10 +44,10 @@ const pharmacySchema = new mongoose.Schema({
     required: true,
     trim: true
   },
-  mobileNumber: {
+  type: {
     type: String,
     required: true,
-    trim: true
+    default: 'pharmacy'
   },
   
   // License Information
@@ -63,6 +78,14 @@ const pharmacySchema = new mongoose.Schema({
   
   // Hospital Affiliations
   affiliatedHospitals: [{
+    hospitalId: { type: String, ref: 'Hospital' },
+    hospitalName: { type: String, required: true },
+    role: { type: String, enum: ['Primary', 'Secondary', 'Partner', 'Emergency', 'Contract'], default: 'Partner' },
+    startDate: { type: Date, default: Date.now },
+    endDate: { type: Date, required: false },
+    isActive: { type: Boolean, default: true }
+  }],
+  pharmacyAffiliatedHospitals: [{
     hospitalId: { type: String, ref: 'Hospital' },
     hospitalName: { type: String, required: true },
     role: { type: String, enum: ['Primary', 'Secondary', 'Partner', 'Emergency', 'Contract'], default: 'Partner' },
@@ -158,6 +181,19 @@ const pharmacySchema = new mongoose.Schema({
   profileImageUrl: {
     type: String,
     required: true
+  },
+  
+  // Documents
+  documents: {
+    pharmacy_license: { type: String },
+    drug_license: { type: String },
+    premises_certificate: { type: String }
+  },
+  
+  // Registration
+  registrationDate: {
+    type: Date,
+    default: Date.now
   },
   
   // Approval Status
