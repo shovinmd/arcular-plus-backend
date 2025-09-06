@@ -6,8 +6,6 @@ const registerPharmacy = async (req, res) => {
   try {
     console.log('💊 Pharmacy registration request received');
     console.log('📋 Request body:', JSON.stringify(req.body, null, 2));
-    console.log('🔍 Checking for registrationNumber field:', req.body.registrationNumber);
-    console.log('🔍 LicenseNumber field:', req.body.licenseNumber);
 
     // Map documents from RegistrationService format to expected format
     const { documents } = req.body;
@@ -24,53 +22,7 @@ const registerPharmacy = async (req, res) => {
     }
 
     const userData = req.body;
-
-    // Extract only the fields we need (same approach as doctor controller)
-    const {
-      uid,
-      fullName,
-      email,
-      mobileNumber,
-      alternateMobile,
-      address,
-      city,
-      state,
-      pincode,
-      longitude,
-      latitude,
-      pharmacyName,
-      licenseNumber,
-      ownerName,
-      pharmacistName,
-      servicesProvided,
-      homeDelivery,
-      profileImageUrl,
-      licenseDocumentUrl,
-      pharmacyAffiliatedHospitals
-    } = userData;
-
-    console.log('🔍 Extracted fields - licenseNumber:', licenseNumber);
-    console.log('🔍 Extracted fields - pharmacyName:', pharmacyName);
-    console.log('🔍 Extracted fields - uid:', uid);
-    console.log('🔍 All extracted fields:', Object.keys({
-      uid, fullName, email, mobileNumber, alternateMobile, address, city, state, pincode,
-      longitude, latitude, pharmacyName, licenseNumber, ownerName, pharmacistName,
-      servicesProvided, homeDelivery, profileImageUrl,
-      licenseDocumentUrl, pharmacyAffiliatedHospitals
-    }));
-    
-    // Check for any unexpected fields in userData that might cause issues
-    const unexpectedFields = Object.keys(userData).filter(key => 
-      !['uid', 'fullName', 'email', 'mobileNumber', 'alternateMobile', 'address', 'city', 'state', 'pincode',
-        'longitude', 'latitude', 'pharmacyName', 'licenseNumber', 'ownerName', 'pharmacistName',
-        'servicesProvided', 'homeDelivery', 'profileImageUrl',
-        'licenseDocumentUrl', 'pharmacyAffiliatedHospitals', 'documents', 'status', 'registrationDate',
-        'drugLicenseUrl', 'premisesCertificateUrl'].includes(key)
-    );
-    
-    if (unexpectedFields.length > 0) {
-      console.log('⚠️ Found unexpected fields in userData:', unexpectedFields);
-    }
+    const { uid } = userData;
 
     // Check if pharmacy already exists
     const existingPharmacy = await Pharmacy.findOne({ uid });
@@ -78,97 +30,24 @@ const registerPharmacy = async (req, res) => {
       return res.status(400).json({ error: 'Pharmacy already registered' });
     }
 
-    // Check for any existing records with registrationNumber: null that might cause conflicts
-    const conflictingRecords = await Pharmacy.find({ registrationNumber: null });
-    if (conflictingRecords.length > 0) {
-      console.log(`⚠️ Found ${conflictingRecords.length} existing records with registrationNumber: null`);
-      // Try to update all conflicting records to remove the registrationNumber field
-      try {
-        await Pharmacy.updateMany(
-          { registrationNumber: null },
-          { $unset: { registrationNumber: 1 } }
-        );
-        console.log('✅ Removed registrationNumber field from all conflicting records');
-      } catch (updateError) {
-        console.log('❌ Failed to update conflicting records:', updateError.message);
-      }
-    }
-
-    // Create new pharmacy with explicit field mapping (no spread operator)
-    const pharmacyData = {
-      uid,
-      fullName,
-      email,
-      mobileNumber,
-      alternateMobile,
-      address,
-      city,
-      state,
-      pincode,
-      longitude,
-      latitude,
-      pharmacyName,
-      licenseNumber,
-      ownerName,
-      pharmacistName,
-      servicesProvided: servicesProvided || [],
-      homeDelivery: homeDelivery || false,
-      profileImageUrl: profileImageUrl || '',
-      licenseDocumentUrl: licenseDocumentUrl || '',
-      affiliatedHospitals: pharmacyAffiliatedHospitals || [],
-      status: 'active',
+    // Create new pharmacy user in Pharmacy model (same as lab registration)
+    const newPharmacy = new Pharmacy({
+      ...userData,
+      status: 'active', // Changed from 'pending' to 'active' (valid enum value)
       isApproved: false,
       approvalStatus: 'pending',
       registrationDate: new Date(),
-    };
-    
-    console.log('🏗️ Created pharmacy data object');
-    console.log('🔍 Pharmacy data keys:', Object.keys(pharmacyData));
-    console.log('🔍 Pharmacy licenseNumber:', pharmacyData.licenseNumber);
-    console.log('🔍 Pharmacy uid:', pharmacyData.uid);
-    
-    // Create pharmacy instance
-    const newPharmacy = new Pharmacy(pharmacyData);
-    
-    // Explicitly ensure registrationNumber is not in the document
-    if (newPharmacy.registrationNumber !== undefined) {
-      delete newPharmacy.registrationNumber;
-      console.log('🧹 Removed registrationNumber from pharmacy instance');
-    }
-    
-    console.log('🔍 Final pharmacy document keys:', Object.keys(newPharmacy.toObject()));
+    });
 
-    let savedPharmacy;
-    try {
-      // Try using create method first (simpler approach)
-      savedPharmacy = await Pharmacy.create(pharmacyData);
-      console.log('✅ Pharmacy created successfully:', savedPharmacy.pharmacyName);
-    } catch (saveError) {
-      console.error('❌ Pharmacy create failed:', saveError.message);
-      console.error('❌ Create error details:', saveError);
-      
-      // If it's still a duplicate key error, try insertOne as fallback
-      if (saveError.code === 11000) {
-        console.log('❌ Duplicate key error detected');
-        console.log('❌ Error details:', saveError.keyPattern, saveError.keyValue);
-        
-        // Try insertOne as fallback
-        try {
-          console.log('🔄 Trying insertOne fallback method...');
-          const result = await Pharmacy.collection.insertOne(pharmacyData);
-          console.log('✅ Pharmacy inserted successfully with ID:', result.insertedId);
-          
-          // Fetch the saved pharmacy to return it
-          savedPharmacy = await Pharmacy.findById(result.insertedId);
-          console.log('✅ Pharmacy fetched successfully:', savedPharmacy.pharmacyName);
-        } catch (insertError) {
-          console.error('❌ InsertOne fallback also failed:', insertError.message);
-          throw saveError; // Re-throw original error
-        }
-      } else {
-        throw saveError; // Re-throw to be handled by the outer catch
-      }
-    }
+    const savedPharmacy = await newPharmacy.save();
+    console.log('✅ Pharmacy saved successfully with UID:', savedPharmacy.uid);
+    console.log('✅ Pharmacy details:', {
+      uid: savedPharmacy.uid,
+      pharmacyName: savedPharmacy.pharmacyName,
+      email: savedPharmacy.email,
+      status: savedPharmacy.status,
+      isApproved: savedPharmacy.isApproved
+    });
 
     // Send registration confirmation email
     try {
@@ -226,7 +105,19 @@ const getPharmacyById = async (req, res) => {
 // Get pharmacy by UID
 const getPharmacyByUID = async (req, res) => {
   try {
+    console.log('🔍 Looking for pharmacy with UID:', req.params.uid);
     const pharmacy = await Pharmacy.findOne({ uid: req.params.uid });
+    console.log('🔍 Pharmacy found:', pharmacy ? 'YES' : 'NO');
+    if (pharmacy) {
+      console.log('🔍 Pharmacy details:', {
+        uid: pharmacy.uid,
+        pharmacyName: pharmacy.pharmacyName,
+        email: pharmacy.email,
+        status: pharmacy.status,
+        isApproved: pharmacy.isApproved
+      });
+    }
+    
     if (!pharmacy) {
       return res.status(404).json({
         success: false,
@@ -240,6 +131,7 @@ const getPharmacyByUID = async (req, res) => {
       data
     });
   } catch (error) {
+    console.error('❌ Error getting pharmacy by UID:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to get pharmacy',
