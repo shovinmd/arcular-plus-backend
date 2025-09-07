@@ -30,14 +30,6 @@ const ProfileChangesSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
-  emailNotifications: {
-    type: Boolean,
-    default: true
-  },
-  dashboardNotifications: {
-    type: Boolean,
-    default: true
-  },
   submittedAt: {
     type: Date,
     default: Date.now

@@ -904,8 +904,6 @@ const submitProfileChanges = async (req, res) => {
       department: profileData.department,
       address: profileData.address,
       bio: profileData.bio,
-      emailNotifications: profileData.emailNotifications,
-      dashboardNotifications: profileData.dashboardNotifications,
       submittedAt: new Date(),
       status: 'pending',
       requiresApproval: true
