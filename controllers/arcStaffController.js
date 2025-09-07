@@ -353,27 +353,57 @@ const approveUser = async (req, res) => {
     switch (userType) {
       case 'hospital':
         const Hospital = require('../models/Hospital');
-        serviceProvider = await Hospital.findOne({ uid: userId, approvalStatus: 'pending' });
+        serviceProvider = await Hospital.findOne({ 
+          uid: userId,
+          $or: [
+            { isApproved: { $ne: true } },
+            { approvalStatus: { $ne: 'approved' } }
+          ]
+        });
         modelName = 'Hospital';
         break;
       case 'doctor':
         const Doctor = require('../models/Doctor');
-        serviceProvider = await Doctor.findOne({ uid: userId, approvalStatus: 'pending' });
+        serviceProvider = await Doctor.findOne({ 
+          uid: userId,
+          $or: [
+            { isApproved: { $ne: true } },
+            { approvalStatus: { $ne: 'approved' } }
+          ]
+        });
         modelName = 'Doctor';
         break;
       case 'nurse':
         const Nurse = require('../models/Nurse');
-        serviceProvider = await Nurse.findOne({ uid: userId, approvalStatus: 'pending' });
+        serviceProvider = await Nurse.findOne({ 
+          uid: userId,
+          $or: [
+            { isApproved: { $ne: true } },
+            { approvalStatus: { $ne: 'approved' } }
+          ]
+        });
         modelName = 'Nurse';
         break;
       case 'lab':
         const Lab = require('../models/Lab');
-        serviceProvider = await Lab.findOne({ uid: userId, approvalStatus: 'pending' });
+        serviceProvider = await Lab.findOne({ 
+          uid: userId,
+          $or: [
+            { isApproved: { $ne: true } },
+            { approvalStatus: { $ne: 'approved' } }
+          ]
+        });
         modelName = 'Lab';
         break;
       case 'pharmacy':
         const Pharmacy = require('../models/Pharmacy');
-        serviceProvider = await Pharmacy.findOne({ uid: userId, approvalStatus: 'pending' });
+        serviceProvider = await Pharmacy.findOne({ 
+          uid: userId,
+          $or: [
+            { isApproved: { $ne: true } },
+            { approvalStatus: { $ne: 'approved' } }
+          ]
+        });
         modelName = 'Pharmacy';
         break;
       default:
@@ -466,27 +496,57 @@ const rejectUser = async (req, res) => {
     switch (userType) {
       case 'hospital':
         const Hospital = require('../models/Hospital');
-        serviceProvider = await Hospital.findOne({ uid: userId, approvalStatus: 'pending' });
+        serviceProvider = await Hospital.findOne({ 
+          uid: userId,
+          $or: [
+            { isApproved: { $ne: true } },
+            { approvalStatus: { $ne: 'approved' } }
+          ]
+        });
         modelName = 'Hospital';
         break;
       case 'doctor':
         const Doctor = require('../models/Doctor');
-        serviceProvider = await Doctor.findOne({ uid: userId, approvalStatus: 'pending' });
+        serviceProvider = await Doctor.findOne({ 
+          uid: userId,
+          $or: [
+            { isApproved: { $ne: true } },
+            { approvalStatus: { $ne: 'approved' } }
+          ]
+        });
         modelName = 'Doctor';
         break;
       case 'nurse':
         const Nurse = require('../models/Nurse');
-        serviceProvider = await Nurse.findOne({ uid: userId, approvalStatus: 'pending' });
+        serviceProvider = await Nurse.findOne({ 
+          uid: userId,
+          $or: [
+            { isApproved: { $ne: true } },
+            { approvalStatus: { $ne: 'approved' } }
+          ]
+        });
         modelName = 'Nurse';
         break;
       case 'lab':
         const Lab = require('../models/Lab');
-        serviceProvider = await Lab.findOne({ uid: userId, approvalStatus: 'pending' });
+        serviceProvider = await Lab.findOne({ 
+          uid: userId,
+          $or: [
+            { isApproved: { $ne: true } },
+            { approvalStatus: { $ne: 'approved' } }
+          ]
+        });
         modelName = 'Lab';
         break;
       case 'pharmacy':
         const Pharmacy = require('../models/Pharmacy');
-        serviceProvider = await Pharmacy.findOne({ uid: userId, approvalStatus: 'pending' });
+        serviceProvider = await Pharmacy.findOne({ 
+          uid: userId,
+          $or: [
+            { isApproved: { $ne: true } },
+            { approvalStatus: { $ne: 'approved' } }
+          ]
+        });
         modelName = 'Pharmacy';
         break;
       default:
@@ -835,13 +895,38 @@ const getAllApprovedServiceProviders = async (req, res) => {
       pharmacies: approvedPharmaciesCount
     });
     
-    // Fetch all service providers (both pending and approved) in parallel
+    // Fetch only non-approved service providers (pending) in parallel
     const [hospitals, doctors, nurses, labs, pharmacies] = await Promise.all([
-      Hospital.find({}).select('uid hospitalName registrationNumber mobileNumber email address approvalStatus isApproved createdAt'),
-      Doctor.find({}).select('uid fullName licenseNumber specialization mobileNumber email experienceYears approvalStatus isApproved createdAt'),
-      Nurse.find({}).select('uid fullName licenseNumber department mobileNumber email experienceYears approvalStatus isApproved createdAt'),
-      Lab.find({}).select('uid labName licenseNumber mobileNumber email services approvalStatus isApproved createdAt'),
-      Pharmacy.find({}).select('uid pharmacyName licenseNumber mobileNumber email services approvalStatus isApproved createdAt')
+      Hospital.find({ 
+        $or: [
+          { isApproved: { $ne: true } },
+          { approvalStatus: { $ne: 'approved' } }
+        ]
+      }).select('uid hospitalName registrationNumber mobileNumber email address approvalStatus isApproved createdAt'),
+      Doctor.find({ 
+        $or: [
+          { isApproved: { $ne: true } },
+          { approvalStatus: { $ne: 'approved' } }
+        ]
+      }).select('uid fullName licenseNumber specialization mobileNumber email experienceYears approvalStatus isApproved createdAt'),
+      Nurse.find({ 
+        $or: [
+          { isApproved: { $ne: true } },
+          { approvalStatus: { $ne: 'approved' } }
+        ]
+      }).select('uid fullName licenseNumber department mobileNumber email experienceYears approvalStatus isApproved createdAt'),
+      Lab.find({ 
+        $or: [
+          { isApproved: { $ne: true } },
+          { approvalStatus: { $ne: 'approved' } }
+        ]
+      }).select('uid labName licenseNumber mobileNumber email services approvalStatus isApproved createdAt'),
+      Pharmacy.find({ 
+        $or: [
+          { isApproved: { $ne: true } },
+          { approvalStatus: { $ne: 'approved' } }
+        ]
+      }).select('uid pharmacyName licenseNumber mobileNumber email services approvalStatus isApproved createdAt')
     ]);
     
     console.log('📋 Fetched data:', {
