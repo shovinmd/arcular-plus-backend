@@ -1111,6 +1111,92 @@ const getDashboardCounts = async (req, res) => {
   }
 };
 
+// Get service provider details by ID and type
+const getServiceProviderDetails = async (req, res) => {
+  try {
+    const { providerType, providerId } = req.params;
+    const firebaseUser = req.user;
+    
+    console.log('🔍 Getting service provider details:', { providerType, providerId, staffEmail: firebaseUser.email });
+    
+    // Get staff info
+    const staff = await ArcStaff.findOne({ 
+      uid: firebaseUser.uid,
+      isActive: true
+    });
+
+    if (!staff) {
+      console.log('❌ Staff not found for UID:', firebaseUser.uid);
+      return res.status(404).json({
+        success: false,
+        message: 'Arc Staff not found'
+      });
+    }
+
+    console.log('✅ Staff found:', staff.email);
+
+    // Get service provider based on type
+    let serviceProvider;
+    let modelName;
+    
+    switch (providerType) {
+      case 'hospital':
+        const Hospital = require('../models/Hospital');
+        serviceProvider = await Hospital.findOne({ uid: providerId });
+        modelName = 'Hospital';
+        break;
+      case 'doctor':
+        const Doctor = require('../models/Doctor');
+        serviceProvider = await Doctor.findOne({ uid: providerId });
+        modelName = 'Doctor';
+        break;
+      case 'nurse':
+        const Nurse = require('../models/Nurse');
+        serviceProvider = await Nurse.findOne({ uid: providerId });
+        modelName = 'Nurse';
+        break;
+      case 'lab':
+        const Lab = require('../models/Lab');
+        serviceProvider = await Lab.findOne({ uid: providerId });
+        modelName = 'Lab';
+        break;
+      case 'pharmacy':
+        const Pharmacy = require('../models/Pharmacy');
+        serviceProvider = await Pharmacy.findOne({ uid: providerId });
+        modelName = 'Pharmacy';
+        break;
+      default:
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid provider type'
+        });
+    }
+
+    if (!serviceProvider) {
+      console.log(`❌ ${modelName} not found for UID:`, providerId);
+      return res.status(404).json({
+        success: false,
+        message: `${modelName} not found`
+      });
+    }
+
+    console.log(`✅ Found ${modelName} details:`, serviceProvider.email);
+
+    res.status(200).json({
+      success: true,
+      data: serviceProvider
+    });
+
+  } catch (error) {
+    console.error('❌ Get service provider details error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get service provider details',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   registerArcStaff,
   createArcStaff,
@@ -1129,6 +1215,7 @@ module.exports = {
   getAllApprovedLabs,
   getAllApprovedPharmacies,
   getAllApprovedServiceProviders,
+  getServiceProviderDetails,
   submitProfileChanges,
   getDashboardStats,
   getDashboardCounts,
