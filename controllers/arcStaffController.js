@@ -472,6 +472,7 @@ const rejectUser = async (req, res) => {
     const firebaseUser = req.user;
     
     console.log('🔄 Rejecting user:', { userId, userType, reason, staffEmail: firebaseUser.email });
+    console.log('🔍 Debug - userId type:', typeof userId, 'userId value:', userId);
     
     // Get staff info
     const staff = await ArcStaff.findOne({ 
