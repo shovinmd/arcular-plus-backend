@@ -837,11 +837,11 @@ const getAllApprovedServiceProviders = async (req, res) => {
     
     // Fetch all service providers (both pending and approved) in parallel
     const [hospitals, doctors, nurses, labs, pharmacies] = await Promise.all([
-      Hospital.find({}).select('uid hospitalName registrationNumber mobileNumber email address approvalStatus isApproved'),
-      Doctor.find({}).select('uid fullName licenseNumber specialization mobileNumber email experienceYears approvalStatus isApproved'),
-      Nurse.find({}).select('uid fullName licenseNumber department mobileNumber email experienceYears approvalStatus isApproved'),
-      Lab.find({}).select('uid labName licenseNumber mobileNumber email services approvalStatus isApproved'),
-      Pharmacy.find({}).select('uid pharmacyName licenseNumber mobileNumber email services approvalStatus isApproved')
+      Hospital.find({}).select('uid hospitalName registrationNumber mobileNumber email address approvalStatus isApproved createdAt'),
+      Doctor.find({}).select('uid fullName licenseNumber specialization mobileNumber email experienceYears approvalStatus isApproved createdAt'),
+      Nurse.find({}).select('uid fullName licenseNumber department mobileNumber email experienceYears approvalStatus isApproved createdAt'),
+      Lab.find({}).select('uid labName licenseNumber mobileNumber email services approvalStatus isApproved createdAt'),
+      Pharmacy.find({}).select('uid pharmacyName licenseNumber mobileNumber email services approvalStatus isApproved createdAt')
     ]);
     
     console.log('📋 Fetched data:', {
