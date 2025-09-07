@@ -912,6 +912,14 @@ const getAllApprovedServiceProviders = async (req, res) => {
       pharmacies: pharmacies.length
     });
     
+    // Debug: Check if createdAt is present in sample data
+    if (hospitals.length > 0) {
+      console.log('📅 Sample hospital createdAt:', hospitals[0].createdAt);
+    }
+    if (doctors.length > 0) {
+      console.log('📅 Sample doctor createdAt:', doctors[0].createdAt);
+    }
+    
     res.status(200).json({
       success: true,
       data: {
