@@ -72,6 +72,7 @@ const sendApprovalEmail = async (userEmail, userName, userType, isApproved, reas
           <p>Dear ${userName},</p>
           ${isApproved ? 
             `<p>🎉 <strong>Congratulations!</strong> Your ${userType} registration has been approved!</p>
+             <p><strong>You can now access the dashboard!</strong></p>
              <p>You can now:</p>
              <ul>
                <li>Access your ${userType} dashboard</li>
@@ -86,15 +87,17 @@ const sendApprovalEmail = async (userEmail, userName, userType, isApproved, reas
                <li>Explore the dashboard features</li>
                <li>Start using the platform</li>
              </ol>` :
-            `<p>We regret to inform you that your ${userType} registration requires additional information.</p>
-             <p><strong>Reason for review:</strong> ${reason}</p>
+            `<p>We regret to inform you that your ${userType} registration has been rejected.</p>
+             <p><strong>Staff Comments:</strong> ${reason}</p>
              <p><strong>What you need to do:</strong></p>
              <ol>
-               <li>Review the feedback above</li>
-               <li>Update your registration details</li>
+               <li>Review the staff feedback above</li>
+               <li>Address the issues mentioned in the comments</li>
+               <li>Update your registration details accordingly</li>
                <li>Ensure all required documents are properly uploaded</li>
-               <li>Resubmit your registration</li>
+               <li><strong>Try registering again after 24-48 hours later</strong></li>
              </ol>
+             <p><strong>Important:</strong> Please wait 24-48 hours before attempting to register again. This gives you time to address the feedback and prepare a complete application.</p>
              <p>Our team is here to help. If you have any questions, please don't hesitate to contact support.</p>`
           }
           <p>Best regards,<br>Arcular Plus Team</p>

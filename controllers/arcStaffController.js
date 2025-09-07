@@ -506,13 +506,8 @@ const rejectUser = async (req, res) => {
 
     console.log(`✅ Found ${modelName} to reject:`, serviceProvider.email);
 
-    // Reject service provider
-    serviceProvider.approvalStatus = 'rejected';
-    serviceProvider.isApproved = false;
-    serviceProvider.rejectedBy = firebaseUser.uid;
-    serviceProvider.rejectedAt = new Date();
-    serviceProvider.rejectionReason = reason || 'Rejected by Arc Staff';
-    await serviceProvider.save();
+    // Delete rejected service provider data completely
+    await serviceProvider.deleteOne();
 
     console.log(`❌ ${modelName} rejected by Arc Staff:`, serviceProvider.email);
 
@@ -840,13 +835,13 @@ const getAllApprovedServiceProviders = async (req, res) => {
       pharmacies: approvedPharmaciesCount
     });
     
-    // Fetch all approved service providers in parallel
+    // Fetch all service providers (both pending and approved) in parallel
     const [hospitals, doctors, nurses, labs, pharmacies] = await Promise.all([
-      Hospital.find({ isApproved: true, approvalStatus: 'approved' }).select('uid hospitalName registrationNumber mobileNumber email address approvalStatus'),
-      Doctor.find({ isApproved: true, approvalStatus: 'approved' }).select('uid fullName licenseNumber specialization mobileNumber email experienceYears approvalStatus'),
-      Nurse.find({ isApproved: true, approvalStatus: 'approved' }).select('uid fullName licenseNumber department mobileNumber email experienceYears approvalStatus'),
-      Lab.find({ isApproved: true, approvalStatus: 'approved' }).select('uid labName licenseNumber mobileNumber email services approvalStatus'),
-      Pharmacy.find({ isApproved: true, approvalStatus: 'approved' }).select('uid pharmacyName licenseNumber mobileNumber email services approvalStatus')
+      Hospital.find({}).select('uid hospitalName registrationNumber mobileNumber email address approvalStatus isApproved'),
+      Doctor.find({}).select('uid fullName licenseNumber specialization mobileNumber email experienceYears approvalStatus isApproved'),
+      Nurse.find({}).select('uid fullName licenseNumber department mobileNumber email experienceYears approvalStatus isApproved'),
+      Lab.find({}).select('uid labName licenseNumber mobileNumber email services approvalStatus isApproved'),
+      Pharmacy.find({}).select('uid pharmacyName licenseNumber mobileNumber email services approvalStatus isApproved')
     ]);
     
     console.log('📋 Fetched data:', {
