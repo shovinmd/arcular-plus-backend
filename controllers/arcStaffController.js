@@ -895,28 +895,13 @@ const getAllApprovedServiceProviders = async (req, res) => {
       pharmacies: approvedPharmaciesCount
     });
     
-    // Fetch only approved service providers in parallel
+    // Fetch ALL service providers (both pending and approved) in parallel
     const [hospitals, doctors, nurses, labs, pharmacies] = await Promise.all([
-      Hospital.find({ 
-        isApproved: true,
-        approvalStatus: 'approved'
-      }).select('uid hospitalName registrationNumber mobileNumber email address approvalStatus isApproved createdAt'),
-      Doctor.find({ 
-        isApproved: true,
-        approvalStatus: 'approved'
-      }).select('uid fullName licenseNumber specialization mobileNumber email experienceYears approvalStatus isApproved createdAt'),
-      Nurse.find({ 
-        isApproved: true,
-        approvalStatus: 'approved'
-      }).select('uid fullName licenseNumber department mobileNumber email experienceYears approvalStatus isApproved createdAt'),
-      Lab.find({ 
-        isApproved: true,
-        approvalStatus: 'approved'
-      }).select('uid labName licenseNumber mobileNumber email services approvalStatus isApproved createdAt'),
-      Pharmacy.find({ 
-        isApproved: true,
-        approvalStatus: 'approved'
-      }).select('uid pharmacyName licenseNumber mobileNumber email services approvalStatus isApproved createdAt')
+      Hospital.find({}).select('uid hospitalName registrationNumber mobileNumber email address approvalStatus isApproved createdAt'),
+      Doctor.find({}).select('uid fullName licenseNumber specialization mobileNumber email experienceYears approvalStatus isApproved createdAt'),
+      Nurse.find({}).select('uid fullName licenseNumber department mobileNumber email experienceYears approvalStatus isApproved createdAt'),
+      Lab.find({}).select('uid labName licenseNumber mobileNumber email services approvalStatus isApproved createdAt'),
+      Pharmacy.find({}).select('uid pharmacyName licenseNumber mobileNumber email services approvalStatus isApproved createdAt')
     ]);
     
     console.log('📋 Fetched data:', {
@@ -1257,6 +1242,7 @@ const getServiceProviderDetails = async (req, res) => {
 
     console.log(`✅ Found ${modelName} details:`, serviceProvider.email);
     console.log(`📅 CreatedAt field:`, serviceProvider.createdAt);
+    console.log(`📄 License Document URL:`, serviceProvider.licenseDocumentUrl);
 
     res.status(200).json({
       success: true,
@@ -1268,6 +1254,106 @@ const getServiceProviderDetails = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to get service provider details',
+      error: error.message
+    });
+  }
+};
+
+// Get only approved service providers
+const getApprovedServiceProviders = async (req, res) => {
+  try {
+    const firebaseUser = req.user;
+
+    console.log('📋 Getting approved service providers for staff:', firebaseUser.email);
+
+    // Get staff info
+    const staff = await ArcStaff.findOne({
+      uid: firebaseUser.uid,
+      isActive: true
+    });
+
+    if (!staff) {
+      console.log('❌ Staff not found for UID:', firebaseUser.uid);
+      return res.status(404).json({
+        success: false,
+        message: 'Arc Staff not found'
+      });
+    }
+
+    console.log('✅ Staff found:', staff.email);
+
+    // Count approved providers
+    const [approvedHospitalsCount, approvedDoctorsCount, approvedNursesCount, approvedLabsCount, approvedPharmaciesCount] = await Promise.all([
+      Hospital.countDocuments({ isApproved: true, approvalStatus: 'approved' }),
+      Doctor.countDocuments({ isApproved: true, approvalStatus: 'approved' }),
+      Nurse.countDocuments({ isApproved: true, approvalStatus: 'approved' }),
+      Lab.countDocuments({ isApproved: true, approvalStatus: 'approved' }),
+      Pharmacy.countDocuments({ isApproved: true, approvalStatus: 'approved' })
+    ]);
+
+    console.log('📊 Approved counts:', {
+      hospitals: approvedHospitalsCount,
+      doctors: approvedDoctorsCount,
+      nurses: approvedNursesCount,
+      labs: approvedLabsCount,
+      pharmacies: approvedPharmaciesCount
+    });
+
+    // Fetch only approved service providers in parallel
+    const [hospitals, doctors, nurses, labs, pharmacies] = await Promise.all([
+      Hospital.find({ 
+        isApproved: true,
+        approvalStatus: 'approved'
+      }).select('uid hospitalName registrationNumber mobileNumber email address approvalStatus isApproved createdAt'),
+      Doctor.find({ 
+        isApproved: true,
+        approvalStatus: 'approved'
+      }).select('uid fullName licenseNumber specialization mobileNumber email experienceYears approvalStatus isApproved createdAt'),
+      Nurse.find({ 
+        isApproved: true,
+        approvalStatus: 'approved'
+      }).select('uid fullName licenseNumber department mobileNumber email experienceYears approvalStatus isApproved createdAt'),
+      Lab.find({ 
+        isApproved: true,
+        approvalStatus: 'approved'
+      }).select('uid labName licenseNumber mobileNumber email services approvalStatus isApproved createdAt'),
+      Pharmacy.find({ 
+        isApproved: true,
+        approvalStatus: 'approved'
+      }).select('uid pharmacyName licenseNumber mobileNumber email services approvalStatus isApproved createdAt')
+    ]);
+
+    console.log('📋 Fetched approved data:', {
+      hospitals: hospitals.length,
+      doctors: doctors.length,
+      nurses: nurses.length,
+      labs: labs.length,
+      pharmacies: pharmacies.length
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        hospitals,
+        doctors,
+        nurses,
+        labs,
+        pharmacies
+      },
+      counts: {
+        hospitals: approvedHospitalsCount,
+        doctors: approvedDoctorsCount,
+        nurses: approvedNursesCount,
+        labs: approvedLabsCount,
+        pharmacies: approvedPharmaciesCount
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Get approved service providers error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get approved service providers',
       error: error.message
     });
   }
@@ -1453,5 +1539,6 @@ module.exports = {
   submitProfileChanges,
   getDashboardStats,
   getDashboardCounts,
+  getApprovedServiceProviders,
   searchApprovedProviders
 }; 
