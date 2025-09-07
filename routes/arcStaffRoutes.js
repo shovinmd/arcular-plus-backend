@@ -24,6 +24,7 @@ router.get('/approved-nurses', authenticateToken, arcStaffController.getAllAppro
 router.get('/approved-labs', authenticateToken, arcStaffController.getAllApprovedLabs);
 router.get('/approved-pharmacies', authenticateToken, arcStaffController.getAllApprovedPharmacies);
 router.get('/approved-service-providers', authenticateToken, arcStaffController.getAllApprovedServiceProviders);
+router.get('/search-approved-providers', authenticateToken, arcStaffController.searchApprovedProviders);
 router.get('/service-provider/:providerType/:providerId', authenticateToken, arcStaffController.getServiceProviderDetails);
 
 // Profile changes and stats routes

@@ -895,37 +895,27 @@ const getAllApprovedServiceProviders = async (req, res) => {
       pharmacies: approvedPharmaciesCount
     });
     
-    // Fetch only non-approved service providers (pending) in parallel
+    // Fetch only approved service providers in parallel
     const [hospitals, doctors, nurses, labs, pharmacies] = await Promise.all([
       Hospital.find({ 
-        $or: [
-          { isApproved: { $ne: true } },
-          { approvalStatus: { $ne: 'approved' } }
-        ]
+        isApproved: true,
+        approvalStatus: 'approved'
       }).select('uid hospitalName registrationNumber mobileNumber email address approvalStatus isApproved createdAt'),
       Doctor.find({ 
-        $or: [
-          { isApproved: { $ne: true } },
-          { approvalStatus: { $ne: 'approved' } }
-        ]
+        isApproved: true,
+        approvalStatus: 'approved'
       }).select('uid fullName licenseNumber specialization mobileNumber email experienceYears approvalStatus isApproved createdAt'),
       Nurse.find({ 
-        $or: [
-          { isApproved: { $ne: true } },
-          { approvalStatus: { $ne: 'approved' } }
-        ]
+        isApproved: true,
+        approvalStatus: 'approved'
       }).select('uid fullName licenseNumber department mobileNumber email experienceYears approvalStatus isApproved createdAt'),
       Lab.find({ 
-        $or: [
-          { isApproved: { $ne: true } },
-          { approvalStatus: { $ne: 'approved' } }
-        ]
+        isApproved: true,
+        approvalStatus: 'approved'
       }).select('uid labName licenseNumber mobileNumber email services approvalStatus isApproved createdAt'),
       Pharmacy.find({ 
-        $or: [
-          { isApproved: { $ne: true } },
-          { approvalStatus: { $ne: 'approved' } }
-        ]
+        isApproved: true,
+        approvalStatus: 'approved'
       }).select('uid pharmacyName licenseNumber mobileNumber email services approvalStatus isApproved createdAt')
     ]);
     
@@ -1283,6 +1273,164 @@ const getServiceProviderDetails = async (req, res) => {
   }
 };
 
+// Search approved service providers by name
+const searchApprovedProviders = async (req, res) => {
+  try {
+    const { searchTerm, providerType } = req.query;
+    const firebaseUser = req.user;
+
+    console.log('🔍 Searching approved providers:', { searchTerm, providerType, staffEmail: firebaseUser.email });
+
+    // Get staff info
+    const staff = await ArcStaff.findOne({
+      uid: firebaseUser.uid,
+      isActive: true
+    });
+
+    if (!staff) {
+      console.log('❌ Staff not found for UID:', firebaseUser.uid);
+      return res.status(404).json({
+        success: false,
+        message: 'Arc Staff not found'
+      });
+    }
+
+    console.log('✅ Staff found:', staff.email);
+
+    // Build search query
+    const searchQuery = {
+      isApproved: true,
+      approvalStatus: 'approved'
+    };
+
+    // Add name search if search term provided
+    if (searchTerm && searchTerm.trim() !== '') {
+      const searchRegex = new RegExp(searchTerm.trim(), 'i');
+      
+      // Search in different name fields based on provider type
+      if (providerType === 'hospital') {
+        searchQuery.$or = [
+          { hospitalName: searchRegex },
+          { fullName: searchRegex },
+          { email: searchRegex }
+        ];
+      } else if (providerType === 'doctor') {
+        searchQuery.$or = [
+          { fullName: searchRegex },
+          { email: searchRegex },
+          { specialization: searchRegex }
+        ];
+      } else if (providerType === 'nurse') {
+        searchQuery.$or = [
+          { fullName: searchRegex },
+          { email: searchRegex },
+          { department: searchRegex }
+        ];
+      } else if (providerType === 'lab') {
+        searchQuery.$or = [
+          { labName: searchRegex },
+          { fullName: searchRegex },
+          { email: searchRegex }
+        ];
+      } else if (providerType === 'pharmacy') {
+        searchQuery.$or = [
+          { pharmacyName: searchRegex },
+          { fullName: searchRegex },
+          { email: searchRegex }
+        ];
+      } else {
+        // Search all fields for all types
+        searchQuery.$or = [
+          { hospitalName: searchRegex },
+          { labName: searchRegex },
+          { pharmacyName: searchRegex },
+          { fullName: searchRegex },
+          { email: searchRegex }
+        ];
+      }
+    }
+
+    // Fetch providers based on type
+    let results = {};
+    
+    if (providerType && providerType !== '') {
+      // Search specific provider type
+      switch (providerType) {
+        case 'hospital':
+          const Hospital = require('../models/Hospital');
+          const hospitals = await Hospital.find(searchQuery).select('uid hospitalName registrationNumber mobileNumber email address approvalStatus isApproved createdAt');
+          results.hospitals = hospitals;
+          break;
+        case 'doctor':
+          const Doctor = require('../models/Doctor');
+          const doctors = await Doctor.find(searchQuery).select('uid fullName licenseNumber specialization mobileNumber email experienceYears approvalStatus isApproved createdAt');
+          results.doctors = doctors;
+          break;
+        case 'nurse':
+          const Nurse = require('../models/Nurse');
+          const nurses = await Nurse.find(searchQuery).select('uid fullName licenseNumber department mobileNumber email experienceYears approvalStatus isApproved createdAt');
+          results.nurses = nurses;
+          break;
+        case 'lab':
+          const Lab = require('../models/Lab');
+          const labs = await Lab.find(searchQuery).select('uid labName licenseNumber mobileNumber email services approvalStatus isApproved createdAt');
+          results.labs = labs;
+          break;
+        case 'pharmacy':
+          const Pharmacy = require('../models/Pharmacy');
+          const pharmacies = await Pharmacy.find(searchQuery).select('uid pharmacyName licenseNumber mobileNumber email services approvalStatus isApproved createdAt');
+          results.pharmacies = pharmacies;
+          break;
+        default:
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid provider type'
+          });
+      }
+    } else {
+      // Search all provider types
+      const [hospitals, doctors, nurses, labs, pharmacies] = await Promise.all([
+        Hospital.find(searchQuery).select('uid hospitalName registrationNumber mobileNumber email address approvalStatus isApproved createdAt'),
+        Doctor.find(searchQuery).select('uid fullName licenseNumber specialization mobileNumber email experienceYears approvalStatus isApproved createdAt'),
+        Nurse.find(searchQuery).select('uid fullName licenseNumber department mobileNumber email experienceYears approvalStatus isApproved createdAt'),
+        Lab.find(searchQuery).select('uid labName licenseNumber mobileNumber email services approvalStatus isApproved createdAt'),
+        Pharmacy.find(searchQuery).select('uid pharmacyName licenseNumber mobileNumber email services approvalStatus isApproved createdAt')
+      ]);
+      
+      results = {
+        hospitals,
+        doctors,
+        nurses,
+        labs,
+        pharmacies
+      };
+    }
+
+    console.log('✅ Search results:', {
+      hospitals: results.hospitals?.length || 0,
+      doctors: results.doctors?.length || 0,
+      nurses: results.nurses?.length || 0,
+      labs: results.labs?.length || 0,
+      pharmacies: results.pharmacies?.length || 0
+    });
+
+    res.status(200).json({
+      success: true,
+      data: results,
+      searchTerm: searchTerm || '',
+      providerType: providerType || 'all'
+    });
+
+  } catch (error) {
+    console.error('❌ Search approved providers error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to search approved providers',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   registerArcStaff,
   createArcStaff,
@@ -1305,4 +1453,5 @@ module.exports = {
   submitProfileChanges,
   getDashboardStats,
   getDashboardCounts,
+  searchApprovedProviders
 }; 
