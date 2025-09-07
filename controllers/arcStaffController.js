@@ -1266,6 +1266,7 @@ const getServiceProviderDetails = async (req, res) => {
     }
 
     console.log(`✅ Found ${modelName} details:`, serviceProvider.email);
+    console.log(`📅 CreatedAt field:`, serviceProvider.createdAt);
 
     res.status(200).json({
       success: true,
