@@ -472,7 +472,6 @@ const rejectUser = async (req, res) => {
     const firebaseUser = req.user;
     
     console.log('🔄 Rejecting user:', { userId, userType, reason, staffEmail: firebaseUser.email });
-    console.log('🔍 Debug - userId type:', typeof userId, 'userId value:', userId);
     
     // Get staff info
     const staff = await ArcStaff.findOne({ 
@@ -912,14 +911,6 @@ const getAllApprovedServiceProviders = async (req, res) => {
       labs: labs.length,
       pharmacies: pharmacies.length
     });
-    
-    // Debug: Check if createdAt is present in sample data
-    if (hospitals.length > 0) {
-      console.log('📅 Sample hospital createdAt:', hospitals[0].createdAt);
-    }
-    if (doctors.length > 0) {
-      console.log('📅 Sample doctor createdAt:', doctors[0].createdAt);
-    }
     
     res.status(200).json({
       success: true,
