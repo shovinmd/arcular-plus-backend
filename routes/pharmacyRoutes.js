@@ -38,4 +38,6 @@ router.put('/:id', firebaseAuthMiddleware, pharmacyController.updatePharmacy);
 // Delete pharmacy
 router.delete('/:id', firebaseAuthMiddleware, pharmacyController.deletePharmacy);
 
+// Note: Database cleanup route removed - no longer needed with the permanent fix
+
 module.exports = router; 

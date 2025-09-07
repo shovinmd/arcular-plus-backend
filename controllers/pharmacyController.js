@@ -13,6 +13,9 @@ const registerPharmacy = async (req, res) => {
       if (documents.pharmacy_license) {
         req.body.licenseDocumentUrl = documents.pharmacy_license;
       }
+      if (documents.drug_license) {
+        req.body.drugLicenseUrl = documents.drug_license;
+      }
       if (documents.premises_certificate) {
         req.body.premisesCertificateUrl = documents.premises_certificate;
       }
@@ -27,9 +30,27 @@ const registerPharmacy = async (req, res) => {
       return res.status(400).json({ error: 'Pharmacy already registered' });
     }
 
-    // Create new pharmacy user in Pharmacy model
+    // PERMANENT FIX: Remove any problematic fields that might cause E11000 errors
+    // This ensures compatibility with old database indexes
+    const cleanUserData = { ...userData };
+    
+    // Remove any fields that don't exist in the current Pharmacy model
+    // This prevents E11000 errors from old database indexes
+    delete cleanUserData.registrationNumber; // Remove if it exists
+    delete cleanUserData.medicalRegistrationNumber; // Remove if it exists
+    delete cleanUserData.hospitalRegistrationNumber; // Remove if it exists
+    
+    // Ensure required fields are present
+    if (!cleanUserData.licenseNumber || cleanUserData.licenseNumber.trim() === '') {
+      return res.status(400).json({ 
+        success: false,
+        error: 'License number is required' 
+      });
+    }
+
+    // Create new pharmacy user in Pharmacy model (exactly like lab registration)
     const newPharmacy = new Pharmacy({
-      ...userData,
+      ...cleanUserData,
       status: 'active', // Changed from 'pending' to 'active' (valid enum value)
       isApproved: false,
       approvalStatus: 'pending',
@@ -58,6 +79,40 @@ const registerPharmacy = async (req, res) => {
     });
   } catch (error) {
     console.error('Pharmacy registration error:', error);
+    
+    // Handle specific E11000 duplicate key errors
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
+      const value = error.keyValue[field];
+      
+      if (field === 'licenseNumber') {
+        return res.status(400).json({
+          success: false,
+          error: 'License number already exists. Please use a different license number.',
+          field: 'licenseNumber'
+        });
+      } else if (field === 'email') {
+        return res.status(400).json({
+          success: false,
+          error: 'Email already registered. Please use a different email address.',
+          field: 'email'
+        });
+      } else if (field === 'uid') {
+        return res.status(400).json({
+          success: false,
+          error: 'User already registered. Please try logging in instead.',
+          field: 'uid'
+        });
+      } else {
+        return res.status(400).json({
+          success: false,
+          error: `Duplicate ${field} value. Please use a different ${field}.`,
+          field: field
+        });
+      }
+    }
+    
+    // Handle other errors
     res.status(500).json({ 
       success: false,
       error: 'Pharmacy registration failed',
@@ -76,11 +131,11 @@ const getPharmacyById = async (req, res) => {
         message: 'Pharmacy not found'
       });
     }
-    const pharmacyData = pharmacy.toObject();
-    pharmacyData.type = 'pharmacy';
+    const data = pharmacy.toObject();
+    data.type = 'pharmacy';
     res.json({
       success: true,
-      data: pharmacyData
+      data
     });
   } catch (error) {
     res.status(500).json({
@@ -101,11 +156,11 @@ const getPharmacyByUID = async (req, res) => {
         message: 'Pharmacy not found'
       });
     }
-    const pharmacyData = pharmacy.toObject();
-    pharmacyData.type = 'pharmacy';
+    const data = pharmacy.toObject();
+    data.type = 'pharmacy';
     res.json({
       success: true,
-      data: pharmacyData
+      data
     });
   } catch (error) {
     res.status(500).json({
@@ -119,18 +174,19 @@ const getPharmacyByUID = async (req, res) => {
 // Get pharmacy by email
 const getPharmacyByEmail = async (req, res) => {
   try {
-    const pharmacy = await Pharmacy.findOne({ email: req.params.email });
+    const { email } = req.params;
+    const pharmacy = await Pharmacy.findOne({ email: email });
     if (!pharmacy) {
       return res.status(404).json({
         success: false,
         message: 'Pharmacy not found'
       });
     }
-    const pharmacyData = pharmacy.toObject();
-    pharmacyData.type = 'pharmacy';
+    const data = pharmacy.toObject();
+    data.type = 'pharmacy';
     res.json({
       success: true,
-      data: pharmacyData
+      data
     });
   } catch (error) {
     res.status(500).json({
@@ -141,13 +197,31 @@ const getPharmacyByEmail = async (req, res) => {
   }
 };
 
+// Get all pharmacies
+const getAllPharmacies = async (req, res) => {
+  try {
+    const pharmacies = await Pharmacy.find({ isApproved: true });
+    const withType = pharmacies.map(p => { const d = p.toObject(); d.type = 'pharmacy'; return d; });
+    res.json({
+      success: true,
+      data: withType
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get pharmacies',
+      error: error.message
+    });
+  }
+};
+
 // Update pharmacy
 const updatePharmacy = async (req, res) => {
   try {
     const pharmacy = await Pharmacy.findByIdAndUpdate(
       req.params.id,
-      req.body,
-      { new: true, runValidators: true }
+      { ...req.body, updatedAt: new Date() },
+      { new: true }
     );
     if (!pharmacy) {
       return res.status(404).json({
@@ -192,28 +266,10 @@ const deletePharmacy = async (req, res) => {
   }
 };
 
-// Get all pharmacies
-const getAllPharmacies = async (req, res) => {
-  try {
-    const pharmacies = await Pharmacy.find();
-    res.json({
-      success: true,
-      data: pharmacies
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get pharmacies',
-      error: error.message
-    });
-  }
-};
-
 // Get pharmacies by city
 const getPharmaciesByCity = async (req, res) => {
   try {
-    const { city } = req.params;
-    const pharmacies = await Pharmacy.find({ city: new RegExp(city, 'i') });
+    const pharmacies = await Pharmacy.findByCity(req.params.city);
     res.json({
       success: true,
       data: pharmacies
@@ -230,10 +286,7 @@ const getPharmaciesByCity = async (req, res) => {
 // Get pharmacies by drug
 const getPharmaciesByDrug = async (req, res) => {
   try {
-    const { drugName } = req.params;
-    const pharmacies = await Pharmacy.find({
-      'availableDrugs.name': new RegExp(drugName, 'i')
-    });
+    const pharmacies = await Pharmacy.findByDrug(req.params.drugName);
     res.json({
       success: true,
       data: pharmacies
@@ -250,32 +303,38 @@ const getPharmaciesByDrug = async (req, res) => {
 // Search pharmacies
 const searchPharmacies = async (req, res) => {
   try {
-    const { query, city, state } = req.query;
+    const { query, city, specialization } = req.query;
+    
     let searchCriteria = {};
-
+    
     if (query) {
       searchCriteria.$or = [
-        { pharmacyName: new RegExp(query, 'i') },
-        { fullName: new RegExp(query, 'i') },
-        { city: new RegExp(query, 'i') },
-        { state: new RegExp(query, 'i') }
+        { pharmacyName: { $regex: query, $options: 'i' } },
+        { ownerName: { $regex: query, $options: 'i' } },
+        { pharmacistName: { $regex: query, $options: 'i' } }
       ];
     }
-
+    
     if (city) {
-      searchCriteria.city = new RegExp(city, 'i');
+      searchCriteria.city = { $regex: city, $options: 'i' };
     }
-
-    if (state) {
-      searchCriteria.state = new RegExp(state, 'i');
+    
+    if (specialization) {
+      searchCriteria.specialization = { $regex: specialization, $options: 'i' };
     }
-
-    const pharmacies = await Pharmacy.find(searchCriteria);
+    
+    // Only return approved pharmacies
+    searchCriteria.isApproved = true;
+    
+    const pharmacies = await Pharmacy.find(searchCriteria).limit(20);
+    
     res.json({
       success: true,
-      data: pharmacies
+      data: pharmacies,
+      count: pharmacies.length
     });
   } catch (error) {
+    console.error('Error searching pharmacies:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to search pharmacies',
@@ -287,7 +346,7 @@ const searchPharmacies = async (req, res) => {
 // Get pending approvals
 const getPendingApprovals = async (req, res) => {
   try {
-    const pharmacies = await Pharmacy.find({ approvalStatus: 'pending' });
+    const pharmacies = await Pharmacy.getPendingApprovals();
     res.json({
       success: true,
       data: pharmacies
@@ -304,16 +363,8 @@ const getPendingApprovals = async (req, res) => {
 // Approve pharmacy
 const approvePharmacy = async (req, res) => {
   try {
-    const pharmacy = await Pharmacy.findByIdAndUpdate(
-      req.params.id,
-      { 
-        isApproved: true, 
-        approvalStatus: 'approved',
-        approvedAt: new Date()
-      },
-      { new: true }
-    );
-    
+    const { notes } = req.body;
+    const pharmacy = await Pharmacy.approvePharmacy(req.params.id, req.user.uid, notes);
     if (!pharmacy) {
       return res.status(404).json({
         success: false,
@@ -323,7 +374,7 @@ const approvePharmacy = async (req, res) => {
 
     // Send approval email
     try {
-      await sendApprovalEmail(pharmacy.email, pharmacy.fullName, 'pharmacy');
+      await sendApprovalEmail(pharmacy.email, pharmacy.fullName, 'pharmacy', true, notes);
       console.log('✅ Approval email sent to pharmacy');
     } catch (emailError) {
       console.error('❌ Error sending approval email:', emailError);
@@ -346,21 +397,21 @@ const approvePharmacy = async (req, res) => {
 // Reject pharmacy
 const rejectPharmacy = async (req, res) => {
   try {
-    const pharmacy = await Pharmacy.findByIdAndUpdate(
-      req.params.id,
-      { 
-        isApproved: false, 
-        approvalStatus: 'rejected',
-        rejectedAt: new Date()
-      },
-      { new: true }
-    );
-    
+    const { reason } = req.body;
+    const pharmacy = await Pharmacy.rejectPharmacy(req.params.id, req.user.uid, reason);
     if (!pharmacy) {
       return res.status(404).json({
         success: false,
         message: 'Pharmacy not found'
       });
+    }
+
+    // Send rejection email
+    try {
+      await sendApprovalEmail(pharmacy.email, pharmacy.fullName, 'pharmacy', false, reason);
+      console.log('✅ Rejection email sent to pharmacy');
+    } catch (emailError) {
+      console.error('❌ Error sending rejection email:', emailError);
     }
 
     res.json({
@@ -380,19 +431,21 @@ const rejectPharmacy = async (req, res) => {
 // Get pending approvals for staff
 const getPendingApprovalsForStaff = async (req, res) => {
   try {
-    const pharmacies = await Pharmacy.find({ 
-      approvalStatus: 'pending',
-      status: 'active'
-    });
+    const pendingPharmacies = await Pharmacy.find({ 
+      isApproved: false, 
+      approvalStatus: 'pending' 
+    }).select('-__v').sort({ createdAt: -1 });
+
     res.json({
       success: true,
-      data: pharmacies
+      data: pendingPharmacies,
+      count: pendingPharmacies.length
     });
   } catch (error) {
+    console.error('Error fetching pending approvals for staff:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to get pending approvals for staff',
-      error: error.message
+      error: 'Failed to fetch pending approvals'
     });
   }
 };
@@ -400,42 +453,44 @@ const getPendingApprovalsForStaff = async (req, res) => {
 // Approve pharmacy by staff
 const approvePharmacyByStaff = async (req, res) => {
   try {
-    const pharmacy = await Pharmacy.findByIdAndUpdate(
-      req.params.id,
-      { 
-        isApproved: true, 
-        approvalStatus: 'approved',
-        approvedAt: new Date(),
-        approvedBy: req.user.uid
-      },
-      { new: true }
-    );
+    const { pharmacyId } = req.params;
+    const { approvedBy, notes } = req.body;
     
+    const pharmacy = await Pharmacy.findById(pharmacyId);
     if (!pharmacy) {
       return res.status(404).json({
         success: false,
-        message: 'Pharmacy not found'
+        error: 'Pharmacy not found'
       });
     }
 
+    // Update approval status
+    pharmacy.isApproved = true;
+    pharmacy.approvalStatus = 'approved';
+    pharmacy.approvedAt = new Date();
+    pharmacy.approvedBy = approvedBy || 'staff';
+    pharmacy.approvalNotes = notes || 'Approved by staff';
+    
+    await pharmacy.save();
+
     // Send approval email
     try {
-      await sendApprovalEmail(pharmacy.email, pharmacy.fullName, 'pharmacy');
+      await sendApprovalEmail(pharmacy.email, pharmacy.pharmacyName, 'pharmacy', true, notes);
       console.log('✅ Approval email sent to pharmacy');
     } catch (emailError) {
       console.error('❌ Error sending approval email:', emailError);
     }
-
+    
     res.json({
       success: true,
-      message: 'Pharmacy approved successfully by staff',
+      message: 'Pharmacy approved successfully',
       data: pharmacy
     });
   } catch (error) {
+    console.error('Error approving pharmacy by staff:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to approve pharmacy by staff',
-      error: error.message
+      error: 'Failed to approve pharmacy'
     });
   }
 };
@@ -443,37 +498,51 @@ const approvePharmacyByStaff = async (req, res) => {
 // Reject pharmacy by staff
 const rejectPharmacyByStaff = async (req, res) => {
   try {
-    const pharmacy = await Pharmacy.findByIdAndUpdate(
-      req.params.id,
-      { 
-        isApproved: false, 
-        approvalStatus: 'rejected',
-        rejectedAt: new Date(),
-        rejectedBy: req.user.uid
-      },
-      { new: true }
-    );
+    const { pharmacyId } = req.params;
+    const { rejectedBy, reason, category, nextSteps } = req.body;
     
+    const pharmacy = await Pharmacy.findById(pharmacyId);
     if (!pharmacy) {
       return res.status(404).json({
         success: false,
-        message: 'Pharmacy not found'
+        error: 'Pharmacy not found'
       });
     }
 
+    // Update rejection status
+    pharmacy.isApproved = false;
+    pharmacy.approvalStatus = 'rejected';
+    pharmacy.rejectedAt = new Date();
+    pharmacy.rejectedBy = rejectedBy || 'staff';
+    pharmacy.rejectionReason = reason;
+    pharmacy.rejectionCategory = category;
+    pharmacy.nextSteps = nextSteps;
+    
+    await pharmacy.save();
+
+    // Send rejection email
+    try {
+      await sendApprovalEmail(pharmacy.email, pharmacy.pharmacyName, 'pharmacy', false, reason);
+      console.log('✅ Rejection email sent to pharmacy');
+    } catch (emailError) {
+      console.error('❌ Error sending rejection email:', emailError);
+    }
+    
     res.json({
       success: true,
-      message: 'Pharmacy rejected successfully by staff',
+      message: 'Pharmacy rejected successfully',
       data: pharmacy
     });
   } catch (error) {
+    console.error('Error rejecting pharmacy by staff:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to reject pharmacy by staff',
-      error: error.message
+      error: 'Failed to reject pharmacy'
     });
   }
 };
+
+// Note: Database cleanup function removed - no longer needed with the permanent fix
 
 module.exports = {
   registerPharmacy,
@@ -492,4 +561,4 @@ module.exports = {
   getPendingApprovalsForStaff,
   approvePharmacyByStaff,
   rejectPharmacyByStaff
-};
+}; 
