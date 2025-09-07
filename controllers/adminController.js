@@ -223,17 +223,26 @@ const getPendingProfileChanges = async (req, res) => {
   try {
     console.log('Getting pending profile changes...');
     
-    // For now, return empty array - this will be implemented when we add profile change functionality
-    // In the future, this would query a ProfileChange model
+    const ProfileChanges = require('../models/ProfileChanges');
+    const ArcStaff = require('../models/ArcStaff');
+    
+    // Get all pending profile changes
+    const pendingChanges = await ProfileChanges.find({ status: 'pending' })
+      .populate('staffId', 'fullName email department')
+      .sort({ submittedAt: -1 });
+    
+    console.log(`Found ${pendingChanges.length} pending profile changes`);
+    
     res.json({
       success: true,
-      pendingChanges: []
+      pendingChanges: pendingChanges
     });
   } catch (error) {
     console.error('Error getting pending profile changes:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to get pending profile changes'
+      message: 'Failed to get pending profile changes',
+      error: error.message
     });
   }
 };
@@ -242,18 +251,71 @@ const getPendingProfileChanges = async (req, res) => {
 const approveProfileChange = async (req, res) => {
   try {
     const { changeId } = req.params;
-    console.log('Approving profile change:', changeId);
+    const adminId = req.user.uid;
+    console.log('Approving profile change:', changeId, 'by admin:', adminId);
     
-    // For now, return success - this will be implemented when we add profile change functionality
+    const ProfileChanges = require('../models/ProfileChanges');
+    const ArcStaff = require('../models/ArcStaff');
+    
+    // Find the profile change
+    const profileChange = await ProfileChanges.findById(changeId);
+    if (!profileChange) {
+      return res.status(404).json({
+        success: false,
+        message: 'Profile change not found'
+      });
+    }
+    
+    if (profileChange.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: 'Profile change is not pending'
+      });
+    }
+    
+    // Update the staff profile with the new data
+    const updatedStaff = await ArcStaff.findOneAndUpdate(
+      { uid: profileChange.uid },
+      {
+        fullName: profileChange.fullName,
+        mobileNumber: profileChange.mobileNumber,
+        department: profileChange.department,
+        address: profileChange.address,
+        bio: profileChange.bio,
+        lastUpdated: new Date()
+      },
+      { new: true }
+    );
+    
+    if (!updatedStaff) {
+      return res.status(404).json({
+        success: false,
+        message: 'Staff member not found'
+      });
+    }
+    
+    // Update the profile change status
+    profileChange.status = 'approved';
+    profileChange.reviewedBy = adminId;
+    profileChange.reviewedAt = new Date();
+    await profileChange.save();
+    
+    console.log('✅ Profile change approved successfully');
+    
     res.json({
       success: true,
-      message: 'Profile change approved successfully'
+      message: 'Profile change approved successfully',
+      data: {
+        profileChange: profileChange,
+        updatedStaff: updatedStaff
+      }
     });
   } catch (error) {
     console.error('Error approving profile change:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to approve profile change'
+      message: 'Failed to approve profile change',
+      error: error.message
     });
   }
 };
@@ -263,18 +325,49 @@ const rejectProfileChange = async (req, res) => {
   try {
     const { changeId } = req.params;
     const { reason } = req.body;
-    console.log('Rejecting profile change:', changeId, 'Reason:', reason);
+    const adminId = req.user.uid;
+    console.log('Rejecting profile change:', changeId, 'Reason:', reason, 'by admin:', adminId);
     
-    // For now, return success - this will be implemented when we add profile change functionality
+    const ProfileChanges = require('../models/ProfileChanges');
+    
+    // Find the profile change
+    const profileChange = await ProfileChanges.findById(changeId);
+    if (!profileChange) {
+      return res.status(404).json({
+        success: false,
+        message: 'Profile change not found'
+      });
+    }
+    
+    if (profileChange.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: 'Profile change is not pending'
+      });
+    }
+    
+    // Update the profile change status
+    profileChange.status = 'rejected';
+    profileChange.reviewedBy = adminId;
+    profileChange.reviewedAt = new Date();
+    profileChange.reviewNotes = reason || 'No reason provided';
+    await profileChange.save();
+    
+    console.log('✅ Profile change rejected successfully');
+    
     res.json({
       success: true,
-      message: 'Profile change rejected successfully'
+      message: 'Profile change rejected successfully',
+      data: {
+        profileChange: profileChange
+      }
     });
   } catch (error) {
     console.error('Error rejecting profile change:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to reject profile change'
+      message: 'Failed to reject profile change',
+      error: error.message
     });
   }
 };
