@@ -35,13 +35,14 @@ const createAppointment = async (req, res) => {
       });
     }
 
-    // Get doctor information (accept uid or valid ObjectId/id)
+    // Get doctor information from Doctor model (accept uid or valid ObjectId/id)
     const mongoose = require('mongoose');
-    const doctorOr = [{ uid: doctorId }, { id: doctorId }];
+    const Doctor = require('../models/Doctor');
+    const doctorOr = [{ uid: doctorId }, { arcId: doctorId }];
     if (mongoose.Types.ObjectId.isValid(doctorId)) {
       doctorOr.push({ _id: doctorId });
     }
-    const doctor = await User.findOne({ type: 'doctor', $or: doctorOr });
+    const doctor = await Doctor.findOne({ $or: doctorOr });
     if (!doctor) {
       return res.status(404).json({ 
         success: false, 
@@ -49,10 +50,11 @@ const createAppointment = async (req, res) => {
       });
     }
 
-    // Get hospital information (accept _id, id, name) with safe ObjectId
+    // Get hospital information from Hospital model (accept _id, uid, arcId, name) with safe ObjectId
     let hospital = null;
     if (hospitalId) {
-      const hospitalOr = [{ id: hospitalId }, { hospitalName: hospitalId }];
+      const Hospital = require('../models/Hospital');
+      const hospitalOr = [{ uid: hospitalId }, { arcId: hospitalId }, { hospitalName: hospitalId }];
       if (mongoose.Types.ObjectId.isValid(hospitalId)) {
         hospitalOr.push({ _id: hospitalId });
       }
@@ -87,7 +89,7 @@ const createAppointment = async (req, res) => {
       doctorSpecialization: doctor.specialization,
       doctorConsultationFee: doctor.consultationFee,
       hospitalId: hospitalId,
-      hospitalName: hospital ? hospital.hospitalName : doctor.hospitalAffiliation,
+      hospitalName: hospital ? hospital.hospitalName : (doctor.affiliatedHospitals && doctor.affiliatedHospitals.length > 0 ? doctor.affiliatedHospitals[0].hospitalName : ''),
       hospitalAddress: hospital ? hospital.address : doctor.address,
       appointmentDate: new Date(appointmentDate),
       appointmentTime: appointmentTime,
