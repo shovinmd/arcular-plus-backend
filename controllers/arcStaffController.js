@@ -294,7 +294,6 @@ const getPendingApprovals = async (req, res) => {
     }
     
     if (staff.canApproveNurses) {
-      const Nurse = require('../models/Nurse');
       const nurses = await Nurse.find({ 
         isApproved: false,
         approvalStatus: 'pending'
@@ -374,7 +373,6 @@ const approveUser = async (req, res) => {
         modelName = 'Doctor';
         break;
       case 'nurse':
-        const Nurse = require('../models/Nurse');
         serviceProvider = await Nurse.findOne({ 
           uid: userId,
           $or: [
@@ -517,7 +515,6 @@ const rejectUser = async (req, res) => {
         modelName = 'Doctor';
         break;
       case 'nurse':
-        const Nurse = require('../models/Nurse');
         serviceProvider = await Nurse.findOne({ 
           uid: userId,
           $or: [
@@ -693,7 +690,6 @@ const getAllApprovedDoctors = async (req, res) => {
 // Get all approved nurses for staff dashboard
 const getAllApprovedNurses = async (req, res) => {
   try {
-    const Nurse = require('../models/Nurse');
     
     const nurses = await Nurse.find({ 
       isApproved: true, 
@@ -861,7 +857,6 @@ const getAllApprovedServiceProviders = async (req, res) => {
     
     const Hospital = require('../models/Hospital');
     const Doctor = require('../models/Doctor');
-    const Nurse = require('../models/Nurse');
     const Lab = require('../models/Lab');
     const Pharmacy = require('../models/Pharmacy');
     
@@ -1040,7 +1035,6 @@ const getDashboardStats = async (req, res) => {
     // Get counts for the period
     const Hospital = require('../models/Hospital');
     const Doctor = require('../models/Doctor');
-    const Nurse = require('../models/Nurse');
     const Lab = require('../models/Lab');
     const Pharmacy = require('../models/Pharmacy');
     
@@ -1126,7 +1120,6 @@ const getDashboardCounts = async (req, res) => {
     // Get counts for each service provider type
     const Hospital = require('../models/Hospital');
     const Doctor = require('../models/Doctor');
-    const Nurse = require('../models/Nurse');
     const Lab = require('../models/Lab');
     const Pharmacy = require('../models/Pharmacy');
     
@@ -1211,7 +1204,6 @@ const getServiceProviderDetails = async (req, res) => {
         modelName = 'Doctor';
         break;
       case 'nurse':
-        const Nurse = require('../models/Nurse');
         serviceProvider = await Nurse.findOne({ uid: providerId });
         modelName = 'Nurse';
         break;
@@ -1453,7 +1445,6 @@ const searchApprovedProviders = async (req, res) => {
           results.doctors = doctors;
           break;
         case 'nurse':
-          const Nurse = require('../models/Nurse');
           const nurses = await Nurse.find(searchQuery).select('uid fullName licenseNumber department mobileNumber email experienceYears approvalStatus isApproved createdAt');
           results.nurses = nurses;
           break;
