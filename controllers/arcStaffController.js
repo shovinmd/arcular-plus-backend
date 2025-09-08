@@ -478,47 +478,51 @@ const rejectUser = async (req, res) => {
     // Get service provider to reject based on userType
     let serviceProvider;
     let modelName;
-    
+
+    const { Types } = require('mongoose');
+    const buildIdOrConditions = (id) => {
+      const orConditions = [{ uid: id }, { id: id }];
+      if (Types.ObjectId.isValid(id)) {
+        orConditions.push({ _id: new Types.ObjectId(id) });
+      }
+      return orConditions;
+    };
+
     switch (userType) {
-      case 'hospital':
+      case 'hospital': {
         const Hospital = require('../models/Hospital');
-        serviceProvider = await Hospital.findOne({ 
-          uid: userId,
-          isApproved: { $ne: true }
-        });
+        const orConditions = buildIdOrConditions(userId);
+        serviceProvider = await Hospital.findOne({ $or: orConditions });
         modelName = 'Hospital';
         break;
-      case 'doctor':
+      }
+      case 'doctor': {
         const Doctor = require('../models/Doctor');
-        serviceProvider = await Doctor.findOne({ 
-          uid: userId,
-          isApproved: { $ne: true }
-        });
+        const orConditions = buildIdOrConditions(userId);
+        serviceProvider = await Doctor.findOne({ $or: orConditions });
         modelName = 'Doctor';
         break;
-      case 'nurse':
-        serviceProvider = await Nurse.findOne({ 
-          uid: userId,
-          isApproved: { $ne: true }
-        });
+      }
+      case 'nurse': {
+        const orConditions = buildIdOrConditions(userId);
+        serviceProvider = await Nurse.findOne({ $or: orConditions });
         modelName = 'Nurse';
         break;
-      case 'lab':
+      }
+      case 'lab': {
         const Lab = require('../models/Lab');
-        serviceProvider = await Lab.findOne({ 
-          uid: userId,
-          isApproved: { $ne: true }
-        });
+        const orConditions = buildIdOrConditions(userId);
+        serviceProvider = await Lab.findOne({ $or: orConditions });
         modelName = 'Lab';
         break;
-      case 'pharmacy':
+      }
+      case 'pharmacy': {
         const Pharmacy = require('../models/Pharmacy');
-        serviceProvider = await Pharmacy.findOne({ 
-          uid: userId,
-          isApproved: { $ne: true }
-        });
+        const orConditions = buildIdOrConditions(userId);
+        serviceProvider = await Pharmacy.findOne({ $or: orConditions });
         modelName = 'Pharmacy';
         break;
+      }
       default:
         return res.status(400).json({
           success: false,
@@ -531,6 +535,14 @@ const rejectUser = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: `${modelName} not found or already processed`
+      });
+    }
+
+    // Prevent rejecting already approved providers
+    if (serviceProvider.isApproved === true) {
+      return res.status(400).json({
+        success: false,
+        message: `${modelName} is already approved and cannot be rejected`
       });
     }
 
