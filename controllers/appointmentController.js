@@ -354,10 +354,15 @@ const getAvailableTimeSlots = async (req, res) => {
   }
 };
 
-// Send appointment confirmation email
+// Send appointment confirmation email (safe, optional)
 const sendAppointmentConfirmationEmail = async (appointment) => {
   try {
-    const transporter = nodemailer.createTransporter({
+    // Skip silently if email creds are not configured
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      return;
+    }
+
+    const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
         user: process.env.EMAIL_USER,
