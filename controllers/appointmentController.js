@@ -476,6 +476,115 @@ const sendAppointmentConfirmationEmail = async (appointment) => {
   }
 };
 
+// Send appointment cancellation emails to user and hospital
+const sendAppointmentCancellationEmails = async (appointment) => {
+  try {
+    // Skip silently if email creds are not configured
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      console.log('⚠️ Skipping cancellation emails: EMAIL_USER or EMAIL_PASS not configured');
+      return;
+    }
+
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      }
+    });
+
+    const appointmentDateFormatted = new Date(appointment.appointmentDate).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+
+    // Email to user
+    const userMailOptions = {
+      from: process.env.EMAIL_USER,
+      to: appointment.userEmail,
+      subject: 'Appointment Cancelled - Arcular Plus',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #e74c3c;">Appointment Cancelled</h2>
+          
+          <div style="background-color: #fdf2f2; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #e74c3c;">
+            <h3>Your appointment has been cancelled</h3>
+            <p><strong>Appointment ID:</strong> ${appointment.appointmentId}</p>
+            <p><strong>Doctor:</strong> Dr. ${appointment.doctorName}</p>
+            <p><strong>Hospital:</strong> ${appointment.hospitalName}</p>
+            <p><strong>Date:</strong> ${appointmentDateFormatted}</p>
+            <p><strong>Time:</strong> ${appointment.appointmentTime}</p>
+            <p><strong>Reason:</strong> ${appointment.reason}</p>
+          </div>
+          
+          <div style="background-color: #e3f2fd; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <h4>Next Steps:</h4>
+            <ul>
+              <li>You can book a new appointment anytime through the app</li>
+              <li>If you need to reschedule, please contact the hospital directly</li>
+              <li>Any consultation fees will be refunded as per hospital policy</li>
+            </ul>
+          </div>
+          
+          <p style="color: #666; font-size: 14px;">
+            Thank you for using Arcular Plus. We apologize for any inconvenience.
+          </p>
+        </div>
+      `
+    };
+
+    // Email to hospital (if hospital email is available)
+    const hospitalEmail = `hospital@${appointment.hospitalName.toLowerCase().replaceAll(' ', '')}.com`;
+    const hospitalMailOptions = {
+      from: process.env.EMAIL_USER,
+      to: hospitalEmail,
+      subject: `Appointment Cancelled - ${appointment.appointmentId}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #e74c3c;">Appointment Cancelled</h2>
+          
+          <div style="background-color: #fdf2f2; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #e74c3c;">
+            <h3>Patient has cancelled their appointment</h3>
+            <p><strong>Appointment ID:</strong> ${appointment.appointmentId}</p>
+            <p><strong>Patient:</strong> ${appointment.userName}</p>
+            <p><strong>Patient Email:</strong> ${appointment.userEmail}</p>
+            <p><strong>Patient Phone:</strong> ${appointment.userPhone}</p>
+            <p><strong>Doctor:</strong> Dr. ${appointment.doctorName}</p>
+            <p><strong>Date:</strong> ${appointmentDateFormatted}</p>
+            <p><strong>Time:</strong> ${appointment.appointmentTime}</p>
+            <p><strong>Reason:</strong> ${appointment.reason}</p>
+          </div>
+          
+          <div style="background-color: #e3f2fd; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <h4>Action Required:</h4>
+            <ul>
+              <li>Update your appointment schedule</li>
+              <li>Process any refunds as per your policy</li>
+              <li>Contact patient if follow-up is needed</li>
+            </ul>
+          </div>
+          
+          <p style="color: #666; font-size: 14px;">
+            This is an automated notification from Arcular Plus.
+          </p>
+        </div>
+      `
+    };
+
+    // Send emails
+    await transporter.sendMail(userMailOptions);
+    console.log('✅ Cancellation email sent to user:', appointment.userEmail);
+    
+    await transporter.sendMail(hospitalMailOptions);
+    console.log('✅ Cancellation email sent to hospital:', hospitalEmail);
+
+  } catch (error) {
+    console.error('Error sending appointment cancellation emails:', error);
+  }
+};
+
 // Cancel appointment
 const cancelAppointment = async (req, res) => {
   try {
@@ -520,6 +629,9 @@ const cancelAppointment = async (req, res) => {
         error: 'Cannot cancel past appointments'
       });
     }
+
+    // Send cancellation emails before deleting
+    await sendAppointmentCancellationEmails(appointment);
 
     // Delete the appointment by appointmentId
     const deleteResult = await Appointment.findOneAndDelete({
