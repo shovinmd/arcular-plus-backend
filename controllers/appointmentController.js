@@ -76,8 +76,12 @@ const createAppointment = async (req, res) => {
       });
     }
 
+    // Generate appointment ID
+    const appointmentId = `APT-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
     // Create appointment
     const appointment = new Appointment({
+      appointmentId: appointmentId,
       userId: firebaseUser.uid,
       userEmail: user.email,
       userName: user.fullName,
@@ -113,7 +117,7 @@ const createAppointment = async (req, res) => {
         body: `New appointment request from ${user.fullName} for ${appointmentDate}`,
         data: {
           type: 'appointment_request',
-          appointmentId: appointment.appointmentId,
+          appointmentId: appointmentId,
           userId: firebaseUser.uid
         }
       });
