@@ -345,50 +345,48 @@ const approveUser = async (req, res) => {
 
     console.log('✅ Staff found:', staff.email);
 
-    // Get service provider to approve based on userType
+    // Get service provider to approve based on userType (match by uid | id | _id)
     let serviceProvider;
     let modelName;
+    const { Types } = require('mongoose');
+    const buildIdOrConditions = (id) => {
+      const orConditions = [{ uid: id }, { id: id }];
+      if (Types.ObjectId.isValid(id)) {
+        orConditions.push({ _id: new Types.ObjectId(id) });
+      }
+      return orConditions;
+    };
     
     switch (userType) {
-      case 'hospital':
+      case 'hospital': {
         const Hospital = require('../models/Hospital');
-        serviceProvider = await Hospital.findOne({ 
-          uid: userId,
-          isApproved: { $ne: true }
-        });
+        serviceProvider = await Hospital.findOne({ $or: buildIdOrConditions(userId) });
         modelName = 'Hospital';
         break;
-      case 'doctor':
+      }
+      case 'doctor': {
         const Doctor = require('../models/Doctor');
-        serviceProvider = await Doctor.findOne({ 
-          uid: userId,
-          isApproved: { $ne: true }
-        });
+        serviceProvider = await Doctor.findOne({ $or: buildIdOrConditions(userId) });
         modelName = 'Doctor';
         break;
-      case 'nurse':
-        serviceProvider = await Nurse.findOne({ 
-          uid: userId,
-          isApproved: { $ne: true }
-        });
+      }
+      case 'nurse': {
+        serviceProvider = await Nurse.findOne({ $or: buildIdOrConditions(userId) });
         modelName = 'Nurse';
         break;
-      case 'lab':
+      }
+      case 'lab': {
         const Lab = require('../models/Lab');
-        serviceProvider = await Lab.findOne({ 
-          uid: userId,
-          isApproved: { $ne: true }
-        });
+        serviceProvider = await Lab.findOne({ $or: buildIdOrConditions(userId) });
         modelName = 'Lab';
         break;
-      case 'pharmacy':
+      }
+      case 'pharmacy': {
         const Pharmacy = require('../models/Pharmacy');
-        serviceProvider = await Pharmacy.findOne({ 
-          uid: userId,
-          isApproved: { $ne: true }
-        });
+        serviceProvider = await Pharmacy.findOne({ $or: buildIdOrConditions(userId) });
         modelName = 'Pharmacy';
         break;
+      }
       default:
         return res.status(400).json({
           success: false,
@@ -405,6 +403,21 @@ const approveUser = async (req, res) => {
     }
 
     console.log(`✅ Found ${modelName} to approve:`, serviceProvider.email);
+    
+    // If already approved, return success (idempotent)
+    if (serviceProvider.isApproved === true || serviceProvider.approvalStatus === 'approved') {
+      return res.status(200).json({
+        success: true,
+        message: `${modelName} already approved`,
+        user: {
+          uid: serviceProvider.uid,
+          email: serviceProvider.email,
+          fullName: serviceProvider.fullName || serviceProvider.hospitalName || serviceProvider.labName || serviceProvider.pharmacyName,
+          type: userType,
+          approvalStatus: 'approved'
+        }
+      });
+    }
 
     // Approve service provider
     serviceProvider.approvalStatus = 'approved';
