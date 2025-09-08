@@ -210,12 +210,16 @@ const getUserAppointmentsById = async (req, res) => {
       query.appointmentStatus = status;
     }
 
+    console.log('🔍 Backend: Searching for appointments with query:', query);
+    
     const appointments = await Appointment.find(query)
       .sort({ appointmentDate: -1, appointmentTime: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
 
     const total = await Appointment.countDocuments(query);
+    
+    console.log('🔍 Backend: Found appointments:', appointments.length, 'Total:', total);
 
     res.json({
       success: true,

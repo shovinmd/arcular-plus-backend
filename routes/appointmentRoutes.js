@@ -23,4 +23,24 @@ router.put('/:appointmentId/status', verifyFirebaseToken, appointmentController.
 // Get available time slots
 router.get('/available-slots', verifyFirebaseToken, appointmentController.getAvailableTimeSlots);
 
+// Test endpoint to check all appointments (for debugging)
+router.get('/test-all', verifyFirebaseToken, async (req, res) => {
+  try {
+    const Appointment = require('../models/Appointment');
+    const allAppointments = await Appointment.find({});
+    console.log('🔍 Test: All appointments in database:', allAppointments.length);
+    res.json({
+      success: true,
+      total: allAppointments.length,
+      appointments: allAppointments
+    });
+  } catch (error) {
+    console.error('❌ Test: Error fetching all appointments:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch appointments'
+    });
+  }
+});
+
 module.exports = router;
