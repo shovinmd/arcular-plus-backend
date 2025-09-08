@@ -1192,29 +1192,39 @@ const getServiceProviderDetails = async (req, res) => {
     let serviceProvider;
     let modelName;
     
+    const { Types } = require('mongoose');
+    const buildIdOrConditions = (id) => {
+      const orConditions = [{ uid: id }, { id: id }];
+      if (Types.ObjectId.isValid(id)) {
+        orConditions.push({ _id: new Types.ObjectId(id) });
+      }
+      return orConditions;
+    };
+
     switch (providerType) {
       case 'hospital':
         const Hospital = require('../models/Hospital');
-        serviceProvider = await Hospital.findOne({ uid: providerId });
+        serviceProvider = await Hospital.findOne({ $or: buildIdOrConditions(providerId) });
         modelName = 'Hospital';
         break;
       case 'doctor':
         const Doctor = require('../models/Doctor');
-        serviceProvider = await Doctor.findOne({ uid: providerId });
+        serviceProvider = await Doctor.findOne({ $or: buildIdOrConditions(providerId) });
         modelName = 'Doctor';
         break;
       case 'nurse':
-        serviceProvider = await Nurse.findOne({ uid: providerId });
+        const Nurse = require('../models/Nurse');
+        serviceProvider = await Nurse.findOne({ $or: buildIdOrConditions(providerId) });
         modelName = 'Nurse';
         break;
       case 'lab':
         const Lab = require('../models/Lab');
-        serviceProvider = await Lab.findOne({ uid: providerId });
+        serviceProvider = await Lab.findOne({ $or: buildIdOrConditions(providerId) });
         modelName = 'Lab';
         break;
       case 'pharmacy':
         const Pharmacy = require('../models/Pharmacy');
-        serviceProvider = await Pharmacy.findOne({ uid: providerId });
+        serviceProvider = await Pharmacy.findOne({ $or: buildIdOrConditions(providerId) });
         modelName = 'Pharmacy';
         break;
       default:
@@ -1235,6 +1245,11 @@ const getServiceProviderDetails = async (req, res) => {
     console.log(`✅ Found ${modelName} details:`, serviceProvider.email);
     console.log(`📅 CreatedAt field:`, serviceProvider.createdAt);
     console.log(`📄 License Document URL:`, serviceProvider.licenseDocumentUrl);
+
+    // Normalize approval fields
+    const approved = serviceProvider.isApproved === true || serviceProvider.approvalStatus === 'approved';
+    serviceProvider.isApproved = approved;
+    serviceProvider.approvalStatus = approved ? 'approved' : 'pending';
 
     res.status(200).json({
       success: true,
