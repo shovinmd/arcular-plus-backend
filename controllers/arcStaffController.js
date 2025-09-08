@@ -857,6 +857,7 @@ const getAllApprovedServiceProviders = async (req, res) => {
     
     const Hospital = require('../models/Hospital');
     const Doctor = require('../models/Doctor');
+    const Nurse = require('../models/Nurse');
     const Lab = require('../models/Lab');
     const Pharmacy = require('../models/Pharmacy');
     
@@ -1273,6 +1274,13 @@ const getApprovedServiceProviders = async (req, res) => {
     }
 
     console.log('✅ Staff found:', staff.email);
+
+    // Import models
+    const Hospital = require('../models/Hospital');
+    const Doctor = require('../models/Doctor');
+    const Nurse = require('../models/Nurse');
+    const Lab = require('../models/Lab');
+    const Pharmacy = require('../models/Pharmacy');
 
     // Count approved providers
     const [approvedHospitalsCount, approvedDoctorsCount, approvedNursesCount, approvedLabsCount, approvedPharmaciesCount] = await Promise.all([
