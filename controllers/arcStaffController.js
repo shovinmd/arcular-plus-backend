@@ -371,6 +371,7 @@ const approveUser = async (req, res) => {
         break;
       }
       case 'nurse': {
+        const Nurse = require('../models/Nurse');
         serviceProvider = await Nurse.findOne({ $or: buildIdOrConditions(userId) });
         modelName = 'Nurse';
         break;
