@@ -490,19 +490,25 @@ const cancelAppointment = async (req, res) => {
     }
 
     console.log('🔍 Backend: Cancelling appointment:', appointmentId, 'for user:', firebaseUser.uid);
+    console.log('🔍 Backend: Looking for appointment with appointmentId:', appointmentId);
 
-    // Find the appointment
+    // Find the appointment by appointmentId (custom field) and userId
     const appointment = await Appointment.findOne({
-      _id: appointmentId,
+      appointmentId: appointmentId,
       userId: firebaseUser.uid
     });
 
+    console.log('🔍 Backend: Query result:', appointment ? 'Found' : 'Not found');
+
     if (!appointment) {
+      console.log('❌ Appointment not found:', appointmentId, 'for user:', firebaseUser.uid);
       return res.status(404).json({
         success: false,
         error: 'Appointment not found or access denied'
       });
     }
+
+    console.log('✅ Found appointment:', appointment.appointmentId, 'for user:', appointment.userId);
 
     // Check if appointment can be cancelled (not in the past)
     const now = new Date();
@@ -515,8 +521,19 @@ const cancelAppointment = async (req, res) => {
       });
     }
 
-    // Delete the appointment
-    await Appointment.findByIdAndDelete(appointmentId);
+    // Delete the appointment by appointmentId
+    const deleteResult = await Appointment.findOneAndDelete({
+      appointmentId: appointmentId,
+      userId: firebaseUser.uid
+    });
+
+    if (!deleteResult) {
+      console.log('❌ Failed to delete appointment:', appointmentId);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to delete appointment'
+      });
+    }
     
     console.log('✅ Backend: Appointment cancelled successfully:', appointmentId);
 

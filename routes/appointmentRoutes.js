@@ -46,4 +46,52 @@ router.get('/test-all', verifyFirebaseToken, async (req, res) => {
   }
 });
 
+// Debug endpoint to check specific appointment
+router.get('/debug/:appointmentId', verifyFirebaseToken, async (req, res) => {
+  try {
+    const Appointment = require('../models/Appointment');
+    const { appointmentId } = req.params;
+    const firebaseUser = req.user;
+    
+    console.log('🔍 Debug: Looking for appointment:', appointmentId, 'for user:', firebaseUser.uid);
+    
+    // Try to find by appointmentId
+    const byAppointmentId = await Appointment.findOne({
+      appointmentId: appointmentId,
+      userId: firebaseUser.uid
+    });
+    
+    // Try to find by _id
+    const byMongoId = await Appointment.findOne({
+      _id: appointmentId,
+      userId: firebaseUser.uid
+    });
+    
+    // Get all appointments for this user
+    const allUserAppointments = await Appointment.find({ userId: firebaseUser.uid }).limit(5);
+    
+    res.json({
+      success: true,
+      searchedId: appointmentId,
+      byAppointmentId: byAppointmentId ? {
+        _id: byAppointmentId._id,
+        appointmentId: byAppointmentId.appointmentId,
+        userId: byAppointmentId.userId
+      } : null,
+      byMongoId: byMongoId ? {
+        _id: byMongoId._id,
+        appointmentId: byMongoId.appointmentId,
+        userId: byMongoId.userId
+      } : null,
+      allUserAppointments: allUserAppointments.map(apt => ({
+        _id: apt._id,
+        appointmentId: apt.appointmentId,
+        userId: apt.userId
+      }))
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 module.exports = router;
