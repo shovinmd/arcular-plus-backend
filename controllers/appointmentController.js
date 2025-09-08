@@ -35,15 +35,13 @@ const createAppointment = async (req, res) => {
       });
     }
 
-    // Get doctor information (accept uid or _id/id)
-    const doctor = await User.findOne({
-      type: 'doctor',
-      $or: [
-        { uid: doctorId },
-        { _id: doctorId },
-        { id: doctorId }
-      ]
-    });
+    // Get doctor information (accept uid or valid ObjectId/id)
+    const mongoose = require('mongoose');
+    const doctorOr = [{ uid: doctorId }, { id: doctorId }];
+    if (mongoose.Types.ObjectId.isValid(doctorId)) {
+      doctorOr.push({ _id: doctorId });
+    }
+    const doctor = await User.findOne({ type: 'doctor', $or: doctorOr });
     if (!doctor) {
       return res.status(404).json({ 
         success: false, 
@@ -51,16 +49,14 @@ const createAppointment = async (req, res) => {
       });
     }
 
-    // Get hospital information (accept _id, id, name)
+    // Get hospital information (accept _id, id, name) with safe ObjectId
     let hospital = null;
     if (hospitalId) {
-      hospital = await Hospital.findOne({
-        $or: [
-          { _id: hospitalId },
-          { id: hospitalId },
-          { hospitalName: hospitalId }
-        ]
-      });
+      const hospitalOr = [{ id: hospitalId }, { hospitalName: hospitalId }];
+      if (mongoose.Types.ObjectId.isValid(hospitalId)) {
+        hospitalOr.push({ _id: hospitalId });
+      }
+      hospital = await Hospital.findOne({ $or: hospitalOr });
     }
 
     // Check if appointment time is available
