@@ -354,10 +354,7 @@ const approveUser = async (req, res) => {
         const Hospital = require('../models/Hospital');
         serviceProvider = await Hospital.findOne({ 
           uid: userId,
-          $or: [
-            { isApproved: { $ne: true } },
-            { approvalStatus: { $ne: 'approved' } }
-          ]
+          isApproved: { $ne: true }
         });
         modelName = 'Hospital';
         break;
@@ -365,20 +362,14 @@ const approveUser = async (req, res) => {
         const Doctor = require('../models/Doctor');
         serviceProvider = await Doctor.findOne({ 
           uid: userId,
-          $or: [
-            { isApproved: { $ne: true } },
-            { approvalStatus: { $ne: 'approved' } }
-          ]
+          isApproved: { $ne: true }
         });
         modelName = 'Doctor';
         break;
       case 'nurse':
         serviceProvider = await Nurse.findOne({ 
           uid: userId,
-          $or: [
-            { isApproved: { $ne: true } },
-            { approvalStatus: { $ne: 'approved' } }
-          ]
+          isApproved: { $ne: true }
         });
         modelName = 'Nurse';
         break;
@@ -386,10 +377,7 @@ const approveUser = async (req, res) => {
         const Lab = require('../models/Lab');
         serviceProvider = await Lab.findOne({ 
           uid: userId,
-          $or: [
-            { isApproved: { $ne: true } },
-            { approvalStatus: { $ne: 'approved' } }
-          ]
+          isApproved: { $ne: true }
         });
         modelName = 'Lab';
         break;
@@ -397,10 +385,7 @@ const approveUser = async (req, res) => {
         const Pharmacy = require('../models/Pharmacy');
         serviceProvider = await Pharmacy.findOne({ 
           uid: userId,
-          $or: [
-            { isApproved: { $ne: true } },
-            { approvalStatus: { $ne: 'approved' } }
-          ]
+          isApproved: { $ne: true }
         });
         modelName = 'Pharmacy';
         break;
@@ -469,6 +454,9 @@ const rejectUser = async (req, res) => {
     const { reason, userType } = req.body;
     const firebaseUser = req.user;
     
+    // Import models
+    const Nurse = require('../models/Nurse');
+    
     console.log('🔄 Rejecting user:', { userId, userType, reason, staffEmail: firebaseUser.email });
     
     // Get staff info
@@ -496,10 +484,7 @@ const rejectUser = async (req, res) => {
         const Hospital = require('../models/Hospital');
         serviceProvider = await Hospital.findOne({ 
           uid: userId,
-          $or: [
-            { isApproved: { $ne: true } },
-            { approvalStatus: { $ne: 'approved' } }
-          ]
+          isApproved: { $ne: true }
         });
         modelName = 'Hospital';
         break;
@@ -507,20 +492,14 @@ const rejectUser = async (req, res) => {
         const Doctor = require('../models/Doctor');
         serviceProvider = await Doctor.findOne({ 
           uid: userId,
-          $or: [
-            { isApproved: { $ne: true } },
-            { approvalStatus: { $ne: 'approved' } }
-          ]
+          isApproved: { $ne: true }
         });
         modelName = 'Doctor';
         break;
       case 'nurse':
         serviceProvider = await Nurse.findOne({ 
           uid: userId,
-          $or: [
-            { isApproved: { $ne: true } },
-            { approvalStatus: { $ne: 'approved' } }
-          ]
+          isApproved: { $ne: true }
         });
         modelName = 'Nurse';
         break;
@@ -528,10 +507,7 @@ const rejectUser = async (req, res) => {
         const Lab = require('../models/Lab');
         serviceProvider = await Lab.findOne({ 
           uid: userId,
-          $or: [
-            { isApproved: { $ne: true } },
-            { approvalStatus: { $ne: 'approved' } }
-          ]
+          isApproved: { $ne: true }
         });
         modelName = 'Lab';
         break;
@@ -539,10 +515,7 @@ const rejectUser = async (req, res) => {
         const Pharmacy = require('../models/Pharmacy');
         serviceProvider = await Pharmacy.findOne({ 
           uid: userId,
-          $or: [
-            { isApproved: { $ne: true } },
-            { approvalStatus: { $ne: 'approved' } }
-          ]
+          isApproved: { $ne: true }
         });
         modelName = 'Pharmacy';
         break;
