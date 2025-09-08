@@ -849,12 +849,12 @@ const getAllApprovedServiceProviders = async (req, res) => {
       pharmacies: totalPharmacies
     });
     
-    // Check approved counts
-    const approvedHospitalsCount = await Hospital.countDocuments({ isApproved: true, approvalStatus: 'approved' });
-    const approvedDoctorsCount = await Doctor.countDocuments({ isApproved: true, approvalStatus: 'approved' });
-    const approvedNursesCount = await Nurse.countDocuments({ isApproved: true, approvalStatus: 'approved' });
-    const approvedLabsCount = await Lab.countDocuments({ isApproved: true, approvalStatus: 'approved' });
-    const approvedPharmaciesCount = await Pharmacy.countDocuments({ isApproved: true, approvalStatus: 'approved' });
+    // Check approved counts (simplified logic)
+    const approvedHospitalsCount = await Hospital.countDocuments({ isApproved: true });
+    const approvedDoctorsCount = await Doctor.countDocuments({ isApproved: true });
+    const approvedNursesCount = await Nurse.countDocuments({ isApproved: true });
+    const approvedLabsCount = await Lab.countDocuments({ isApproved: true });
+    const approvedPharmaciesCount = await Pharmacy.countDocuments({ isApproved: true });
     
     console.log('✅ Approved documents count:', {
       hospitals: approvedHospitalsCount,
