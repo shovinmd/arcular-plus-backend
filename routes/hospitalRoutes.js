@@ -47,6 +47,9 @@ router.get('/:id/appointments', firebaseAuthMiddleware, hospitalController.getAp
 router.post('/:id/appointments', firebaseAuthMiddleware, hospitalController.createAppointment);
 router.put('/:id/appointments/:appointmentId', firebaseAuthMiddleware, hospitalController.updateAppointment);
 
+// Back-compat alias for booking via singular action
+router.post('/:id/appointments/book', firebaseAuthMiddleware, hospitalController.createAppointment);
+
 // Admissions
 router.get('/:id/admissions', firebaseAuthMiddleware, hospitalController.getAdmissions);
 router.post('/:id/admissions', firebaseAuthMiddleware, hospitalController.admitPatient);

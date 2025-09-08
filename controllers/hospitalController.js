@@ -435,9 +435,90 @@ const removeDoctor = async (req, res) => res.status(501).json({ error: 'Not impl
 const getDepartments = async (req, res) => res.status(501).json({ error: 'Not implemented' });
 const addDepartment = async (req, res) => res.status(501).json({ error: 'Not implemented' });
 const removeDepartment = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-const getAppointments = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-const createAppointment = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-const updateAppointment = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+const Appointment = require('../models/Appointment');
+const User = require('../models/User');
+const getAppointments = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { page = 1, limit = 10 } = req.query;
+    const query = { hospitalId: id };
+    const items = await Appointment.find(query)
+      .sort({ appointmentDate: -1, appointmentTime: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+    const total = await Appointment.countDocuments(query);
+    return res.json({ success: true, data: items, pagination: { current: page, pages: Math.ceil(total / limit), total } });
+  } catch (e) {
+    return res.status(500).json({ success: false, error: 'Failed to fetch appointments' });
+  }
+};
+const createAppointment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      userId,
+      doctorId,
+      appointmentDate,
+      appointmentTime,
+      reason,
+      symptoms,
+      medicalHistory,
+      appointmentType = 'consultation'
+    } = req.body;
+
+    if (!userId || !doctorId || !appointmentDate || !appointmentTime) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    }
+
+    const user = await User.findOne({ uid: userId });
+    const doctor = await User.findOne({ uid: doctorId, type: 'doctor' });
+    if (!user || !doctor) return res.status(404).json({ success: false, error: 'User/Doctor not found' });
+
+    const exists = await Appointment.findOne({ doctorId, appointmentDate: new Date(appointmentDate), appointmentTime, appointmentStatus: { $in: ['pending', 'confirmed'] } });
+    if (exists) return res.status(400).json({ success: false, error: 'This time slot is already booked' });
+
+    const appointment = new Appointment({
+      userId,
+      userEmail: user.email,
+      userName: user.fullName,
+      userPhone: user.mobileNumber,
+      doctorId,
+      doctorName: doctor.fullName,
+      doctorEmail: doctor.email,
+      doctorPhone: doctor.mobileNumber,
+      doctorSpecialization: doctor.specialization,
+      doctorConsultationFee: doctor.consultationFee,
+      hospitalId: id,
+      hospitalName: req.hospital?.hospitalName || doctor.hospitalAffiliation,
+      hospitalAddress: req.hospital?.address || doctor.address,
+      appointmentDate: new Date(appointmentDate),
+      appointmentTime,
+      appointmentType,
+      reason,
+      symptoms,
+      medicalHistory,
+      consultationFee: doctor.consultationFee,
+      paymentMethod: 'cash'
+    });
+    await appointment.save();
+    return res.status(201).json({ success: true, message: 'Appointment booked successfully', data: appointment });
+  } catch (e) {
+    return res.status(500).json({ success: false, error: 'Failed to create appointment' });
+  }
+};
+const updateAppointment = async (req, res) => {
+  try {
+    const { id, appointmentId } = req.params;
+    const { status } = req.body;
+    const apt = await Appointment.findOne({ hospitalId: id, appointmentId });
+    if (!apt) return res.status(404).json({ success: false, error: 'Appointment not found' });
+    apt.appointmentStatus = status || apt.appointmentStatus;
+    await apt.save();
+    return res.json({ success: true, data: apt });
+  } catch (e) {
+    return res.status(500).json({ success: false, error: 'Failed to update appointment' });
+  }
+};
 const getAdmissions = async (req, res) => res.status(501).json({ error: 'Not implemented' });
 const admitPatient = async (req, res) => res.status(501).json({ error: 'Not implemented' });
 const updateAdmission = async (req, res) => res.status(501).json({ error: 'Not implemented' });

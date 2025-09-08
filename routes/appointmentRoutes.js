@@ -5,6 +5,9 @@ const { verifyFirebaseToken } = require('../middleware/firebaseAuth');
 
 // Create appointment
 router.post('/create', verifyFirebaseToken, appointmentController.createAppointment);
+// Additional compatible endpoints (no removals)
+router.post('/', verifyFirebaseToken, appointmentController.createAppointment);
+router.post('/book', verifyFirebaseToken, appointmentController.createAppointment);
 
 // Get user appointments
 router.get('/user', verifyFirebaseToken, appointmentController.getUserAppointments);
