@@ -182,6 +182,60 @@ const getUserAppointments = async (req, res) => {
   }
 };
 
+// Get user appointments by userId (for health summary and calendar)
+const getUserAppointmentsById = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const firebaseUser = req.user;
+    
+    if (!firebaseUser || !firebaseUser.uid) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid Firebase user' 
+      });
+    }
+
+    // Allow users to get their own appointments or admin/staff to get any user's appointments
+    if (firebaseUser.uid !== userId && firebaseUser.type !== 'admin' && firebaseUser.type !== 'arc_staff') {
+      return res.status(403).json({ 
+        success: false, 
+        error: 'Access denied' 
+      });
+    }
+
+    const { status, page = 1, limit = 50 } = req.query;
+    const query = { userId: userId };
+
+    if (status) {
+      query.appointmentStatus = status;
+    }
+
+    const appointments = await Appointment.find(query)
+      .sort({ appointmentDate: -1, appointmentTime: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await Appointment.countDocuments(query);
+
+    res.json({
+      success: true,
+      data: appointments,
+      pagination: {
+        current: page,
+        pages: Math.ceil(total / limit),
+        total: total
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching user appointments by ID:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch appointments'
+    });
+  }
+};
+
 // Get doctor appointments
 const getDoctorAppointments = async (req, res) => {
   try {
@@ -421,6 +475,7 @@ const sendAppointmentConfirmationEmail = async (appointment) => {
 module.exports = {
   createAppointment,
   getUserAppointments,
+  getUserAppointmentsById,
   getDoctorAppointments,
   updateAppointmentStatus,
   getAvailableTimeSlots

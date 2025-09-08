@@ -11,6 +11,8 @@ router.post('/book', verifyFirebaseToken, appointmentController.createAppointmen
 
 // Get user appointments
 router.get('/user', verifyFirebaseToken, appointmentController.getUserAppointments);
+// Get user appointments by userId (for health summary and calendar)
+router.get('/user/:userId', verifyFirebaseToken, appointmentController.getUserAppointmentsById);
 
 // Get doctor appointments
 router.get('/doctor', verifyFirebaseToken, appointmentController.getDoctorAppointments);

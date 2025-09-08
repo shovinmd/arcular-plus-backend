@@ -280,4 +280,107 @@ router.post('/unsubscribe-topic', authenticateToken, async (req, res) => {
   }
 });
 
+// Send appointment reminder email
+router.post('/send-appointment-reminder', authenticateToken, async (req, res) => {
+  try {
+    const { appointmentId, doctorName, hospitalName, appointmentDate, appointmentTime, reason } = req.body;
+    const userId = req.user.uid;
+
+    if (!appointmentId || !doctorName || !hospitalName || !appointmentDate || !appointmentTime) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required appointment details'
+      });
+    }
+
+    // Get user details
+    const User = require('../models/User');
+    const user = await User.findOne({ uid: userId });
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    // Send appointment reminder email
+    const nodemailer = require('nodemailer');
+    
+    // Skip if email credentials not configured
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      console.log('⚠️ Skipping appointment reminder email: EMAIL_USER or EMAIL_PASS not configured');
+      return res.json({
+        success: true,
+        message: 'Appointment reminder email skipped (email not configured)'
+      });
+    }
+
+    const transporter = nodemailer.createTransporter({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      }
+    });
+
+    const appointmentDateFormatted = new Date(appointmentDate).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: user.email,
+      subject: 'Appointment Reminder - Arcular Plus',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #32CCBC;">Appointment Reminder</h2>
+          
+          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3>You have an appointment today!</h3>
+            <p><strong>Appointment ID:</strong> ${appointmentId}</p>
+            <p><strong>Doctor:</strong> Dr. ${doctorName}</p>
+            <p><strong>Hospital:</strong> ${hospitalName}</p>
+            <p><strong>Date:</strong> ${appointmentDateFormatted}</p>
+            <p><strong>Time:</strong> ${appointmentTime}</p>
+            <p><strong>Reason:</strong> ${reason}</p>
+          </div>
+          
+          <div style="background-color: #e3f2fd; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <h4>Important Reminders:</h4>
+            <ul>
+              <li>Please arrive 15 minutes before your appointment time</li>
+              <li>Bring a valid ID and any relevant medical documents</li>
+              <li>Contact the hospital if you need to reschedule or cancel</li>
+              <li>Payment can be made at the hospital reception</li>
+            </ul>
+          </div>
+          
+          <p style="color: #666; font-size: 14px;">
+            This is an automated reminder. Please do not reply to this email.
+          </p>
+        </div>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log('✅ Appointment reminder email sent to:', user.email);
+
+    res.json({
+      success: true,
+      message: 'Appointment reminder email sent successfully'
+    });
+
+  } catch (error) {
+    console.error('❌ Error sending appointment reminder email:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to send appointment reminder email'
+    });
+  }
+});
+
 module.exports = router;
