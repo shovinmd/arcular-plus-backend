@@ -20,6 +20,9 @@ router.get('/doctor', verifyFirebaseToken, appointmentController.getDoctorAppoin
 // Update appointment status
 router.put('/:appointmentId/status', verifyFirebaseToken, appointmentController.updateAppointmentStatus);
 
+// Cancel appointment
+router.delete('/:appointmentId', verifyFirebaseToken, appointmentController.cancelAppointment);
+
 // Get available time slots
 router.get('/available-slots', verifyFirebaseToken, appointmentController.getAvailableTimeSlots);
 

@@ -476,11 +476,70 @@ const sendAppointmentConfirmationEmail = async (appointment) => {
   }
 };
 
+// Cancel appointment
+const cancelAppointment = async (req, res) => {
+  try {
+    const { appointmentId } = req.params;
+    const firebaseUser = req.user;
+    
+    if (!firebaseUser || !firebaseUser.uid) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid Firebase user' 
+      });
+    }
+
+    console.log('🔍 Backend: Cancelling appointment:', appointmentId, 'for user:', firebaseUser.uid);
+
+    // Find the appointment
+    const appointment = await Appointment.findOne({
+      _id: appointmentId,
+      userId: firebaseUser.uid
+    });
+
+    if (!appointment) {
+      return res.status(404).json({
+        success: false,
+        error: 'Appointment not found or access denied'
+      });
+    }
+
+    // Check if appointment can be cancelled (not in the past)
+    const now = new Date();
+    const appointmentDateTime = new Date(appointment.appointmentDate);
+    
+    if (appointmentDateTime <= now) {
+      return res.status(400).json({
+        success: false,
+        error: 'Cannot cancel past appointments'
+      });
+    }
+
+    // Delete the appointment
+    await Appointment.findByIdAndDelete(appointmentId);
+    
+    console.log('✅ Backend: Appointment cancelled successfully:', appointmentId);
+
+    res.json({
+      success: true,
+      message: 'Appointment cancelled successfully'
+    });
+
+  } catch (error) {
+    console.error('❌ Error cancelling appointment:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to cancel appointment'
+    });
+  }
+};
+
 module.exports = {
   createAppointment,
   getUserAppointments,
   getUserAppointmentsById,
   getDoctorAppointments,
   updateAppointmentStatus,
+  cancelAppointment,
   getAvailableTimeSlots
 };
