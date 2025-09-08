@@ -35,8 +35,15 @@ const createAppointment = async (req, res) => {
       });
     }
 
-    // Get doctor information
-    const doctor = await User.findOne({ uid: doctorId, type: 'doctor' });
+    // Get doctor information (accept uid or _id/id)
+    const doctor = await User.findOne({
+      type: 'doctor',
+      $or: [
+        { uid: doctorId },
+        { _id: doctorId },
+        { id: doctorId }
+      ]
+    });
     if (!doctor) {
       return res.status(404).json({ 
         success: false, 
@@ -44,10 +51,16 @@ const createAppointment = async (req, res) => {
       });
     }
 
-    // Get hospital information
+    // Get hospital information (accept _id, id, name)
     let hospital = null;
     if (hospitalId) {
-      hospital = await Hospital.findOne({ _id: hospitalId });
+      hospital = await Hospital.findOne({
+        $or: [
+          { _id: hospitalId },
+          { id: hospitalId },
+          { hospitalName: hospitalId }
+        ]
+      });
     }
 
     // Check if appointment time is available
