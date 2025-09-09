@@ -37,6 +37,8 @@ const HospitalSchema = new mongoose.Schema({
   
   // Documents
   licenseDocumentUrl: { type: String, required: true },
+  registrationCertificateUrl: { type: String },
+  buildingPermitUrl: { type: String },
   
   // Approval and Status
   status: { type: String, enum: ['active', 'inactive', 'pending'], default: 'pending' },
