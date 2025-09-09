@@ -437,6 +437,10 @@ const getHospitalByEmail = async (req, res) => {
 
 const updateHospitalProfile = async (req, res) => {
   try {
+    console.log('🏥 Hospital Update Profile - Request received');
+    console.log('🏥 UID:', req.params.uid);
+    console.log('🏥 Update data:', JSON.stringify(req.body, null, 2));
+    
     const { uid } = req.params;
     const updateData = req.body;
     
@@ -448,22 +452,33 @@ const updateHospitalProfile = async (req, res) => {
     
     const hospital = await Hospital.findOne({ uid });
     if (!hospital) {
+      console.log('❌ Hospital not found for UID:', uid);
       return res.status(404).json({ error: 'Hospital not found' });
     }
+    
+    console.log('✅ Hospital found:', hospital.hospitalName);
+    
     Object.keys(updateData).forEach(key => {
       if (updateData[key] !== undefined) {
+        console.log(`🔄 Updating ${key}: ${hospital[key]} -> ${updateData[key]}`);
         hospital[key] = updateData[key];
       }
     });
+    
     if (!hospital.arcId) {
       hospital.arcId = 'ARC-' + uuidv4().slice(0, 8).toUpperCase();
     }
     if (!hospital.qrCode && hospital.arcId) {
       hospital.qrCode = await QRCode.toDataURL(hospital.arcId);
     }
+    
+    console.log('💾 Saving hospital to database...');
     await hospital.save();
+    console.log('✅ Hospital saved successfully');
+    
     res.json(hospital);
   } catch (err) {
+    console.log('❌ Error updating hospital profile:', err);
     res.status(500).json({ error: err.message });
   }
 };
