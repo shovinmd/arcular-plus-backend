@@ -8,7 +8,7 @@ const {
 } = require('../services/emailService');
 
 const REQUIRED_HOSPITAL_FIELDS = [
-  'fullName', 'email', 'mobileNumber', 'hospitalName', 'registrationNumber', 'hospitalType', 'address', 'city', 'state', 'pincode', 'numberOfBeds', 'departments', 'licenseDocumentUrl'
+  'hospitalOwnerName', 'email', 'mobileNumber', 'hospitalName', 'registrationNumber', 'hospitalType', 'address', 'city', 'state', 'pincode', 'numberOfBeds', 'departments', 'licenseDocumentUrl'
 ];
 
 // Email service imported from centralized service

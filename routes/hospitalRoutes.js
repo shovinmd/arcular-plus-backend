@@ -18,6 +18,7 @@ router.post('/:hospitalId/reject', firebaseAuthMiddleware, hospitalController.re
 
 // Get hospital by UID (for login) - MUST BE BEFORE GENERIC :id ROUTES
 router.get('/uid/:uid', firebaseAuthMiddleware, hospitalController.getHospitalProfile);
+router.put('/uid/:uid', firebaseAuthMiddleware, hospitalController.updateHospitalProfile);
 
 // Get hospital by email (for login verification)
 router.get('/email/:email', firebaseAuthMiddleware, hospitalController.getHospitalByEmail);
