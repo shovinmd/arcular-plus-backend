@@ -288,6 +288,7 @@ const connectDB = async () => {
 
 // Import cron service
 const cronService = require('./services/cronService');
+const { startCleanupScheduler } = require('./services/cleanupService');
 
 // Start server
 const startServer = async () => {
@@ -299,6 +300,14 @@ const startServer = async () => {
     console.log('✅ Cron service initialized for menstrual reminders');
   } catch (error) {
     console.error('❌ Failed to initialize cron service:', error);
+  }
+  
+  // Initialize cleanup scheduler for expired medications
+  try {
+    startCleanupScheduler();
+    console.log('✅ Cleanup scheduler initialized for expired medications');
+  } catch (error) {
+    console.error('❌ Failed to initialize cleanup scheduler:', error);
   }
   
   app.listen(PORT, () => {

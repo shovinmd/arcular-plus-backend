@@ -14,8 +14,17 @@ const getMedicationsByUser = async (req, res) => {
       medications = await Medication.findByPatient(userId);
     }
 
+    // Filter out expired medications in real-time
+    const now = new Date();
+    const activeMedications = medications.filter(med => {
+      // If no endDate is set, consider it active
+      if (!med.endDate) return true;
+      // If endDate is set, check if it's still in the future
+      return med.endDate > now;
+    });
+
     // Transform MongoDB _id to id for frontend compatibility
-    const transformedMedications = medications.map(med => {
+    const transformedMedications = activeMedications.map(med => {
       const medObj = med.toObject();
       return {
         ...medObj,
@@ -463,6 +472,97 @@ const getMedicationById = async (req, res) => {
   }
 };
 
+// Cleanup expired medications
+const cleanupExpiredMedications = async (req, res) => {
+  try {
+    const now = new Date();
+    
+    // Find medications that have passed their end date
+    const expiredMedications = await Medication.find({
+      endDate: { $lt: now },
+      status: { $ne: 'completed' }
+    });
+
+    if (expiredMedications.length === 0) {
+      return res.json({
+        success: true,
+        message: 'No expired medications found',
+        deletedCount: 0
+      });
+    }
+
+    // Delete expired medications
+    const deleteResult = await Medication.deleteMany({
+      endDate: { $lt: now },
+      status: { $ne: 'completed' }
+    });
+
+    console.log(`🧹 Cleaned up ${deleteResult.deletedCount} expired medications`);
+
+    res.json({
+      success: true,
+      message: `Successfully cleaned up ${deleteResult.deletedCount} expired medications`,
+      deletedCount: deleteResult.deletedCount,
+      expiredMedications: expiredMedications.map(med => ({
+        id: med._id,
+        name: med.name,
+        endDate: med.endDate
+      }))
+    });
+  } catch (error) {
+    console.error('Error cleaning up expired medications:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to cleanup expired medications'
+    });
+  }
+};
+
+// Get cleanup status (for testing/debugging)
+const getCleanupStatus = async (req, res) => {
+  try {
+    const now = new Date();
+    
+    // Count expired medications
+    const expiredCount = await Medication.countDocuments({
+      endDate: { $lt: now },
+      status: { $ne: 'completed' }
+    });
+
+    // Count total active medications
+    const totalActiveCount = await Medication.countDocuments({
+      status: 'active'
+    });
+
+    // Get some examples of expired medications
+    const expiredExamples = await Medication.find({
+      endDate: { $lt: now },
+      status: { $ne: 'completed' }
+    }).limit(5).select('name endDate patientId');
+
+    res.json({
+      success: true,
+      data: {
+        expiredCount,
+        totalActiveCount,
+        expiredExamples: expiredExamples.map(med => ({
+          id: med._id,
+          name: med.name,
+          endDate: med.endDate,
+          patientId: med.patientId
+        })),
+        lastChecked: new Date()
+      }
+    });
+  } catch (error) {
+    console.error('Error getting cleanup status:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get cleanup status'
+    });
+  }
+};
+
 // Log medicine actions for notification screen
 async function logMedicineAction(patientId, medicineName, action) {
   try {
@@ -561,5 +661,7 @@ module.exports = {
   markAsTaken,
   markAsNotTaken,
   getPendingMedications,
-  getMedicationById
+  getMedicationById,
+  cleanupExpiredMedications,
+  getCleanupStatus
 }; 

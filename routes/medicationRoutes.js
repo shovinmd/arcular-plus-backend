@@ -45,5 +45,7 @@ router.delete('/:id', firebaseAuthMiddleware, medicationController.deleteMedicat
 router.patch('/:id/taken', firebaseAuthMiddleware, medicationController.markAsTaken);
 router.patch('/:id/not-taken', firebaseAuthMiddleware, medicationController.markAsNotTaken);
 router.patch('/:id', firebaseAuthMiddleware, medicationController.updateMedication); // General PATCH route for other updates
+router.post('/cleanup-expired', medicationController.cleanupExpiredMedications); // Cleanup expired medications
+router.get('/cleanup-status', medicationController.getCleanupStatus); // Get cleanup status
 
 module.exports = router; 
