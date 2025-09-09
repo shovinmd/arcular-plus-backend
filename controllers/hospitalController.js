@@ -59,7 +59,12 @@ const validateRequiredFields = (body) => {
 const registerHospital = async (req, res) => {
   try {
     const firebaseUser = req.user; // set by auth middleware
+    console.log('🔐 Firebase user from middleware:', firebaseUser);
+    console.log('🔑 Firebase user UID:', firebaseUser?.uid);
+    console.log('📧 Firebase user email:', firebaseUser?.email);
+    
     if (!firebaseUser || !firebaseUser.uid) {
+      console.log('❌ Invalid Firebase user - no UID found');
       return res.status(400).json({ error: 'Invalid Firebase user' });
     }
     
@@ -140,6 +145,8 @@ const registerHospital = async (req, res) => {
       });
       await hospital.save();
       console.log('✅ New hospital created:', hospital.hospitalName);
+      console.log('🔑 Hospital UID stored:', hospital.uid);
+      console.log('📧 Hospital email stored:', hospital.email);
       console.log('🌍 Stored coordinates - Longitude:', hospital.longitude, 'Latitude:', hospital.latitude);
     } else {
       Object.assign(hospital, req.body);
