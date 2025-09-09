@@ -73,6 +73,12 @@ const registerHospital = async (req, res) => {
     console.log('📋 Documents type:', typeof documents);
     console.log('📋 Documents keys:', documents ? Object.keys(documents) : 'No documents');
     
+    // Map alternateMobile to altPhoneNumber
+    if (req.body.alternateMobile) {
+      req.body.altPhoneNumber = req.body.alternateMobile;
+      console.log('✅ Mapped alternateMobile to altPhoneNumber:', req.body.alternateMobile);
+    }
+    
     if (documents) {
       if (documents.hospital_license) {
         req.body.licenseDocumentUrl = documents.hospital_license;
@@ -406,6 +412,13 @@ const updateHospitalProfile = async (req, res) => {
   try {
     const { uid } = req.params;
     const updateData = req.body;
+    
+    // Map alternateMobile to altPhoneNumber
+    if (updateData.alternateMobile) {
+      updateData.altPhoneNumber = updateData.alternateMobile;
+      console.log('✅ Mapped alternateMobile to altPhoneNumber in update:', updateData.alternateMobile);
+    }
+    
     const hospital = await Hospital.findOne({ uid });
     if (!hospital) {
       return res.status(404).json({ error: 'Hospital not found' });
