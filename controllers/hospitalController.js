@@ -896,7 +896,204 @@ const searchHospitalsForAffiliation = async (req, res) => {
   }
 };
 
+// Public endpoint for QR code scanning - shows limited hospital info
+const getHospitalByQr = async (req, res) => {
+  try {
+    const { identifier } = req.params;
+    console.log('🏥 QR Scan Request - Raw Identifier:', identifier);
+    
+    // Try to parse JSON identifier first
+    let parsedIdentifier = identifier;
+    let extractedUid = null;
+    let extractedEmail = null;
+    
+    try {
+      // Check if identifier is JSON and extract uid/email
+      if (identifier.startsWith('{') && identifier.includes('"uid"')) {
+        const jsonData = JSON.parse(identifier);
+        extractedUid = jsonData.uid;
+        extractedEmail = jsonData.contactInfo?.email || jsonData.email;
+        console.log('✅ Parsed JSON - UID:', extractedUid, 'Email:', extractedEmail);
+      }
+    } catch (parseError) {
+      console.log('⚠️ Identifier is not valid JSON, using as-is');
+    }
+    
+    // Try to find hospital by arcId first
+    let hospital = await Hospital.findOne({ arcId: identifier });
+    console.log('🔍 Search by arcId result:', hospital ? 'Found' : 'Not found');
+    
+    // If not found by arcId, try by extracted UID
+    if (!hospital && extractedUid) {
+      console.log('🔄 Trying to find by extracted UID:', extractedUid);
+      hospital = await Hospital.findOne({ uid: extractedUid });
+      console.log('🔍 Search by extracted UID result:', hospital ? 'Found' : 'Not found');
+    }
+    
+    // If still not found, try by original identifier as UID
+    if (!hospital) {
+      console.log('🔄 Trying to find by original identifier as UID...');
+      hospital = await Hospital.findOne({ uid: identifier });
+      console.log('🔍 Search by original identifier as UID result:', hospital ? 'Found' : 'Not found');
+    }
+    
+    // If still not found, try by extracted email
+    if (!hospital && extractedEmail) {
+      console.log('🔄 Trying to find by extracted email:', extractedEmail);
+      hospital = await Hospital.findOne({ email: extractedEmail });
+      console.log('🔍 Search by extracted email result:', hospital ? 'Found' : 'Not found');
+    }
+    
+    // If still not found, try by original identifier as email
+    if (!hospital) {
+      console.log('🔄 Trying to find by original identifier as email...');
+      hospital = await Hospital.findOne({ email: identifier });
+      console.log('🔍 Search by original identifier as email result:', hospital ? 'Found' : 'Not found');
+    }
+    
+    if (!hospital) {
+      console.log('❌ Hospital not found by any method');
+      
+      // Debug: Check if any hospitals exist in database
+      const totalHospitals = await Hospital.countDocuments();
+      console.log('📊 Total hospitals in database:', totalHospitals);
+      
+      return res.status(404).json({ 
+        error: 'Hospital not found',
+        searchedFor: identifier,
+        extractedUid: extractedUid,
+        extractedEmail: extractedEmail,
+        totalHospitalsInDatabase: totalHospitals,
+        message: 'Hospital not found by QR code'
+      });
+    }
 
+    console.log('✅ Hospital found:', hospital.hospitalName, 'ARC ID:', hospital.arcId);
+
+    // Return only public hospital information for QR scanning
+    const publicInfo = {
+      uid: hospital.uid,
+      arcId: hospital.arcId,
+      fullName: hospital.fullName,
+      hospitalName: hospital.hospitalName,
+      hospitalType: hospital.hospitalType,
+      registrationNumber: hospital.registrationNumber,
+      address: hospital.address,
+      city: hospital.city,
+      state: hospital.state,
+      pincode: hospital.pincode,
+      mobileNumber: hospital.mobileNumber,
+      alternateMobile: hospital.alternateMobile,
+      email: hospital.email,
+      hospitalEmail: hospital.hospitalEmail,
+      hospitalPhone: hospital.hospitalPhone,
+      hospitalAddress: hospital.hospitalAddress,
+      numberOfBeds: hospital.numberOfBeds,
+      departments: hospital.departments,
+      specialFacilities: hospital.specialFacilities,
+      hasPharmacy: hospital.hasPharmacy,
+      hasLab: hospital.hasLab,
+      profileImageUrl: hospital.profileImageUrl,
+      approvalStatus: hospital.approvalStatus,
+      isApproved: hospital.isApproved,
+      type: hospital.type,
+      // Don't include sensitive information like documents, internal IDs, etc.
+    };
+
+    console.log('📤 Returning public hospital info for QR scan');
+    res.json(publicInfo);
+    
+  } catch (error) {
+    console.error('❌ Error fetching hospital by QR:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+};
+
+// Public endpoint for QR code scanning by UID - shows limited hospital info
+const getHospitalByUid = async (req, res) => {
+  try {
+    const { uid } = req.params;
+
+    console.log('🏥 UID Scan Request - Raw UID:', uid);
+    
+    // Try to parse JSON UID first
+    let extractedUid = uid;
+    
+    try {
+      // Check if UID is JSON and extract the actual UID
+      if (uid.startsWith('{') && uid.includes('"uid"')) {
+        const jsonData = JSON.parse(uid);
+        extractedUid = jsonData.uid;
+        console.log('✅ Parsed JSON UID - Extracted:', extractedUid);
+      }
+    } catch (parseError) {
+      console.log('⚠️ UID is not valid JSON, using as-is');
+    }
+    
+    console.log('🔍 Searching for hospital with UID:', extractedUid);
+    const hospital = await Hospital.findOne({ uid: extractedUid });
+    
+    if (!hospital) {
+      console.log('❌ Hospital not found by UID:', extractedUid);
+      
+      // Debug: Check if any hospitals exist in database
+      const totalHospitals = await Hospital.countDocuments();
+      console.log('📊 Total hospitals in database:', totalHospitals);
+      
+      // Debug: Check if the specific UID exists
+      const hospitalExists = await Hospital.exists({ uid: extractedUid });
+      console.log('🔍 Hospital exists check for UID:', extractedUid, 'Result:', hospitalExists);
+      
+      return res.status(404).json({ 
+        error: 'Hospital not found',
+        searchedFor: uid,
+        extractedUid: extractedUid,
+        totalHospitalsInDatabase: totalHospitals,
+        hospitalExistsCheck: hospitalExists,
+        message: 'Hospital not found by UID'
+      });
+    }
+
+    console.log('✅ Hospital found by UID:', hospital.hospitalName, 'ARC ID:', hospital.arcId);
+
+    // Return only public hospital information for QR scanning
+    const publicInfo = {
+      uid: hospital.uid,
+      arcId: hospital.arcId,
+      fullName: hospital.fullName,
+      hospitalName: hospital.hospitalName,
+      hospitalType: hospital.hospitalType,
+      registrationNumber: hospital.registrationNumber,
+      address: hospital.address,
+      city: hospital.city,
+      state: hospital.state,
+      pincode: hospital.pincode,
+      mobileNumber: hospital.mobileNumber,
+      alternateMobile: hospital.alternateMobile,
+      email: hospital.email,
+      hospitalEmail: hospital.hospitalEmail,
+      hospitalPhone: hospital.hospitalPhone,
+      hospitalAddress: hospital.hospitalAddress,
+      numberOfBeds: hospital.numberOfBeds,
+      departments: hospital.departments,
+      specialFacilities: hospital.specialFacilities,
+      hasPharmacy: hospital.hasPharmacy,
+      hasLab: hospital.hasLab,
+      profileImageUrl: hospital.profileImageUrl,
+      approvalStatus: hospital.approvalStatus,
+      isApproved: hospital.isApproved,
+      type: hospital.type,
+      // Don't include sensitive information like documents, internal IDs, etc.
+    };
+
+    console.log('📤 Returning public hospital info for UID scan');
+    res.json(publicInfo);
+    
+  } catch (error) {
+    console.error('❌ Error fetching hospital by UID for QR:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+};
 
 module.exports = {
   registerHospital,
@@ -950,5 +1147,7 @@ module.exports = {
   getDocuments,
   uploadDocument,
   getNotifications,
-  updateSettings
+  updateSettings,
+  getHospitalByQr,
+  getHospitalByUid
 };

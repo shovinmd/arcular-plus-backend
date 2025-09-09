@@ -70,6 +70,10 @@ router.delete('/:id/lab-tests/:testId', firebaseAuthMiddleware, hospitalControll
 // QR Records
 router.get('/:id/qr-records', firebaseAuthMiddleware, hospitalController.getQrRecords);
 
+// Public QR scanning endpoints
+router.get('/qr/:identifier', hospitalController.getHospitalByQr);
+router.get('/qr/uid/:uid', hospitalController.getHospitalByUid);
+
 // Analytics
 router.get('/:id/analytics', firebaseAuthMiddleware, hospitalController.getAnalytics);
 
