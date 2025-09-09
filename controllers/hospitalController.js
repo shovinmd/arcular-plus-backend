@@ -95,22 +95,49 @@ const registerHospital = async (req, res) => {
       if (documents.registration_certificate) {
         req.body.registrationCertificateUrl = documents.registration_certificate;
         console.log('✅ Mapped registration_certificate to registrationCertificateUrl');
+      } else {
+        console.log('❌ registration_certificate not found in documents');
+        // Try to find registrationCertificateUrl in the main body as fallback
+        if (req.body.registrationCertificateUrl) {
+          console.log('✅ Found registrationCertificateUrl in main body as fallback');
+        } else {
+          console.log('❌ No registrationCertificateUrl found anywhere');
+        }
       }
       if (documents.building_permit) {
         req.body.buildingPermitUrl = documents.building_permit;
         console.log('✅ Mapped building_permit to buildingPermitUrl');
+      } else {
+        console.log('❌ building_permit not found in documents');
+        // Try to find buildingPermitUrl in the main body as fallback
+        if (req.body.buildingPermitUrl) {
+          console.log('✅ Found buildingPermitUrl in main body as fallback');
+        } else {
+          console.log('❌ No buildingPermitUrl found anywhere');
+        }
       }
     } else {
       console.log('❌ No documents object found in request body');
-      // Try to find licenseDocumentUrl in the main body as fallback
+      // Try to find all document URLs in the main body as fallback
       if (req.body.licenseDocumentUrl) {
         console.log('✅ Found licenseDocumentUrl in main body as fallback');
       } else {
         console.log('❌ No licenseDocumentUrl found anywhere');
       }
+      if (req.body.registrationCertificateUrl) {
+        console.log('✅ Found registrationCertificateUrl in main body as fallback');
+      } else {
+        console.log('❌ No registrationCertificateUrl found anywhere');
+      }
+      if (req.body.buildingPermitUrl) {
+        console.log('✅ Found buildingPermitUrl in main body as fallback');
+      } else {
+        console.log('❌ No buildingPermitUrl found anywhere');
+      }
     }
     
     console.log('📋 Request body after document mapping:', JSON.stringify(req.body, null, 2));
+    console.log('📋 Documents object:', JSON.stringify(documents, null, 2));
     
     // Validate required fields with proper handling
     const missingFields = validateRequiredFields(req.body);
