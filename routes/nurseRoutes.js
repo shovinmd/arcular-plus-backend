@@ -43,4 +43,90 @@ router.get('/pending-approvals', firebaseAuthMiddleware, nurseController.getPend
 router.post('/:id/approve', firebaseAuthMiddleware, nurseController.approveNurse);
 router.post('/:id/reject', firebaseAuthMiddleware, nurseController.rejectNurse);
 
+// Public QR scanning endpoints
+router.get('/qr/:identifier', async (req, res) => {
+  try {
+    const { identifier } = req.params;
+    console.log('🔍 Nurse QR Scan Request - Raw Identifier:', identifier);
+
+    const Nurse = require('../models/Nurse');
+    
+    // Try to find nurse by ARC ID first
+    let nurse = await Nurse.findOne({ arcId: identifier });
+    
+    if (!nurse) {
+      // If not found by ARC ID, try by UID
+      nurse = await Nurse.findOne({ uid: identifier });
+    }
+
+    if (!nurse) {
+      return res.status(404).json({ 
+        error: 'Nurse not found',
+        message: 'No nurse found with the provided identifier'
+      });
+    }
+
+    // Return limited nurse info for QR scanning
+    res.json({
+      success: true,
+      type: 'nurse',
+      data: {
+        uid: nurse.uid,
+        arcId: nurse.arcId,
+        fullName: nurse.fullName,
+        email: nurse.email,
+        mobileNumber: nurse.mobileNumber,
+        qualification: nurse.qualification,
+        experienceYears: nurse.experienceYears || 0,
+        hospitalAffiliation: nurse.currentHospital,
+        profileImageUrl: nurse.profileImageUrl,
+        isApproved: nurse.isApproved,
+        approvalStatus: nurse.approvalStatus,
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching nurse by QR:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/qr/uid/:uid', async (req, res) => {
+  try {
+    const { uid } = req.params;
+    console.log('🔍 Nurse QR Scan Request by UID:', uid);
+
+    const Nurse = require('../models/Nurse');
+    const nurse = await Nurse.findOne({ uid });
+
+    if (!nurse) {
+      return res.status(404).json({ 
+        error: 'Nurse not found',
+        message: 'No nurse found with the provided UID'
+      });
+    }
+
+    // Return limited nurse info for QR scanning
+    res.json({
+      success: true,
+      type: 'nurse',
+      data: {
+        uid: nurse.uid,
+        arcId: nurse.arcId,
+        fullName: nurse.fullName,
+        email: nurse.email,
+        mobileNumber: nurse.mobileNumber,
+        qualification: nurse.qualification,
+        experienceYears: nurse.experienceYears || 0,
+        hospitalAffiliation: nurse.currentHospital,
+        profileImageUrl: nurse.profileImageUrl,
+        isApproved: nurse.isApproved,
+        approvalStatus: nurse.approvalStatus,
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching nurse by UID:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router; 

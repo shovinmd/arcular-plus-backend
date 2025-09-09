@@ -43,4 +43,94 @@ router.get('/pending-approvals', firebaseAuthMiddleware, labController.getPendin
 router.post('/:id/approve', firebaseAuthMiddleware, labController.approveLab);
 router.post('/:id/reject', firebaseAuthMiddleware, labController.rejectLab);
 
+// Public QR scanning endpoints
+router.get('/qr/:identifier', async (req, res) => {
+  try {
+    const { identifier } = req.params;
+    console.log('🔍 Lab QR Scan Request - Raw Identifier:', identifier);
+
+    const Lab = require('../models/Lab');
+    
+    // Try to find lab by ARC ID first
+    let lab = await Lab.findOne({ arcId: identifier });
+    
+    if (!lab) {
+      // If not found by ARC ID, try by UID
+      lab = await Lab.findOne({ uid: identifier });
+    }
+
+    if (!lab) {
+      return res.status(404).json({ 
+        error: 'Lab not found',
+        message: 'No lab found with the provided identifier'
+      });
+    }
+
+    // Return limited lab info for QR scanning
+    res.json({
+      success: true,
+      type: 'lab',
+      data: {
+        uid: lab.uid,
+        arcId: lab.arcId,
+        labName: lab.labName,
+        email: lab.email,
+        mobileNumber: lab.mobileNumber,
+        address: lab.address,
+        city: lab.city,
+        state: lab.state,
+        pincode: lab.pincode,
+        services: lab.services,
+        profileImageUrl: lab.profileImageUrl,
+        isApproved: lab.isApproved,
+        approvalStatus: lab.approvalStatus,
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching lab by QR:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/qr/uid/:uid', async (req, res) => {
+  try {
+    const { uid } = req.params;
+    console.log('🔍 Lab QR Scan Request by UID:', uid);
+
+    const Lab = require('../models/Lab');
+    const lab = await Lab.findOne({ uid });
+
+    if (!lab) {
+      return res.status(404).json({ 
+        error: 'Lab not found',
+        message: 'No lab found with the provided UID'
+      });
+    }
+
+    // Return limited lab info for QR scanning
+    res.json({
+      success: true,
+      type: 'lab',
+      data: {
+        uid: lab.uid,
+        arcId: lab.arcId,
+        labName: lab.labName,
+        email: lab.email,
+        mobileNumber: lab.mobileNumber,
+        address: lab.address,
+        city: lab.city,
+        state: lab.state,
+        pincode: lab.pincode,
+        services: lab.services,
+        profileImageUrl: lab.profileImageUrl,
+        isApproved: lab.isApproved,
+        approvalStatus: lab.approvalStatus,
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching lab by UID:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router; 

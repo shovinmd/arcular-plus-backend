@@ -190,4 +190,89 @@ router.get('/hospital/:hospitalName', firebaseAuthMiddleware, async (req, res) =
   }
 });
 
+// Public QR scanning endpoints
+router.get('/qr/:identifier', async (req, res) => {
+  try {
+    const { identifier } = req.params;
+    console.log('🔍 Doctor QR Scan Request - Raw Identifier:', identifier);
+
+    // Try to find doctor by ARC ID first
+    let doctor = await Doctor.findOne({ arcId: identifier });
+    
+    if (!doctor) {
+      // If not found by ARC ID, try by UID
+      doctor = await Doctor.findOne({ uid: identifier });
+    }
+
+    if (!doctor) {
+      return res.status(404).json({ 
+        error: 'Doctor not found',
+        message: 'No doctor found with the provided identifier'
+      });
+    }
+
+    // Return limited doctor info for QR scanning
+    res.json({
+      success: true,
+      type: 'doctor',
+      data: {
+        uid: doctor.uid,
+        arcId: doctor.arcId,
+        fullName: doctor.fullName,
+        email: doctor.email,
+        mobileNumber: doctor.mobileNumber,
+        specialization: doctor.specialization,
+        experienceYears: doctor.experienceYears || 0,
+        consultationFee: doctor.consultationFee || 0,
+        hospitalAffiliation: doctor.currentHospital,
+        profileImageUrl: doctor.profileImageUrl,
+        isApproved: doctor.isApproved,
+        approvalStatus: doctor.approvalStatus,
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching doctor by QR:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/qr/uid/:uid', async (req, res) => {
+  try {
+    const { uid } = req.params;
+    console.log('🔍 Doctor QR Scan Request by UID:', uid);
+
+    const doctor = await Doctor.findOne({ uid });
+
+    if (!doctor) {
+      return res.status(404).json({ 
+        error: 'Doctor not found',
+        message: 'No doctor found with the provided UID'
+      });
+    }
+
+    // Return limited doctor info for QR scanning
+    res.json({
+      success: true,
+      type: 'doctor',
+      data: {
+        uid: doctor.uid,
+        arcId: doctor.arcId,
+        fullName: doctor.fullName,
+        email: doctor.email,
+        mobileNumber: doctor.mobileNumber,
+        specialization: doctor.specialization,
+        experienceYears: doctor.experienceYears || 0,
+        consultationFee: doctor.consultationFee || 0,
+        hospitalAffiliation: doctor.currentHospital,
+        profileImageUrl: doctor.profileImageUrl,
+        isApproved: doctor.isApproved,
+        approvalStatus: doctor.approvalStatus,
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching doctor by UID:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router; 
