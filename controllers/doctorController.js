@@ -754,6 +754,38 @@ const migrateSpecializations = async (req, res) => {
   }
 };
 
+// Debug endpoint to check all doctors and their specializations
+const debugSpecializations = async (req, res) => {
+  try {
+    console.log('🔍 Debug: Checking all doctors and their specializations...');
+    
+    const allDoctors = await Doctor.find({});
+    console.log(`📊 Total doctors in database: ${allDoctors.length}`);
+    
+    const debugData = allDoctors.map(doctor => ({
+      id: doctor._id,
+      name: doctor.fullName,
+      specialization: doctor.specialization,
+      specializations: doctor.specializations,
+      specializationsLength: doctor.specializations?.length || 0,
+      affiliatedHospitals: doctor.affiliatedHospitals,
+      hospitalAffiliation: doctor.hospitalAffiliation
+    }));
+    
+    res.json({
+      success: true,
+      totalDoctors: allDoctors.length,
+      doctors: debugData
+    });
+  } catch (error) {
+    console.error('❌ Debug error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Debug failed'
+    });
+  }
+};
+
 module.exports = {
   registerDoctor,
   getAllDoctors,
@@ -771,5 +803,6 @@ module.exports = {
   getPendingApprovalsForStaff,
   approveDoctorByStaff,
   rejectDoctorByStaff,
-  migrateSpecializations
+  migrateSpecializations,
+  debugSpecializations
 }; 
