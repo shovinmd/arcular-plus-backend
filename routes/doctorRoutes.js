@@ -110,7 +110,17 @@ router.get('/specialties', firebaseAuthMiddleware, async (req, res) => {
     
     const specialties = Array.from(specialtiesSet).sort();
     
+    console.log(`📊 Found ${doctors.length} doctors`);
     console.log(`✅ Found ${specialties.length} unique specialties:`, specialties);
+    
+    // Debug: Show sample doctors and their specializations
+    console.log('🔍 Sample doctors and their specializations:');
+    for (let i = 0; i < Math.min(3, doctors.length); i++) {
+      const doctor = doctors[i];
+      console.log(`  ${i + 1}. ${doctor.fullName}`);
+      console.log(`     - Specialization: ${doctor.specialization}`);
+      console.log(`     - Specializations: ${JSON.stringify(doctor.specializations)}`);
+    }
     
     res.json({
       success: true,

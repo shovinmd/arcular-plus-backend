@@ -664,6 +664,17 @@ const migrateSpecializations = async (req, res) => {
   try {
     console.log('🔄 Starting migration of doctor specializations...');
     
+    // First, let's see all doctors and their current specializations
+    const allDoctors = await Doctor.find({});
+    console.log(`📊 Total doctors in database: ${allDoctors.length}`);
+    
+    for (const doctor of allDoctors) {
+      console.log(`👨‍⚕️ Doctor: ${doctor.fullName}`);
+      console.log(`  - Specialization: ${doctor.specialization}`);
+      console.log(`  - Specializations: ${JSON.stringify(doctor.specializations)}`);
+      console.log(`  - Specializations length: ${doctor.specializations?.length}`);
+    }
+    
     // Find all doctors with empty specializations array
     const doctorsToUpdate = await Doctor.find({
       specializations: { $exists: true, $size: 0 }
