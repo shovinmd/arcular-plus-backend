@@ -798,16 +798,25 @@ const getApprovedHospitalsForAffiliation = async (req, res) => {
     console.log('🏥 Fetching approved hospitals for affiliation selection...');
     console.log('🔐 Auth status:', req.user ? 'Authenticated' : 'Public access');
     
-    // First try to find approved hospitals
+    // First try to find approved hospitals (including pending status if approved)
     let hospitals = await Hospital.find({
       isApproved: true,
       approvalStatus: 'approved',
-      status: 'active'
+      status: { $in: ['active', 'pending'] }
     })
     .select('_id hospitalName city state hospitalType address pincode longitude latitude')
     .sort({ hospitalName: 1 });
     
     console.log(`✅ Found ${hospitals.length} approved hospitals`);
+    
+    // Debug: Show sample hospitals
+    if (hospitals.length > 0) {
+      console.log('🔍 Sample approved hospitals:');
+      for (let i = 0; i < Math.min(3, hospitals.length); i++) {
+        const hospital = hospitals[i];
+        console.log(`  ${i + 1}. ${hospital.hospitalName} (Status: ${hospital.status || 'N/A'})`);
+      }
+    }
     
     // If no approved hospitals, try to find any hospitals with pending status
     if (hospitals.length === 0) {
