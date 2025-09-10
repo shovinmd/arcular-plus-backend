@@ -415,6 +415,7 @@ const approveLabByStaff = async (req, res) => {
     // Update approval status
     lab.isApproved = true;
     lab.approvalStatus = 'approved';
+    lab.status = 'active';
     lab.approvedAt = new Date();
     lab.approvedBy = approvedBy || 'staff';
     lab.approvalNotes = notes || 'Approved by staff';

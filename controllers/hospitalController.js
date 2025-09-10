@@ -617,6 +617,7 @@ const approveHospitalByStaff = async (req, res) => {
     // Update approval status
     hospital.isApproved = true;
     hospital.approvalStatus = 'approved';
+    hospital.status = 'active';
     hospital.approvedAt = new Date();
     hospital.approvedBy = approvedBy || 'staff';
     hospital.approvalNotes = notes || 'Approved by staff';

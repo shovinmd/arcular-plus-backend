@@ -467,6 +467,7 @@ const approvePharmacyByStaff = async (req, res) => {
     // Update approval status
     pharmacy.isApproved = true;
     pharmacy.approvalStatus = 'approved';
+    pharmacy.status = 'active';
     pharmacy.approvedAt = new Date();
     pharmacy.approvedBy = approvedBy || 'staff';
     pharmacy.approvalNotes = notes || 'Approved by staff';
