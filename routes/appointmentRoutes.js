@@ -17,6 +17,9 @@ router.get('/user/:userId', verifyFirebaseToken, appointmentController.getUserAp
 // Get doctor appointments
 router.get('/doctor', verifyFirebaseToken, appointmentController.getDoctorAppointments);
 
+// Get hospital appointments
+router.get('/hospital/:hospitalId', verifyFirebaseToken, appointmentController.getHospitalAppointments);
+
 // Update appointment status
 router.put('/:appointmentId/status', verifyFirebaseToken, appointmentController.updateAppointmentStatus);
 

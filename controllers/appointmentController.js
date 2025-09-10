@@ -291,6 +291,64 @@ const getDoctorAppointments = async (req, res) => {
   }
 };
 
+// Get hospital appointments
+const getHospitalAppointments = async (req, res) => {
+  try {
+    const { hospitalId } = req.params;
+    const firebaseUser = req.user;
+    
+    if (!firebaseUser || !firebaseUser.uid) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid Firebase user' 
+      });
+    }
+
+    const { status, date, page = 1, limit = 50 } = req.query;
+    const query = { hospitalId: hospitalId };
+
+    if (status) {
+      query.appointmentStatus = status;
+    }
+
+    if (date) {
+      const startDate = new Date(date);
+      const endDate = new Date(date);
+      endDate.setDate(endDate.getDate() + 1);
+      query.appointmentDate = { $gte: startDate, $lt: endDate };
+    }
+
+    console.log('🔍 Backend: Fetching hospital appointments for hospitalId:', hospitalId);
+    console.log('🔍 Backend: Query:', query);
+    
+    const appointments = await Appointment.find(query)
+      .sort({ appointmentDate: -1, appointmentTime: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await Appointment.countDocuments(query);
+    
+    console.log('🔍 Backend: Found appointments:', appointments.length, 'Total:', total);
+
+    res.json({
+      success: true,
+      data: appointments,
+      pagination: {
+        current: page,
+        pages: Math.ceil(total / limit),
+        total: total
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching hospital appointments:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch appointments'
+    });
+  }
+};
+
 // Update appointment status
 const updateAppointmentStatus = async (req, res) => {
   try {
@@ -668,6 +726,7 @@ module.exports = {
   getUserAppointments,
   getUserAppointmentsById,
   getDoctorAppointments,
+  getHospitalAppointments,
   updateAppointmentStatus,
   cancelAppointment,
   getAvailableTimeSlots
