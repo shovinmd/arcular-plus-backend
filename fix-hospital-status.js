@@ -2,9 +2,9 @@ const mongoose = require('mongoose');
 const Hospital = require('./models/Hospital');
 
 // Connect to MongoDB (production)
-const MONGODB_URI = 'mongodb+srv://arcularplus:arcularplus123@cluster0.8hqjq.mongodb.net/arcular_plus?retryWrites=true&w=majority';
+const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/arcular_plus';
 
-mongoose.connect(MONGODB_URI, {
+mongoose.connect(mongoURI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 });
