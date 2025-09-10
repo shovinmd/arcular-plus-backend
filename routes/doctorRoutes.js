@@ -126,6 +126,9 @@ router.get('/specialties', firebaseAuthMiddleware, async (req, res) => {
   }
 });
 
+// Migrate doctor specializations (temporary endpoint)
+router.post('/migrate-specializations', firebaseAuthMiddleware, doctorController.migrateSpecializations);
+
 // Get doctor by UID
 router.get('/uid/:uid', firebaseAuthMiddleware, doctorController.getDoctorByUID);
 

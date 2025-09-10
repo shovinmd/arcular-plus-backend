@@ -195,6 +195,17 @@ const getAllDoctors = async (req, res) => {
   try {
     const doctors = await Doctor.findActive();
     
+    // Debug: Check specializations field
+    console.log('🔍 Backend - Sample doctor data:');
+    if (doctors.length > 0) {
+      const sampleDoctor = doctors[0];
+      console.log('  - Name:', sampleDoctor.fullName);
+      console.log('  - Specialization:', sampleDoctor.specialization);
+      console.log('  - Specializations:', sampleDoctor.specializations);
+      console.log('  - Specializations type:', typeof sampleDoctor.specializations);
+      console.log('  - Specializations length:', sampleDoctor.specializations?.length);
+    }
+    
     // Add type field to each doctor
     const doctorsWithType = doctors.map(doctor => {
       const doctorData = doctor.toObject();
@@ -641,6 +652,53 @@ const rejectDoctorByStaff = async (req, res) => {
   }
 };
 
+// Migrate doctor specializations (temporary endpoint)
+const migrateSpecializations = async (req, res) => {
+  try {
+    console.log('🔄 Starting migration of doctor specializations...');
+    
+    // Find all doctors with empty specializations array
+    const doctorsToUpdate = await Doctor.find({
+      specializations: { $exists: true, $size: 0 }
+    });
+    
+    console.log(`📊 Found ${doctorsToUpdate.length} doctors with empty specializations`);
+    
+    let updatedCount = 0;
+    
+    for (const doctor of doctorsToUpdate) {
+      if (doctor.specialization && doctor.specialization.trim() !== '') {
+        // Update specializations array with primary specialization
+        await Doctor.findByIdAndUpdate(doctor._id, {
+          $set: {
+            specializations: [doctor.specialization]
+          }
+        });
+        
+        console.log(`✅ Updated doctor ${doctor.fullName}: ${doctor.specialization}`);
+        updatedCount++;
+      } else {
+        console.log(`⚠️  Skipped doctor ${doctor.fullName}: no primary specialization`);
+      }
+    }
+    
+    console.log(`🎉 Migration completed! Updated ${updatedCount} doctors`);
+    
+    res.json({
+      success: true,
+      message: `Migration completed! Updated ${updatedCount} doctors`,
+      updatedCount
+    });
+    
+  } catch (error) {
+    console.error('❌ Migration failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Migration failed'
+    });
+  }
+};
+
 module.exports = {
   registerDoctor,
   getAllDoctors,
@@ -657,5 +715,6 @@ module.exports = {
   rejectDoctor,
   getPendingApprovalsForStaff,
   approveDoctorByStaff,
-  rejectDoctorByStaff
+  rejectDoctorByStaff,
+  migrateSpecializations
 }; 
