@@ -81,14 +81,13 @@ router.get('/specialties', firebaseAuthMiddleware, async (req, res) => {
   try {
     console.log('🔍 Fetching all specialties...');
     
-    // Get all doctors and extract unique specialties
+    // Get all approved doctors
     const doctors = await Doctor.find({ 
       isApproved: true,
-      $or: [
-        { specialization: { $exists: true, $ne: null, $ne: '' } },
-        { specializations: { $exists: true, $not: { $size: 0 } } }
-      ]
+      status: 'active'
     });
+    
+    console.log(`📊 Found ${doctors.length} approved active doctors`);
     
     const specialtiesSet = new Set();
     

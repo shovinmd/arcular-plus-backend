@@ -675,12 +675,16 @@ const migrateSpecializations = async (req, res) => {
       console.log(`  - Specializations length: ${doctor.specializations?.length}`);
     }
     
-    // Find all doctors with empty specializations array
+    // Find all doctors that need specializations update
     const doctorsToUpdate = await Doctor.find({
-      specializations: { $exists: true, $size: 0 }
+      $or: [
+        { specializations: { $exists: true, $size: 0 } },
+        { specializations: { $exists: false } },
+        { specializations: null }
+      ]
     });
     
-    console.log(`📊 Found ${doctorsToUpdate.length} doctors with empty specializations`);
+    console.log(`📊 Found ${doctorsToUpdate.length} doctors that need specializations update`);
     
     let updatedCount = 0;
     
@@ -701,6 +705,35 @@ const migrateSpecializations = async (req, res) => {
         updatedCount++;
       } else {
         console.log(`⚠️  Skipped doctor ${doctor.fullName}: no primary specialization`);
+      }
+    }
+    
+    // Also check for doctors with specializations but missing primary specialization
+    const doctorsWithSpecializations = await Doctor.find({
+      specializations: { $exists: true, $not: { $size: 0 } },
+      $or: [
+        { specialization: { $exists: false } },
+        { specialization: null },
+        { specialization: '' }
+      ]
+    });
+    
+    console.log(`📊 Found ${doctorsWithSpecializations.length} doctors with specializations but no primary specialization`);
+    
+    for (const doctor of doctorsWithSpecializations) {
+      console.log(`👨‍⚕️ Processing doctor with specializations: ${doctor.fullName}`);
+      console.log(`  - Specializations: ${JSON.stringify(doctor.specializations)}`);
+      
+      if (doctor.specializations && doctor.specializations.length > 0) {
+        // Set primary specialization to first specialization
+        await Doctor.findByIdAndUpdate(doctor._id, {
+          $set: {
+            specialization: doctor.specializations[0]
+          }
+        });
+        
+        console.log(`✅ Updated doctor ${doctor.fullName} primary specialization: ${doctor.specializations[0]}`);
+        updatedCount++;
       }
     }
     
