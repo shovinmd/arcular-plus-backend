@@ -1137,63 +1137,6 @@ const getHospitalByUid = async (req, res) => {
   }
 };
 
-// Temporary endpoint to fix hospital statuses
-const fixHospitalStatuses = async (req, res) => {
-  try {
-    console.log('🔄 Starting hospital status fix...');
-    
-    // Find all hospitals that are approved but have pending status
-    const hospitalsToFix = await Hospital.find({
-      isApproved: true,
-      approvalStatus: 'approved',
-      status: 'pending'
-    });
-    
-    console.log(`📊 Found ${hospitalsToFix.length} hospitals with approved status but pending state`);
-    
-    let updatedCount = 0;
-    
-    for (const hospital of hospitalsToFix) {
-      console.log(`🏥 Fixing hospital: ${hospital.hospitalName} (${hospital.uid})`);
-      
-      // Update status to active
-      await Hospital.findByIdAndUpdate(hospital._id, {
-        $set: {
-          status: 'active'
-        }
-      });
-      
-      console.log(`✅ Updated hospital ${hospital.hospitalName} status to active`);
-      updatedCount++;
-    }
-    
-    console.log(`🎉 Fix completed! Updated ${updatedCount} hospitals`);
-    
-    // Verify the fix
-    const activeApprovedHospitals = await Hospital.find({
-      isApproved: true,
-      approvalStatus: 'approved',
-      status: 'active'
-    });
-    
-    console.log(`📊 Verification: ${activeApprovedHospitals.length} hospitals now have active status`);
-    
-    res.json({
-      success: true,
-      message: `Fixed ${updatedCount} hospitals`,
-      updatedCount,
-      totalActiveApproved: activeApprovedHospitals.length
-    });
-    
-  } catch (error) {
-    console.error('❌ Fix failed:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fix hospital statuses',
-      error: error.message
-    });
-  }
-};
 
 module.exports = {
   registerHospital,
@@ -1249,6 +1192,5 @@ module.exports = {
   getNotifications,
   updateSettings,
   getHospitalByQr,
-  getHospitalByUid,
-  fixHospitalStatuses
+  getHospitalByUid
 };

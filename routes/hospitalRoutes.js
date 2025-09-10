@@ -75,8 +75,6 @@ router.get('/:id/qr-records', firebaseAuthMiddleware, hospitalController.getQrRe
 router.get('/qr/:identifier', hospitalController.getHospitalByQr);
 router.get('/qr/uid/:uid', hospitalController.getHospitalByUid);
 
-// Temporary route to fix hospital statuses
-router.post('/fix-statuses', hospitalController.fixHospitalStatuses);
 
 // Analytics
 router.get('/:id/analytics', firebaseAuthMiddleware, hospitalController.getAnalytics);
