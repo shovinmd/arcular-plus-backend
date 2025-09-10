@@ -402,6 +402,22 @@ const updateAppointmentStatus = async (req, res) => {
       });
     }
 
+    // Send email notification based on status
+    try {
+      if (status === 'confirmed') {
+        await sendAppointmentConfirmationEmail(appointment);
+      } else if (status === 'cancelled') {
+        await sendAppointmentCancellationEmails(appointment);
+      } else if (status === 'completed') {
+        await sendAppointmentCompletionEmail(appointment);
+      } else if (status === 'rescheduled') {
+        await sendAppointmentRescheduleEmail(appointment);
+      }
+    } catch (emailError) {
+      console.error('Error sending email notification:', emailError);
+      // Don't fail the request if email fails
+    }
+
     res.json({
       success: true,
       message: 'Appointment status updated successfully',
@@ -718,6 +734,108 @@ const cancelAppointment = async (req, res) => {
       success: false,
       error: 'Failed to cancel appointment'
     });
+  }
+};
+
+// Send appointment completion email
+const sendAppointmentCompletionEmail = async (appointment) => {
+  try {
+    // Skip silently if email creds are not configured
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      return;
+    }
+
+    const transporter = nodemailer.createTransporter({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      }
+    });
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: appointment.userEmail,
+      subject: 'Appointment Completed - Arcular Plus',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #27ae60;">Appointment Completed</h2>
+          
+          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3>Appointment Details</h3>
+            <p><strong>Appointment ID:</strong> ${appointment.appointmentId}</p>
+            <p><strong>Doctor:</strong> Dr. ${appointment.doctorName}</p>
+            <p><strong>Specialization:</strong> ${appointment.doctorSpecialization}</p>
+            <p><strong>Hospital:</strong> ${appointment.hospitalName}</p>
+            <p><strong>Date:</strong> ${appointment.appointmentDate.toDateString()}</p>
+            <p><strong>Time:</strong> ${appointment.appointmentTime}</p>
+            <p><strong>Status:</strong> <span style="color: #27ae60; font-weight: bold;">COMPLETED</span></p>
+          </div>
+          
+          <p>Thank you for choosing Arcular Plus. We hope your appointment was helpful!</p>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="https://arcular-plus.onrender.com" style="background-color: #32CCBC; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px;">Visit Arcular Plus</a>
+          </div>
+        </div>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log('Appointment completion email sent successfully');
+  } catch (error) {
+    console.error('Error sending appointment completion email:', error);
+  }
+};
+
+// Send appointment reschedule email
+const sendAppointmentRescheduleEmail = async (appointment) => {
+  try {
+    // Skip silently if email creds are not configured
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      return;
+    }
+
+    const transporter = nodemailer.createTransporter({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      }
+    });
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: appointment.userEmail,
+      subject: 'Appointment Rescheduled - Arcular Plus',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #f39c12;">Appointment Rescheduled</h2>
+          
+          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3>Appointment Details</h3>
+            <p><strong>Appointment ID:</strong> ${appointment.appointmentId}</p>
+            <p><strong>Doctor:</strong> Dr. ${appointment.doctorName}</p>
+            <p><strong>Specialization:</strong> ${appointment.doctorSpecialization}</p>
+            <p><strong>Hospital:</strong> ${appointment.hospitalName}</p>
+            <p><strong>Date:</strong> ${appointment.appointmentDate.toDateString()}</p>
+            <p><strong>Time:</strong> ${appointment.appointmentTime}</p>
+            <p><strong>Status:</strong> <span style="color: #f39c12; font-weight: bold;">RESCHEDULED</span></p>
+          </div>
+          
+          <p>Your appointment has been rescheduled. Please contact us if you have any questions.</p>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="https://arcular-plus.onrender.com" style="background-color: #32CCBC; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px;">Visit Arcular Plus</a>
+          </div>
+        </div>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log('Appointment reschedule email sent successfully');
+  } catch (error) {
+    console.error('Error sending appointment reschedule email:', error);
   }
 };
 
