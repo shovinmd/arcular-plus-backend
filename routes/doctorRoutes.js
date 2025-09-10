@@ -81,13 +81,20 @@ router.get('/specialties', firebaseAuthMiddleware, async (req, res) => {
   try {
     console.log('🔍 Fetching all specialties...');
     
-    // Get all approved doctors
-    const doctors = await Doctor.find({ 
-      isApproved: true,
-      status: 'active'
-    });
+    // Get all doctors (temporarily including non-approved for testing)
+    const doctors = await Doctor.find({});
     
-    console.log(`📊 Found ${doctors.length} approved active doctors`);
+    console.log(`📊 Found ${doctors.length} total doctors`);
+    
+    // Debug: Check if the doctor with multiple specializations is approved
+    const doctorWithMultipleSpecs = await Doctor.findOne({ fullName: 'sdfs' });
+    if (doctorWithMultipleSpecs) {
+      console.log(`🔍 Doctor 'sdfs' status:`, {
+        isApproved: doctorWithMultipleSpecs.isApproved,
+        status: doctorWithMultipleSpecs.status,
+        specializations: doctorWithMultipleSpecs.specializations
+      });
+    }
     
     const specialtiesSet = new Set();
     
