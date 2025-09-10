@@ -76,6 +76,56 @@ router.post('/register', firebaseAuthMiddleware, async (req, res) => {
 // Get all doctors
 router.get('/', firebaseAuthMiddleware, doctorController.getAllDoctors);
 
+// Get all specialties
+router.get('/specialties', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    console.log('🔍 Fetching all specialties...');
+    
+    // Get all doctors and extract unique specialties
+    const doctors = await Doctor.find({ 
+      isApproved: true,
+      $or: [
+        { specialization: { $exists: true, $ne: null, $ne: '' } },
+        { specializations: { $exists: true, $not: { $size: 0 } } }
+      ]
+    });
+    
+    const specialtiesSet = new Set();
+    
+    doctors.forEach(doctor => {
+      // Add single specialization
+      if (doctor.specialization && doctor.specialization.trim()) {
+        specialtiesSet.add(doctor.specialization.trim());
+      }
+      
+      // Add multiple specializations
+      if (doctor.specializations && Array.isArray(doctor.specializations)) {
+        doctor.specializations.forEach(spec => {
+          if (spec && spec.trim()) {
+            specialtiesSet.add(spec.trim());
+          }
+        });
+      }
+    });
+    
+    const specialties = Array.from(specialtiesSet).sort();
+    
+    console.log(`✅ Found ${specialties.length} unique specialties:`, specialties);
+    
+    res.json({
+      success: true,
+      data: specialties
+    });
+  } catch (error) {
+    console.error('❌ Error fetching specialties:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to fetch specialties',
+      details: error.message 
+    });
+  }
+});
+
 // Get doctor by UID
 router.get('/uid/:uid', firebaseAuthMiddleware, doctorController.getDoctorByUID);
 
