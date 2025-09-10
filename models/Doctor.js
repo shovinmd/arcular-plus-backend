@@ -19,7 +19,10 @@ const DoctorSchema = new mongoose.Schema({
   // Professional Information
   medicalRegistrationNumber: { type: String, required: true, unique: true },
   licenseNumber: { type: String, required: true, unique: true },
+  // Primary specialization kept for backward compatibility
   specialization: { type: String, required: true },
+  // New: support multiple specializations without breaking existing logic
+  specializations: { type: [String], default: [] },
   experienceYears: { type: Number, required: true },
   consultationFee: { type: Number, required: true },
   education: String,
@@ -91,7 +94,10 @@ DoctorSchema.statics.findByHospital = function(hospitalId) {
 // Static method to find doctors by specialization
 DoctorSchema.statics.findBySpecialization = function(specialization) {
   return this.find({ 
-    specialization, 
+    $or: [
+      { specialization },
+      { specializations: specialization }
+    ],
     status: 'active',
     isApproved: true 
   }).sort({ fullName: 1 });
@@ -113,6 +119,7 @@ DoctorSchema.statics.search = function(searchTerm) {
     $or: [
       { fullName: { $regex: searchTerm, $options: 'i' } },
       { specialization: { $regex: searchTerm, $options: 'i' } },
+      { specializations: { $regex: searchTerm, $options: 'i' } },
       { education: { $regex: searchTerm, $options: 'i' } }
     ]
   }).sort({ fullName: 1 });
