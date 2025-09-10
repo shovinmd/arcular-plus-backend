@@ -9,6 +9,9 @@ const registerDoctor = async (req, res) => {
     console.log('🏥 Doctor registration request:', req.body);
     console.log('🔍 Extracted licenseNumber:', req.body.licenseNumber);
     console.log('🔍 Extracted licenseNumber type:', typeof req.body.licenseNumber);
+    console.log('🔍 Specialization:', req.body.specialization);
+    console.log('🔍 Specializations:', req.body.specializations);
+    console.log('🔍 Specializations type:', typeof req.body.specializations);
     
     const {
       uid,
@@ -153,6 +156,10 @@ const registerDoctor = async (req, res) => {
     await doctor.save();
 
     console.log('✅ Doctor registered successfully:', doctor._id);
+    console.log('🔍 Saved doctor specialization:', doctor.specialization);
+    console.log('🔍 Saved doctor specializations:', doctor.specializations);
+    console.log('🔍 Saved doctor specializations type:', typeof doctor.specializations);
+    console.log('🔍 Saved doctor specializations length:', doctor.specializations?.length);
 
     // Send registration confirmation email
     try {
@@ -667,6 +674,10 @@ const migrateSpecializations = async (req, res) => {
     let updatedCount = 0;
     
     for (const doctor of doctorsToUpdate) {
+      console.log(`👨‍⚕️ Processing doctor: ${doctor.fullName}`);
+      console.log(`  - Specialization: ${doctor.specialization}`);
+      console.log(`  - Specializations: ${JSON.stringify(doctor.specializations)}`);
+      
       if (doctor.specialization && doctor.specialization.trim() !== '') {
         // Update specializations array with primary specialization
         await Doctor.findByIdAndUpdate(doctor._id, {
