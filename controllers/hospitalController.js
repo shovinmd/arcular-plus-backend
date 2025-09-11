@@ -606,7 +606,21 @@ const approveHospitalByStaff = async (req, res) => {
     const { hospitalId } = req.params;
     const { approvedBy, notes } = req.body;
     
-    const hospital = await Hospital.findById(hospitalId);
+    // Allow approval by either Mongo _id or Firebase UID
+    let hospital = null;
+    try {
+      const mongoose = require('mongoose');
+      if (mongoose.isValidObjectId(hospitalId)) {
+        hospital = await Hospital.findById(hospitalId);
+      }
+      if (!hospital) {
+        hospital = await Hospital.findOne({ uid: hospitalId });
+      }
+    } catch (_) {
+      // Fallback: UID lookup
+      hospital = await Hospital.findOne({ uid: hospitalId });
+    }
+    
     if (!hospital) {
       return res.status(404).json({
         success: false,
@@ -614,7 +628,7 @@ const approveHospitalByStaff = async (req, res) => {
       });
     }
 
-    // Update approval status
+    // Update approval fields (only these as requested)
     hospital.isApproved = true;
     hospital.approvalStatus = 'approved';
     hospital.status = 'active';
@@ -624,7 +638,7 @@ const approveHospitalByStaff = async (req, res) => {
     
     await hospital.save();
 
-    // Send approval email
+    // Send approval email (best-effort)
     try {
       await sendApprovalEmail(hospital.email, hospital.hospitalName, 'hospital', true, notes);
       console.log('✅ Approval email sent to hospital');
@@ -635,7 +649,15 @@ const approveHospitalByStaff = async (req, res) => {
     res.json({
       success: true,
       message: 'Hospital approved successfully',
-      data: hospital
+      data: {
+        _id: hospital._id,
+        uid: hospital.uid,
+        isApproved: hospital.isApproved,
+        approvalStatus: hospital.approvalStatus,
+        status: hospital.status,
+        approvedAt: hospital.approvedAt,
+        approvedBy: hospital.approvedBy,
+      }
     });
   } catch (error) {
     console.error('Error approving hospital by staff:', error);
