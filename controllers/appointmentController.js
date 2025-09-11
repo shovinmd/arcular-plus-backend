@@ -802,7 +802,13 @@ const rescheduleAppointmentByHospital = async (req, res) => {
     const { appointmentId } = req.params;
     const { newDate, newTime, reason } = req.body;
 
-    const appointment = await Appointment.findById(appointmentId);
+    let appointment = null;
+    if (mongoose.isValidObjectId(appointmentId)) {
+      appointment = await Appointment.findById(appointmentId);
+    }
+    if (!appointment) {
+      appointment = await Appointment.findOne({ appointmentId });
+    }
     if (!appointment) {
       return res.status(404).json({
         success: false,
@@ -819,8 +825,12 @@ const rescheduleAppointmentByHospital = async (req, res) => {
 
     await appointment.save();
 
-    // Send notification to patient
-    await sendAppointmentRescheduleEmail(appointment);
+    // Send notification to patient (non-blocking)
+    try {
+      await sendAppointmentRescheduleEmail(appointment);
+    } catch (mailErr) {
+      console.error('Reschedule: email send failed (non-blocking):', mailErr);
+    }
 
     res.json({
       success: true,
@@ -843,7 +853,13 @@ const cancelAppointmentByHospital = async (req, res) => {
     const { appointmentId } = req.params;
     const { reason } = req.body;
 
-    const appointment = await Appointment.findById(appointmentId);
+    let appointment = null;
+    if (mongoose.isValidObjectId(appointmentId)) {
+      appointment = await Appointment.findById(appointmentId);
+    }
+    if (!appointment) {
+      appointment = await Appointment.findOne({ appointmentId });
+    }
     if (!appointment) {
       return res.status(404).json({
         success: false,
@@ -858,8 +874,12 @@ const cancelAppointmentByHospital = async (req, res) => {
 
     await appointment.save();
 
-    // Send notification to patient
-    await sendAppointmentCancellationEmail(appointment);
+    // Send notification to patient (non-blocking)
+    try {
+      await sendAppointmentCancellationEmail(appointment);
+    } catch (mailErr) {
+      console.error('Cancel: email send failed (non-blocking):', mailErr);
+    }
 
     res.json({
       success: true,
@@ -882,7 +902,13 @@ const completeAppointment = async (req, res) => {
     const { appointmentId } = req.params;
     const { billAmount, notes } = req.body;
 
-    const appointment = await Appointment.findById(appointmentId);
+    let appointment = null;
+    if (mongoose.isValidObjectId(appointmentId)) {
+      appointment = await Appointment.findById(appointmentId);
+    }
+    if (!appointment) {
+      appointment = await Appointment.findOne({ appointmentId });
+    }
     if (!appointment) {
       return res.status(404).json({
         success: false,
@@ -919,8 +945,12 @@ const completeAppointment = async (req, res) => {
 
     await healthRecord.save();
 
-    // Send completion email with payment details
-    await sendAppointmentCompletionEmail(appointment, billAmount);
+    // Send completion email with payment details (non-blocking)
+    try {
+      await sendAppointmentCompletionEmail(appointment, billAmount);
+    } catch (mailErr) {
+      console.error('Complete: email send failed (non-blocking):', mailErr);
+    }
 
     // Delete the appointment from appointments collection
     await Appointment.findByIdAndDelete(appointmentId);
