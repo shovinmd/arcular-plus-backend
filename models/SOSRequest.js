@@ -92,8 +92,7 @@ const SOSRequestSchema = new mongoose.Schema({
   acceptedBy: {
     hospitalId: {
       type: String,
-      required: false,
-      index: true
+      required: false
     },
     hospitalName: {
       type: String,

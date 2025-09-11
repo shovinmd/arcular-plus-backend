@@ -536,4 +536,3 @@ module.exports = {
   rejectNurseByStaff,
   getNursesByAffiliation,
 }; 
-}; 

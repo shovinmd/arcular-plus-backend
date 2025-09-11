@@ -627,4 +627,3 @@ module.exports = {
   rejectPharmacyByStaff,
   getPharmaciesByAffiliation,
 }; 
-}; 

@@ -743,4 +743,3 @@ module.exports = {
   rejectDoctorByStaff,
   getDoctorsByAffiliation,
 }; 
-}; 
