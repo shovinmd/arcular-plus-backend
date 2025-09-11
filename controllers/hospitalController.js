@@ -603,7 +603,7 @@ const getPendingApprovalsForStaff = async (req, res) => {
 // Approve hospital by staff
 const approveHospitalByStaff = async (req, res) => {
   try {
-    const { hospitalId } = req.params;
+    const hospitalId = req.params.hospitalId || req.params.uid;
     const { approvedBy, notes } = req.body;
     const staffUid = (req.user && req.user.uid) ? req.user.uid : undefined;
     console.log('🛠️ Staff approval request:', { hospitalId, approvedBy, staffUid });
