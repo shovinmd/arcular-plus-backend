@@ -573,42 +573,76 @@ const approveDoctorByStaff = async (req, res) => {
     const { doctorId } = req.params;
     const { approvedBy, notes } = req.body;
     
-    const doctor = await Doctor.findById(doctorId);
+    console.log(`🔍 Approving doctor with ID: ${doctorId}`);
+    console.log(`📝 Approval notes: ${notes}`);
+    console.log(`👤 Approved by: ${approvedBy}`);
+    
+    // Try to find doctor by either Mongo _id or Firebase uid
+    let doctor = await Doctor.findById(doctorId);
     if (!doctor) {
+      doctor = await Doctor.findOne({ uid: doctorId });
+    }
+    
+    if (!doctor) {
+      console.log(`❌ Doctor not found with ID: ${doctorId}`);
       return res.status(404).json({
         success: false,
         error: 'Doctor not found'
       });
     }
 
-    // Update approval status
-    doctor.isApproved = true;
-    doctor.approvalStatus = 'approved';
-    doctor.status = 'active';
-    doctor.approvedAt = new Date();
-    doctor.approvedBy = approvedBy || 'staff';
-    doctor.approvalNotes = notes || 'Approved by staff';
-    
-    await doctor.save();
+    console.log(`✅ Found doctor: ${doctor.fullName} (${doctor.email})`);
+    console.log(`📊 Current status: ${doctor.status}, isApproved: ${doctor.isApproved}, approvalStatus: ${doctor.approvalStatus}`);
 
-    // Send approval email
-    try {
-      await sendApprovalEmail(doctor.email, doctor.fullName, 'doctor', true, notes);
-      console.log('✅ Approval email sent to doctor');
-    } catch (emailError) {
-      console.error('❌ Error sending approval email:', emailError);
+    // Update approval status (make idempotent)
+    const wasAlreadyApproved = doctor.isApproved && doctor.approvalStatus === 'approved' && doctor.status === 'active';
+    
+    if (!wasAlreadyApproved) {
+      doctor.isApproved = true;
+      doctor.approvalStatus = 'approved';
+      doctor.status = 'active';
+      doctor.approvedAt = new Date();
+      doctor.approvedBy = approvedBy || 'staff';
+      doctor.approvalNotes = notes || 'Approved by staff';
+      
+      await doctor.save();
+      console.log(`✅ Doctor approval status updated successfully`);
+    } else {
+      console.log(`ℹ️ Doctor was already approved, no changes made`);
+    }
+
+    // Send approval email (only if not already approved)
+    if (!wasAlreadyApproved) {
+      try {
+        await sendApprovalEmail(doctor.email, doctor.fullName, 'doctor', true, notes);
+        console.log('✅ Approval email sent to doctor');
+      } catch (emailError) {
+        console.error('❌ Error sending approval email:', emailError);
+        // Don't fail the request if email fails
+      }
     }
     
     res.json({
       success: true,
-      message: 'Doctor approved successfully',
-      data: doctor
+      message: wasAlreadyApproved ? 'Doctor was already approved' : 'Doctor approved successfully',
+      data: {
+        _id: doctor._id,
+        uid: doctor.uid,
+        fullName: doctor.fullName,
+        email: doctor.email,
+        status: doctor.status,
+        isApproved: doctor.isApproved,
+        approvalStatus: doctor.approvalStatus,
+        approvedAt: doctor.approvedAt,
+        approvedBy: doctor.approvedBy
+      }
     });
   } catch (error) {
-    console.error('Error approving doctor by staff:', error);
+    console.error('❌ Error approving doctor by staff:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to approve doctor'
+      error: 'Failed to approve doctor',
+      details: error.message
     });
   }
 };

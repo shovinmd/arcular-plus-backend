@@ -456,42 +456,76 @@ const approvePharmacyByStaff = async (req, res) => {
     const { pharmacyId } = req.params;
     const { approvedBy, notes } = req.body;
     
-    const pharmacy = await Pharmacy.findById(pharmacyId);
+    console.log(`🔍 Approving pharmacy with ID: ${pharmacyId}`);
+    console.log(`📝 Approval notes: ${notes}`);
+    console.log(`👤 Approved by: ${approvedBy}`);
+    
+    // Try to find pharmacy by either Mongo _id or Firebase uid
+    let pharmacy = await Pharmacy.findById(pharmacyId);
     if (!pharmacy) {
+      pharmacy = await Pharmacy.findOne({ uid: pharmacyId });
+    }
+    
+    if (!pharmacy) {
+      console.log(`❌ Pharmacy not found with ID: ${pharmacyId}`);
       return res.status(404).json({
         success: false,
         error: 'Pharmacy not found'
       });
     }
 
-    // Update approval status
-    pharmacy.isApproved = true;
-    pharmacy.approvalStatus = 'approved';
-    pharmacy.status = 'active';
-    pharmacy.approvedAt = new Date();
-    pharmacy.approvedBy = approvedBy || 'staff';
-    pharmacy.approvalNotes = notes || 'Approved by staff';
-    
-    await pharmacy.save();
+    console.log(`✅ Found pharmacy: ${pharmacy.pharmacyName} (${pharmacy.email})`);
+    console.log(`📊 Current status: ${pharmacy.status}, isApproved: ${pharmacy.isApproved}, approvalStatus: ${pharmacy.approvalStatus}`);
 
-    // Send approval email
-    try {
-      await sendApprovalEmail(pharmacy.email, pharmacy.pharmacyName, 'pharmacy', true, notes);
-      console.log('✅ Approval email sent to pharmacy');
-    } catch (emailError) {
-      console.error('❌ Error sending approval email:', emailError);
+    // Update approval status (make idempotent)
+    const wasAlreadyApproved = pharmacy.isApproved && pharmacy.approvalStatus === 'approved' && pharmacy.status === 'active';
+    
+    if (!wasAlreadyApproved) {
+      pharmacy.isApproved = true;
+      pharmacy.approvalStatus = 'approved';
+      pharmacy.status = 'active';
+      pharmacy.approvedAt = new Date();
+      pharmacy.approvedBy = approvedBy || 'staff';
+      pharmacy.approvalNotes = notes || 'Approved by staff';
+      
+      await pharmacy.save();
+      console.log(`✅ Pharmacy approval status updated successfully`);
+    } else {
+      console.log(`ℹ️ Pharmacy was already approved, no changes made`);
+    }
+
+    // Send approval email (only if not already approved)
+    if (!wasAlreadyApproved) {
+      try {
+        await sendApprovalEmail(pharmacy.email, pharmacy.pharmacyName, 'pharmacy', true, notes);
+        console.log('✅ Approval email sent to pharmacy');
+      } catch (emailError) {
+        console.error('❌ Error sending approval email:', emailError);
+        // Don't fail the request if email fails
+      }
     }
     
     res.json({
       success: true,
-      message: 'Pharmacy approved successfully',
-      data: pharmacy
+      message: wasAlreadyApproved ? 'Pharmacy was already approved' : 'Pharmacy approved successfully',
+      data: {
+        _id: pharmacy._id,
+        uid: pharmacy.uid,
+        pharmacyName: pharmacy.pharmacyName,
+        email: pharmacy.email,
+        status: pharmacy.status,
+        isApproved: pharmacy.isApproved,
+        approvalStatus: pharmacy.approvalStatus,
+        approvedAt: pharmacy.approvedAt,
+        approvedBy: pharmacy.approvedBy
+      }
     });
   } catch (error) {
-    console.error('Error approving pharmacy by staff:', error);
+    console.error('❌ Error approving pharmacy by staff:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to approve pharmacy'
+      error: 'Failed to approve pharmacy',
+      details: error.message
     });
   }
 };

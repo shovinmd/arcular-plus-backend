@@ -368,42 +368,76 @@ const approveNurseByStaff = async (req, res) => {
     const { nurseId } = req.params;
     const { approvedBy, notes } = req.body;
     
-    const nurse = await Nurse.findById(nurseId);
+    console.log(`🔍 Approving nurse with ID: ${nurseId}`);
+    console.log(`📝 Approval notes: ${notes}`);
+    console.log(`👤 Approved by: ${approvedBy}`);
+    
+    // Try to find nurse by either Mongo _id or Firebase uid
+    let nurse = await Nurse.findById(nurseId);
     if (!nurse) {
+      nurse = await Nurse.findOne({ uid: nurseId });
+    }
+    
+    if (!nurse) {
+      console.log(`❌ Nurse not found with ID: ${nurseId}`);
       return res.status(404).json({
         success: false,
         error: 'Nurse not found'
       });
     }
 
-    // Update approval status
-    nurse.isApproved = true;
-    nurse.approvalStatus = 'approved';
-    nurse.status = 'active';
-    nurse.approvedAt = new Date();
-    nurse.approvedBy = approvedBy || 'staff';
-    nurse.approvalNotes = notes || 'Approved by staff';
-    
-    await nurse.save();
+    console.log(`✅ Found nurse: ${nurse.fullName} (${nurse.email})`);
+    console.log(`📊 Current status: ${nurse.status}, isApproved: ${nurse.isApproved}, approvalStatus: ${nurse.approvalStatus}`);
 
-    // Send approval email
-    try {
-      await sendApprovalEmail(nurse.email, nurse.fullName, 'nurse', true, notes);
-      console.log('✅ Approval email sent to nurse');
-    } catch (emailError) {
-      console.error('❌ Error sending approval email:', emailError);
+    // Update approval status (make idempotent)
+    const wasAlreadyApproved = nurse.isApproved && nurse.approvalStatus === 'approved' && nurse.status === 'active';
+    
+    if (!wasAlreadyApproved) {
+      nurse.isApproved = true;
+      nurse.approvalStatus = 'approved';
+      nurse.status = 'active';
+      nurse.approvedAt = new Date();
+      nurse.approvedBy = approvedBy || 'staff';
+      nurse.approvalNotes = notes || 'Approved by staff';
+      
+      await nurse.save();
+      console.log(`✅ Nurse approval status updated successfully`);
+    } else {
+      console.log(`ℹ️ Nurse was already approved, no changes made`);
+    }
+
+    // Send approval email (only if not already approved)
+    if (!wasAlreadyApproved) {
+      try {
+        await sendApprovalEmail(nurse.email, nurse.fullName, 'nurse', true, notes);
+        console.log('✅ Approval email sent to nurse');
+      } catch (emailError) {
+        console.error('❌ Error sending approval email:', emailError);
+        // Don't fail the request if email fails
+      }
     }
     
     res.json({
       success: true,
-      message: 'Nurse approved successfully',
-      data: nurse
+      message: wasAlreadyApproved ? 'Nurse was already approved' : 'Nurse approved successfully',
+      data: {
+        _id: nurse._id,
+        uid: nurse.uid,
+        fullName: nurse.fullName,
+        email: nurse.email,
+        status: nurse.status,
+        isApproved: nurse.isApproved,
+        approvalStatus: nurse.approvalStatus,
+        approvedAt: nurse.approvedAt,
+        approvedBy: nurse.approvedBy
+      }
     });
   } catch (error) {
-    console.error('Error approving nurse by staff:', error);
+    console.error('❌ Error approving nurse by staff:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to approve nurse'
+      error: 'Failed to approve nurse',
+      details: error.message
     });
   }
 };

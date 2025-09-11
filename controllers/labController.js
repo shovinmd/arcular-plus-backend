@@ -404,42 +404,76 @@ const approveLabByStaff = async (req, res) => {
     const { labId } = req.params;
     const { approvedBy, notes } = req.body;
     
-    const lab = await Lab.findById(labId);
+    console.log(`🔍 Approving lab with ID: ${labId}`);
+    console.log(`📝 Approval notes: ${notes}`);
+    console.log(`👤 Approved by: ${approvedBy}`);
+    
+    // Try to find lab by either Mongo _id or Firebase uid
+    let lab = await Lab.findById(labId);
     if (!lab) {
+      lab = await Lab.findOne({ uid: labId });
+    }
+    
+    if (!lab) {
+      console.log(`❌ Lab not found with ID: ${labId}`);
       return res.status(404).json({
         success: false,
         error: 'Lab not found'
       });
     }
 
-    // Update approval status
-    lab.isApproved = true;
-    lab.approvalStatus = 'approved';
-    lab.status = 'active';
-    lab.approvedAt = new Date();
-    lab.approvedBy = approvedBy || 'staff';
-    lab.approvalNotes = notes || 'Approved by staff';
-    
-    await lab.save();
+    console.log(`✅ Found lab: ${lab.labName} (${lab.email})`);
+    console.log(`📊 Current status: ${lab.status}, isApproved: ${lab.isApproved}, approvalStatus: ${lab.approvalStatus}`);
 
-    // Send approval email
-    try {
-      await sendApprovalEmail(lab.email, lab.labName, 'lab', true, notes);
-      console.log('✅ Approval email sent to lab');
-    } catch (emailError) {
-      console.error('❌ Error sending approval email:', emailError);
+    // Update approval status (make idempotent)
+    const wasAlreadyApproved = lab.isApproved && lab.approvalStatus === 'approved' && lab.status === 'active';
+    
+    if (!wasAlreadyApproved) {
+      lab.isApproved = true;
+      lab.approvalStatus = 'approved';
+      lab.status = 'active';
+      lab.approvedAt = new Date();
+      lab.approvedBy = approvedBy || 'staff';
+      lab.approvalNotes = notes || 'Approved by staff';
+      
+      await lab.save();
+      console.log(`✅ Lab approval status updated successfully`);
+    } else {
+      console.log(`ℹ️ Lab was already approved, no changes made`);
+    }
+
+    // Send approval email (only if not already approved)
+    if (!wasAlreadyApproved) {
+      try {
+        await sendApprovalEmail(lab.email, lab.labName, 'lab', true, notes);
+        console.log('✅ Approval email sent to lab');
+      } catch (emailError) {
+        console.error('❌ Error sending approval email:', emailError);
+        // Don't fail the request if email fails
+      }
     }
     
     res.json({
       success: true,
-      message: 'Lab approved successfully',
-      data: lab
+      message: wasAlreadyApproved ? 'Lab was already approved' : 'Lab approved successfully',
+      data: {
+        _id: lab._id,
+        uid: lab.uid,
+        labName: lab.labName,
+        email: lab.email,
+        status: lab.status,
+        isApproved: lab.isApproved,
+        approvalStatus: lab.approvalStatus,
+        approvedAt: lab.approvedAt,
+        approvedBy: lab.approvedBy
+      }
     });
   } catch (error) {
-    console.error('Error approving lab by staff:', error);
+    console.error('❌ Error approving lab by staff:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to approve lab'
+      error: 'Failed to approve lab',
+      details: error.message
     });
   }
 };
