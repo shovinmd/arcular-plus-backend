@@ -605,26 +605,46 @@ const approveHospitalByStaff = async (req, res) => {
   try {
     const { hospitalId } = req.params;
     const { approvedBy, notes } = req.body;
+    const staffUid = (req.user && req.user.uid) ? req.user.uid : undefined;
+    console.log('🛠️ Staff approval request:', { hospitalId, approvedBy, staffUid });
     
     // Allow approval by either Mongo _id or Firebase UID
     let hospital = null;
     try {
       const mongoose = require('mongoose');
-      if (mongoose.isValidObjectId(hospitalId)) {
+      const isObjectId = mongoose.isValidObjectId(hospitalId);
+      console.log('🔎 Lookup strategy:', isObjectId ? 'by _id' : 'by uid');
+      if (isObjectId) {
         hospital = await Hospital.findById(hospitalId);
       }
       if (!hospital) {
         hospital = await Hospital.findOne({ uid: hospitalId });
       }
-    } catch (_) {
-      // Fallback: UID lookup
+    } catch (lookupErr) {
+      console.error('❌ Lookup error, trying uid fallback:', lookupErr);
       hospital = await Hospital.findOne({ uid: hospitalId });
     }
     
     if (!hospital) {
-      return res.status(404).json({
-        success: false,
-        error: 'Hospital not found'
+      console.log('❌ Hospital not found for approval:', hospitalId);
+      return res.status(404).json({ success: false, error: 'Hospital not found' });
+    }
+
+    // If already approved/active, no-op to idempotently succeed
+    if (hospital.isApproved === true && hospital.approvalStatus === 'approved' && hospital.status === 'active') {
+      console.log('ℹ️ Hospital already approved/active, returning success');
+      return res.json({
+        success: true,
+        message: 'Hospital already approved',
+        data: {
+          _id: hospital._id,
+          uid: hospital.uid,
+          isApproved: hospital.isApproved,
+          approvalStatus: hospital.approvalStatus,
+          status: hospital.status,
+          approvedAt: hospital.approvedAt,
+          approvedBy: hospital.approvedBy,
+        }
       });
     }
 
@@ -633,20 +653,21 @@ const approveHospitalByStaff = async (req, res) => {
     hospital.approvalStatus = 'approved';
     hospital.status = 'active';
     hospital.approvedAt = new Date();
-    hospital.approvedBy = approvedBy || 'staff';
+    hospital.approvedBy = approvedBy || staffUid || 'staff';
     hospital.approvalNotes = notes || 'Approved by staff';
-    
+
     await hospital.save();
+    console.log('✅ Hospital approved and saved:', { id: hospital._id, uid: hospital.uid });
 
     // Send approval email (best-effort)
     try {
       await sendApprovalEmail(hospital.email, hospital.hospitalName, 'hospital', true, notes);
-      console.log('✅ Approval email sent to hospital');
+      console.log('📧 Approval email sent to hospital');
     } catch (emailError) {
       console.error('❌ Error sending approval email:', emailError);
     }
     
-    res.json({
+    return res.json({
       success: true,
       message: 'Hospital approved successfully',
       data: {
@@ -660,10 +681,11 @@ const approveHospitalByStaff = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error approving hospital by staff:', error);
-    res.status(500).json({
+    console.error('❌ Error approving hospital by staff:', error);
+    return res.status(500).json({
       success: false,
-      error: 'Failed to approve hospital'
+      error: 'Failed to approve hospital',
+      details: error && error.message ? error.message : String(error)
     });
   }
 };
