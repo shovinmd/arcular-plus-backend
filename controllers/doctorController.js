@@ -776,6 +776,57 @@ const associateDoctorByArcId = async (req, res) => {
   }
 };
 
+const removeDoctorAssociation = async (req, res) => {
+  try {
+    const firebaseUser = req.user;
+    if (!firebaseUser || !firebaseUser.uid) {
+      return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+
+    const { doctorId } = req.params;
+    if (!doctorId) {
+      return res.status(400).json({ success: false, error: 'doctorId is required' });
+    }
+
+    // Find hospital by Firebase UID
+    const hospital = await Hospital.findOne({ uid: firebaseUser.uid });
+    if (!hospital) {
+      return res.status(404).json({ success: false, error: 'Hospital not found' });
+    }
+
+    // Find doctor by UID or ARC ID
+    let doctor = await Doctor.findOne({ uid: doctorId });
+    if (!doctor) {
+      doctor = await Doctor.findOne({ arcId: doctorId });
+    }
+    
+    if (!doctor) {
+      return res.status(404).json({ success: false, error: 'Doctor not found' });
+    }
+
+    // Remove hospital from doctor's affiliated hospitals
+    if (doctor.affiliatedHospitals && doctor.affiliatedHospitals.length > 0) {
+      doctor.affiliatedHospitals = doctor.affiliatedHospitals.filter(
+        h => String(h.hospitalId) !== String(hospital._id)
+      );
+      await doctor.save();
+    }
+
+    return res.json({ 
+      success: true, 
+      message: 'Doctor association removed successfully',
+      data: { doctorId: doctor.uid, doctorName: doctor.fullName }
+    });
+  } catch (error) {
+    console.error('Error removing doctor association:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Failed to remove doctor association', 
+      details: error.message 
+    });
+  }
+};
+
 
 module.exports = {
   registerDoctor,
@@ -796,4 +847,5 @@ module.exports = {
   rejectDoctorByStaff,
   getDoctorsByAffiliation,
   associateDoctorByArcId,
+  removeDoctorAssociation,
 }; 

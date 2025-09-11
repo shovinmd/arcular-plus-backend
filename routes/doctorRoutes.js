@@ -152,6 +152,9 @@ router.get('/affiliated/:hospitalId', firebaseAuthMiddleware, doctorController.g
 // Associate doctor to current hospital by ARC ID
 router.post('/associate/by-arcid', firebaseAuthMiddleware, doctorController.associateDoctorByArcId);
 
+// Remove doctor association from current hospital
+router.delete('/remove-association/:doctorId', firebaseAuthMiddleware, doctorController.removeDoctorAssociation);
+
 // Get doctor by email (for login verification)
 router.get('/email/:email', firebaseAuthMiddleware, doctorController.getDoctorByEmail);
 
