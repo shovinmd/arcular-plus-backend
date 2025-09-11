@@ -37,6 +37,17 @@ const registerNurse = async (req, res) => {
       isApproved: false,
       approvalStatus: 'pending',
       registrationDate: new Date(),
+      // Ensure all required fields are present with defaults if missing
+      shifts: userData.shifts || [],
+      currentHospital: userData.currentHospital || userData.hospitalAffiliation || '',
+      role: userData.role || 'Staff',
+      bio: userData.bio || '',
+      education: userData.education || userData.qualification || '',
+      workingHours: userData.workingHours || {},
+      nursingDegreeUrl: userData.nursingDegreeUrl || userData.licenseDocumentUrl || '',
+      identityProofUrl: userData.identityProofUrl || '',
+      // Ensure affiliatedHospitals is properly formatted
+      affiliatedHospitals: userData.affiliatedHospitals || [],
     });
 
     const savedNurse = await newNurse.save();

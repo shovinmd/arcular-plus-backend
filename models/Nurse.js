@@ -107,6 +107,50 @@ const nurseSchema = new mongoose.Schema({
     required: true
   },
   
+  // Additional Professional Fields
+  currentHospital: {
+    type: String,
+    trim: true
+  },
+  role: {
+    type: String,
+    enum: ['Primary', 'Secondary', 'Staff', 'Senior', 'Emergency', 'ICU'],
+    default: 'Staff'
+  },
+  bio: {
+    type: String,
+    trim: true
+  },
+  education: {
+    type: String,
+    trim: true
+  },
+  workingHours: {
+    type: Map,
+    of: String
+  },
+  nursingDegreeUrl: {
+    type: String
+  },
+  identityProofUrl: {
+    type: String
+  },
+  
+  // Shift Management
+  shifts: [{
+    hospitalId: { type: String, ref: 'Hospital' },
+    hospitalName: { type: String },
+    shiftType: { 
+      type: String, 
+      enum: ['morning', 'evening', 'night', 'custom'],
+      default: 'morning'
+    },
+    startTime: { type: String },
+    endTime: { type: String },
+    isActive: { type: Boolean, default: true },
+    updatedAt: { type: Date, default: Date.now }
+  }],
+  
   // Approval Status
   status: {
     type: String,

@@ -48,9 +48,15 @@ const registerPharmacy = async (req, res) => {
       });
     }
 
-    // Create new pharmacy user in Pharmacy model (exactly like lab registration)
+    // Create new pharmacy user in Pharmacy model
     const newPharmacy = new Pharmacy({
       ...cleanUserData,
+      // Ensure all required fields are present with defaults if missing
+      servicesProvided: cleanUserData.servicesProvided || [],
+      drugsAvailable: cleanUserData.drugsAvailable || [],
+      affiliatedHospitals: cleanUserData.affiliatedHospitals || cleanUserData.pharmacyAffiliatedHospitals || [],
+      drugLicenseUrl: cleanUserData.drugLicenseUrl || cleanUserData.licenseDocumentUrl || '',
+      premisesCertificateUrl: cleanUserData.premisesCertificateUrl || cleanUserData.profileImageUrl || '',
       status: 'active', // Changed from 'pending' to 'active' (valid enum value)
       isApproved: false,
       approvalStatus: 'pending',

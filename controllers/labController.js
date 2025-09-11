@@ -37,6 +37,14 @@ const registerLab = async (req, res) => {
       isApproved: false,
       approvalStatus: 'pending',
       registrationDate: new Date(),
+      // Ensure all required fields are present with defaults if missing
+      servicesProvided: userData.servicesProvided || userData.availableTests || [],
+      affiliatedHospitals: userData.affiliatedHospitals || userData.labAffiliatedHospitals || [],
+      homeSampleCollection: userData.homeSampleCollection || false,
+      alternateMobile: userData.alternateMobile || null,
+      associatedHospital: userData.associatedHospital || '',
+      accreditationCertificateUrl: userData.accreditationCertificateUrl || userData.licenseDocumentUrl || '',
+      equipmentCertificateUrl: userData.equipmentCertificateUrl || userData.profileImageUrl || '',
     });
 
     const savedLab = await newLab.save();

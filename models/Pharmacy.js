@@ -61,6 +61,14 @@ const pharmacySchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  drugLicenseUrl: {
+    type: String,
+    required: false
+  },
+  premisesCertificateUrl: {
+    type: String,
+    required: false
+  },
   
   // Business Information
   servicesProvided: [{

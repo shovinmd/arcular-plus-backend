@@ -48,6 +48,26 @@ const labSchema = new mongoose.Schema({
     trim: true
   },
   
+  // Additional Lab Fields
+  homeSampleCollection: {
+    type: Boolean,
+    default: false
+  },
+  alternateMobile: {
+    type: String,
+    trim: true
+  },
+  associatedHospital: {
+    type: String,
+    trim: true
+  },
+  accreditationCertificateUrl: {
+    type: String
+  },
+  equipmentCertificateUrl: {
+    type: String
+  },
+  
   // Hospital Affiliations
   affiliatedHospitals: [{
     hospitalId: { type: String, ref: 'Hospital' },

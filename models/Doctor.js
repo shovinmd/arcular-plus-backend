@@ -50,6 +50,13 @@ const DoctorSchema = new mongoose.Schema({
   licenseDocumentUrl: { type: String, required: true },
   profileImageUrl: String,
   
+  // Additional Personal Fields
+  bloodGroup: {
+    type: String,
+    enum: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'],
+    required: false
+  },
+  
   // System Fields
   status: { type: String, enum: ['active', 'inactive', 'pending'], default: 'pending' },
   isApproved: { type: Boolean, default: false },
