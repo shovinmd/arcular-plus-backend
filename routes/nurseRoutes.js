@@ -20,6 +20,9 @@ router.get('/hospital/:hospitalName', firebaseAuthMiddleware, nurseController.ge
 // Get nurses affiliated to a hospital (by Mongo _id)
 router.get('/affiliated/:hospitalId', firebaseAuthMiddleware, nurseController.getNursesByAffiliation);
 
+// Associate nurse to current hospital by ARC ID
+router.post('/associate/by-arcid', firebaseAuthMiddleware, nurseController.associateNurseByArcId);
+
 // Get nurses by qualification
 router.get('/qualification/:qualification', firebaseAuthMiddleware, nurseController.getNursesByQualification);
 

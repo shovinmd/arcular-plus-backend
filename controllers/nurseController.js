@@ -518,6 +518,60 @@ const getNursesByAffiliation = async (req, res) => {
   }
 };
 
+// Associate a nurse to the current hospital by ARC ID
+const associateNurseByArcId = async (req, res) => {
+  try {
+    const firebaseUser = req.user;
+    if (!firebaseUser || !firebaseUser.uid) {
+      return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+
+    const { arcId } = req.body;
+    if (!arcId) {
+      return res.status(400).json({ success: false, error: 'arcId is required' });
+    }
+
+    const Hospital = require('../models/Hospital');
+    const Nurse = require('../models/Nurse');
+
+    // Find hospital by Firebase UID
+    const hospital = await Hospital.findOne({ uid: firebaseUser.uid });
+    if (!hospital) {
+      return res.status(404).json({ success: false, error: 'Hospital not found' });
+    }
+
+    // Find nurse by arcId
+    const nurse = await Nurse.findOne({ arcId });
+    if (!nurse) {
+      return res.status(404).json({ success: false, error: 'Nurse not found' });
+    }
+
+    // Ensure nurse is active and approved
+    if (!(nurse.status === 'active' && nurse.isApproved && nurse.approvalStatus === 'approved')) {
+      return res.status(400).json({ success: false, error: 'Nurse is not active and approved' });
+    }
+
+    // Check if already affiliated
+    const already = (nurse.affiliatedHospitals || []).some(h => String(h.hospitalId) === String(hospital._id));
+    if (!already) {
+      nurse.affiliatedHospitals = nurse.affiliatedHospitals || [];
+      nurse.affiliatedHospitals.push({
+        hospitalId: String(hospital._id),
+        hospitalName: hospital.hospitalName,
+        role: 'Staff',
+        startDate: new Date(),
+        isActive: true,
+      });
+      await nurse.save();
+    }
+
+    return res.json({ success: true, message: 'Nurse associated successfully', data: nurse });
+  } catch (error) {
+    console.error('Error associating nurse by ARC ID:', error);
+    return res.status(500).json({ success: false, error: 'Failed to associate nurse', details: error.message });
+  }
+};
+
 module.exports = {
   registerNurse,
   getNurseById,
@@ -535,4 +589,5 @@ module.exports = {
   approveNurseByStaff,
   rejectNurseByStaff,
   getNursesByAffiliation,
+  associateNurseByArcId,
 }; 
