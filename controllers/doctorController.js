@@ -1,5 +1,6 @@
 const { sendRegistrationConfirmation, sendApprovalEmail } = require('../services/emailService');
 const Doctor = require('../models/Doctor');
+const Hospital = require('../models/Hospital');
 const { v4: uuidv4 } = require('uuid');
 const QRCode = require('qrcode');
 
@@ -724,6 +725,58 @@ const getDoctorsByAffiliation = async (req, res) => {
 };
 
 
+// Associate a doctor to the current hospital by ARC ID
+const associateDoctorByArcId = async (req, res) => {
+  try {
+    const firebaseUser = req.user;
+    if (!firebaseUser || !firebaseUser.uid) {
+      return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+
+    const { arcId } = req.body;
+    if (!arcId) {
+      return res.status(400).json({ success: false, error: 'arcId is required' });
+    }
+
+    // Find hospital by Firebase UID
+    const hospital = await Hospital.findOne({ uid: firebaseUser.uid });
+    if (!hospital) {
+      return res.status(404).json({ success: false, error: 'Hospital not found' });
+    }
+
+    // Find doctor by arcId
+    const doctor = await Doctor.findOne({ arcId });
+    if (!doctor) {
+      return res.status(404).json({ success: false, error: 'Doctor not found' });
+    }
+
+    // Ensure doctor is active and approved per user's policy
+    if (!(doctor.status === 'active' && doctor.isApproved && doctor.approvalStatus === 'approved')) {
+      return res.status(400).json({ success: false, error: 'Doctor is not active and approved' });
+    }
+
+    // Check if already affiliated
+    const already = (doctor.affiliatedHospitals || []).some(h => String(h.hospitalId) === String(hospital._id));
+    if (!already) {
+      doctor.affiliatedHospitals = doctor.affiliatedHospitals || [];
+      doctor.affiliatedHospitals.push({
+        hospitalId: String(hospital._id),
+        hospitalName: hospital.hospitalName,
+        role: 'Consultant',
+        startDate: new Date(),
+        isActive: true,
+      });
+      await doctor.save();
+    }
+
+    return res.json({ success: true, message: 'Doctor associated successfully', data: doctor });
+  } catch (error) {
+    console.error('Error associating doctor by ARC ID:', error);
+    return res.status(500).json({ success: false, error: 'Failed to associate doctor', details: error.message });
+  }
+};
+
+
 module.exports = {
   registerDoctor,
   getAllDoctors,
@@ -742,4 +795,5 @@ module.exports = {
   approveDoctorByStaff,
   rejectDoctorByStaff,
   getDoctorsByAffiliation,
+  associateDoctorByArcId,
 }; 

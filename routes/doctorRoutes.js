@@ -149,6 +149,9 @@ router.get('/uid/:uid', firebaseAuthMiddleware, doctorController.getDoctorByUID)
 // Get doctors affiliated to a hospital (by Mongo _id)
 router.get('/affiliated/:hospitalId', firebaseAuthMiddleware, doctorController.getDoctorsByAffiliation);
 
+// Associate doctor to current hospital by ARC ID
+router.post('/associate/by-arcid', firebaseAuthMiddleware, doctorController.associateDoctorByArcId);
+
 // Get doctor by email (for login verification)
 router.get('/email/:email', firebaseAuthMiddleware, doctorController.getDoctorByEmail);
 
