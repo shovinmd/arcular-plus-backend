@@ -135,4 +135,7 @@ router.get('/qr/uid/:uid', async (req, res) => {
   }
 });
 
+// Update nurse shift
+router.put('/shift/:nurseId', firebaseAuthMiddleware, nurseController.updateNurseShift);
+
 module.exports = router; 

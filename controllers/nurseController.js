@@ -590,4 +590,5 @@ module.exports = {
   rejectNurseByStaff,
   getNursesByAffiliation,
   associateNurseByArcId,
+  updateNurseShift,
 }; 

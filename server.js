@@ -80,7 +80,7 @@ if (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV) {
       'http://localhost:8000',
       'http://localhost:5000',
       'http://localhost:4000',
-      'http://localhost:3001',
+      'http://localhost:55383',
       'http://localhost:3002',
       'http://localhost:3003',
       'http://localhost:3004',
