@@ -375,15 +375,36 @@ const getHospitalApprovalStatus = async (req, res) => {
 const getHospitalProfile = async (req, res) => {
   try {
     const { uid } = req.params;
+    console.log('🏥 Getting hospital profile for UID:', uid);
+    
     const hospital = await Hospital.findOne({ uid });
     
     if (!hospital) {
-      return res.status(404).json({ error: 'Hospital not found' });
+      console.log('❌ Hospital not found for UID:', uid);
+      return res.status(404).json({ 
+        success: false,
+        error: 'Hospital not found' 
+      });
     }
     
-    res.json(hospital);
+    console.log('✅ Hospital found:', {
+      _id: hospital._id,
+      uid: hospital.uid,
+      hospitalName: hospital.hospitalName
+    });
+    
+    res.json({
+      success: true,
+      _id: hospital._id,
+      id: hospital._id,
+      ...hospital.toObject()
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('❌ Error getting hospital profile:', err);
+    res.status(500).json({ 
+      success: false,
+      error: err.message 
+    });
   }
 };
 

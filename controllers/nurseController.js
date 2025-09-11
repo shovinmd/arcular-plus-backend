@@ -572,6 +572,89 @@ const associateNurseByArcId = async (req, res) => {
   }
 };
 
+// Update nurse shift for a given hospital (identified by current Firebase user)
+// Accepts nurseId (uid or Mongo _id) as route param
+// Body: { shiftType: 'morning'|'evening'|'night'|'custom', startTime: 'HH:mm', endTime: 'HH:mm' }
+const updateNurseShift = async (req, res) => {
+  try {
+    const firebaseUser = req.user;
+    if (!firebaseUser || !firebaseUser.uid) {
+      return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+
+    const { nurseId } = req.params;
+    const { shiftType, startTime, endTime } = req.body || {};
+
+    if (!shiftType) {
+      return res.status(400).json({ success: false, error: 'shiftType is required' });
+    }
+
+    const Hospital = require('../models/Hospital');
+
+    // Find current hospital by Firebase UID
+    const hospital = await Hospital.findOne({ uid: firebaseUser.uid });
+    if (!hospital) {
+      return res.status(404).json({ success: false, error: 'Hospital not found' });
+    }
+
+    // Find nurse by uid first, then by _id
+    let nurse = await Nurse.findOne({ uid: nurseId });
+    if (!nurse) {
+      const mongoose = require('mongoose');
+      if (mongoose.isValidObjectId(nurseId)) {
+        nurse = await Nurse.findById(nurseId);
+      }
+    }
+
+    if (!nurse) {
+      return res.status(404).json({ success: false, error: 'Nurse not found' });
+    }
+
+    // Ensure affiliation exists for this hospital
+    const hospitalIdString = String(hospital._id);
+    nurse.affiliatedHospitals = nurse.affiliatedHospitals || [];
+    let affiliation = nurse.affiliatedHospitals.find(
+      (a) => String(a.hospitalId) === hospitalIdString
+    );
+    if (!affiliation) {
+      nurse.affiliatedHospitals.push({
+        hospitalId: hospitalIdString,
+        hospitalName: hospital.hospitalName,
+        role: 'Staff',
+        startDate: new Date(),
+        isActive: true,
+      });
+    }
+
+    // Upsert shift entry per hospital
+    nurse.shifts = nurse.shifts || [];
+    const existingShiftIndex = nurse.shifts.findIndex(
+      (s) => String(s.hospitalId) === hospitalIdString
+    );
+    const shiftData = {
+      hospitalId: hospitalIdString,
+      hospitalName: hospital.hospitalName,
+      shiftType,
+      startTime: startTime || null,
+      endTime: endTime || null,
+      isActive: true,
+      updatedAt: new Date(),
+    };
+    if (existingShiftIndex >= 0) {
+      nurse.shifts[existingShiftIndex] = { ...nurse.shifts[existingShiftIndex], ...shiftData };
+    } else {
+      nurse.shifts.push(shiftData);
+    }
+
+    await nurse.save();
+
+    return res.json({ success: true, message: 'Nurse shift updated successfully', data: nurse });
+  } catch (error) {
+    console.error('Error updating nurse shift:', error);
+    return res.status(500).json({ success: false, error: 'Failed to update nurse shift' });
+  }
+};
+
 module.exports = {
   registerNurse,
   getNurseById,
