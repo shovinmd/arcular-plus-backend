@@ -79,6 +79,13 @@ const createAppointment = async (req, res) => {
     // Generate appointment ID
     const appointmentId = `APT-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
+    // Resolve hospital id fallback from doctor's affiliation if not provided
+    const resolvedHospitalId = hospital
+      ? hospital._id
+      : (doctor.affiliatedHospitals && doctor.affiliatedHospitals.length > 0
+          ? doctor.affiliatedHospitals[0].hospitalId
+          : hospitalId);
+
     // Create appointment
     const appointment = new Appointment({
       appointmentId: appointmentId,
@@ -92,7 +99,7 @@ const createAppointment = async (req, res) => {
       doctorPhone: doctor.mobileNumber,
       doctorSpecialization: doctor.specialization,
       doctorConsultationFee: doctor.consultationFee,
-      hospitalId: hospitalId,
+      hospitalId: resolvedHospitalId,
       hospitalName: hospital ? hospital.hospitalName : (doctor.affiliatedHospitals && doctor.affiliatedHospitals.length > 0 ? doctor.affiliatedHospitals[0].hospitalName : ''),
       hospitalAddress: hospital ? hospital.address : doctor.address,
       appointmentDate: new Date(appointmentDate),
