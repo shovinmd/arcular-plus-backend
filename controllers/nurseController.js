@@ -373,12 +373,20 @@ const approveNurseByStaff = async (req, res) => {
     console.log(`👤 Approved by: ${approvedBy}`);
     
     // Try to find nurse by either Firebase uid or Mongo _id
-    let nurse = await Nurse.findOne({ uid: nurseId });
-    if (!nurse) {
-      // Only try MongoDB ObjectId if it looks like a valid ObjectId (24 hex chars)
-      if (nurseId.match(/^[0-9a-fA-F]{24}$/)) {
+    let nurse = null;
+    try {
+      const mongoose = require('mongoose');
+      const isObjectId = mongoose.isValidObjectId(nurseId);
+      console.log('🔎 Lookup strategy:', isObjectId ? 'by _id' : 'by uid');
+      if (isObjectId) {
         nurse = await Nurse.findById(nurseId);
       }
+      if (!nurse) {
+        nurse = await Nurse.findOne({ uid: nurseId });
+      }
+    } catch (lookupErr) {
+      console.error('❌ Lookup error, trying uid fallback:', lookupErr);
+      nurse = await Nurse.findOne({ uid: nurseId });
     }
     
     if (!nurse) {
@@ -527,4 +535,5 @@ module.exports = {
   approveNurseByStaff,
   rejectNurseByStaff,
   getNursesByAffiliation,
+}; 
 }; 

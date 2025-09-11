@@ -409,12 +409,20 @@ const approveLabByStaff = async (req, res) => {
     console.log(`👤 Approved by: ${approvedBy}`);
     
     // Try to find lab by either Firebase uid or Mongo _id
-    let lab = await Lab.findOne({ uid: labId });
-    if (!lab) {
-      // Only try MongoDB ObjectId if it looks like a valid ObjectId (24 hex chars)
-      if (labId.match(/^[0-9a-fA-F]{24}$/)) {
+    let lab = null;
+    try {
+      const mongoose = require('mongoose');
+      const isObjectId = mongoose.isValidObjectId(labId);
+      console.log('🔎 Lookup strategy:', isObjectId ? 'by _id' : 'by uid');
+      if (isObjectId) {
         lab = await Lab.findById(labId);
       }
+      if (!lab) {
+        lab = await Lab.findOne({ uid: labId });
+      }
+    } catch (lookupErr) {
+      console.error('❌ Lookup error, trying uid fallback:', lookupErr);
+      lab = await Lab.findOne({ uid: labId });
     }
     
     if (!lab) {
@@ -564,4 +572,5 @@ module.exports = {
   approveLabByStaff,
   rejectLabByStaff,
   getLabsByAffiliation,
+}; 
 }; 
