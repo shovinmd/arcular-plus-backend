@@ -372,10 +372,13 @@ const approveNurseByStaff = async (req, res) => {
     console.log(`📝 Approval notes: ${notes}`);
     console.log(`👤 Approved by: ${approvedBy}`);
     
-    // Try to find nurse by either Mongo _id or Firebase uid
-    let nurse = await Nurse.findById(nurseId);
+    // Try to find nurse by either Firebase uid or Mongo _id
+    let nurse = await Nurse.findOne({ uid: nurseId });
     if (!nurse) {
-      nurse = await Nurse.findOne({ uid: nurseId });
+      // Only try MongoDB ObjectId if it looks like a valid ObjectId (24 hex chars)
+      if (nurseId.match(/^[0-9a-fA-F]{24}$/)) {
+        nurse = await Nurse.findById(nurseId);
+      }
     }
     
     if (!nurse) {

@@ -408,10 +408,13 @@ const approveLabByStaff = async (req, res) => {
     console.log(`📝 Approval notes: ${notes}`);
     console.log(`👤 Approved by: ${approvedBy}`);
     
-    // Try to find lab by either Mongo _id or Firebase uid
-    let lab = await Lab.findById(labId);
+    // Try to find lab by either Firebase uid or Mongo _id
+    let lab = await Lab.findOne({ uid: labId });
     if (!lab) {
-      lab = await Lab.findOne({ uid: labId });
+      // Only try MongoDB ObjectId if it looks like a valid ObjectId (24 hex chars)
+      if (labId.match(/^[0-9a-fA-F]{24}$/)) {
+        lab = await Lab.findById(labId);
+      }
     }
     
     if (!lab) {

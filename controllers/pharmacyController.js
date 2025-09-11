@@ -460,10 +460,13 @@ const approvePharmacyByStaff = async (req, res) => {
     console.log(`📝 Approval notes: ${notes}`);
     console.log(`👤 Approved by: ${approvedBy}`);
     
-    // Try to find pharmacy by either Mongo _id or Firebase uid
-    let pharmacy = await Pharmacy.findById(pharmacyId);
+    // Try to find pharmacy by either Firebase uid or Mongo _id
+    let pharmacy = await Pharmacy.findOne({ uid: pharmacyId });
     if (!pharmacy) {
-      pharmacy = await Pharmacy.findOne({ uid: pharmacyId });
+      // Only try MongoDB ObjectId if it looks like a valid ObjectId (24 hex chars)
+      if (pharmacyId.match(/^[0-9a-fA-F]{24}$/)) {
+        pharmacy = await Pharmacy.findById(pharmacyId);
+      }
     }
     
     if (!pharmacy) {
