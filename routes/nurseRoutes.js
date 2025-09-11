@@ -17,6 +17,9 @@ router.post('/:nurseId/reject', firebaseAuthMiddleware, nurseController.rejectNu
 // Get nurses by hospital
 router.get('/hospital/:hospitalName', firebaseAuthMiddleware, nurseController.getNursesByHospital);
 
+// Get nurses affiliated to a hospital (by Mongo _id)
+router.get('/affiliated/:hospitalId', firebaseAuthMiddleware, nurseController.getNursesByAffiliation);
+
 // Get nurses by qualification
 router.get('/qualification/:qualification', firebaseAuthMiddleware, nurseController.getNursesByQualification);
 

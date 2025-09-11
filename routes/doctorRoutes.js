@@ -146,6 +146,9 @@ router.get('/specialties', firebaseAuthMiddleware, async (req, res) => {
 // Get doctor by UID
 router.get('/uid/:uid', firebaseAuthMiddleware, doctorController.getDoctorByUID);
 
+// Get doctors affiliated to a hospital (by Mongo _id)
+router.get('/affiliated/:hospitalId', firebaseAuthMiddleware, doctorController.getDoctorsByAffiliation);
+
 // Get doctor by email (for login verification)
 router.get('/email/:email', firebaseAuthMiddleware, doctorController.getDoctorByEmail);
 

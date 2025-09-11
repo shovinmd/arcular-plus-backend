@@ -660,6 +660,23 @@ const rejectDoctorByStaff = async (req, res) => {
   }
 };
 
+// Get doctors by affiliation (hospital Mongo _id)
+const getDoctorsByAffiliation = async (req, res) => {
+  try {
+    const { hospitalId } = req.params;
+    const doctors = await Doctor.find({
+      isApproved: true,
+      approvalStatus: 'approved',
+      status: 'active',
+      'affiliatedHospitals.hospitalId': hospitalId,
+    }).select('-__v').sort({ createdAt: -1 });
+
+    res.json({ success: true, data: doctors, count: doctors.length });
+  } catch (error) {
+    console.error('Error fetching doctors by affiliation:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch doctors by affiliation' });
+  }
+};
 
 
 module.exports = {
@@ -679,4 +696,5 @@ module.exports = {
   getPendingApprovalsForStaff,
   approveDoctorByStaff,
   rejectDoctorByStaff,
+  getDoctorsByAffiliation,
 }; 

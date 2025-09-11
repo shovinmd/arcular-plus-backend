@@ -491,6 +491,24 @@ const rejectLabByStaff = async (req, res) => {
   }
 };
 
+// Get labs by affiliation (hospital Mongo _id)
+const getLabsByAffiliation = async (req, res) => {
+  try {
+    const { hospitalId } = req.params;
+    const labs = await Lab.find({
+      isApproved: true,
+      approvalStatus: 'approved',
+      status: 'active',
+      'affiliatedHospitals.hospitalId': hospitalId,
+    }).select('-__v').sort({ createdAt: -1 });
+
+    res.json({ success: true, data: labs, count: labs.length });
+  } catch (error) {
+    console.error('Error fetching labs by affiliation:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch labs by affiliation' });
+  }
+};
+
 module.exports = {
   registerLab,
   getAllLabs,
@@ -507,5 +525,6 @@ module.exports = {
   rejectLab,
   getPendingApprovalsForStaff,
   approveLabByStaff,
-  rejectLabByStaff
+  rejectLabByStaff,
+  getLabsByAffiliation,
 }; 

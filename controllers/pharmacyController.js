@@ -543,6 +543,24 @@ const rejectPharmacyByStaff = async (req, res) => {
   }
 };
 
+// Get pharmacies by affiliation (hospital Mongo _id)
+const getPharmaciesByAffiliation = async (req, res) => {
+  try {
+    const { hospitalId } = req.params;
+    const pharmacies = await Pharmacy.find({
+      isApproved: true,
+      approvalStatus: 'approved',
+      status: 'active',
+      'affiliatedHospitals.hospitalId': hospitalId,
+    }).select('-__v').sort({ createdAt: -1 });
+
+    res.json({ success: true, data: pharmacies, count: pharmacies.length });
+  } catch (error) {
+    console.error('Error fetching pharmacies by affiliation:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch pharmacies by affiliation' });
+  }
+};
+
 // Note: Database cleanup function removed - no longer needed with the permanent fix
 
 module.exports = {
@@ -561,5 +579,6 @@ module.exports = {
   rejectPharmacy,
   getPendingApprovalsForStaff,
   approvePharmacyByStaff,
-  rejectPharmacyByStaff
+  rejectPharmacyByStaff,
+  getPharmaciesByAffiliation,
 }; 

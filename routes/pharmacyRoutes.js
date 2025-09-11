@@ -11,6 +11,11 @@ router.get('/', firebaseAuthMiddleware, pharmacyController.getAllPharmacies);
 
 // Staff routes for pending approvals
 router.get('/pending-approvals', firebaseAuthMiddleware, pharmacyController.getPendingApprovalsForStaff);
+
+// Get pharmacies affiliated to a hospital (by Mongo _id)
+router.get('/affiliated/:hospitalId', firebaseAuthMiddleware, pharmacyController.getPharmaciesByAffiliation);
+
+// Approve pharmacy by staff
 router.post('/:pharmacyId/approve', firebaseAuthMiddleware, pharmacyController.approvePharmacyByStaff);
 router.post('/:pharmacyId/reject', firebaseAuthMiddleware, pharmacyController.rejectPharmacyByStaff);
 

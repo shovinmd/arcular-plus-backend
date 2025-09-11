@@ -455,6 +455,24 @@ const rejectNurseByStaff = async (req, res) => {
   }
 };
 
+// Get nurses by affiliation (hospital Mongo _id)
+const getNursesByAffiliation = async (req, res) => {
+  try {
+    const { hospitalId } = req.params;
+    const nurses = await Nurse.find({
+      isApproved: true,
+      approvalStatus: 'approved',
+      status: 'active',
+      'affiliatedHospitals.hospitalId': hospitalId,
+    }).select('-__v').sort({ createdAt: -1 });
+
+    res.json({ success: true, data: nurses, count: nurses.length });
+  } catch (error) {
+    console.error('Error fetching nurses by affiliation:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch nurses by affiliation' });
+  }
+};
+
 module.exports = {
   registerNurse,
   getNurseById,
@@ -470,5 +488,6 @@ module.exports = {
   rejectNurse,
   getPendingApprovalsForStaff,
   approveNurseByStaff,
-  rejectNurseByStaff
+  rejectNurseByStaff,
+  getNursesByAffiliation,
 }; 
