@@ -409,7 +409,7 @@ const updateAppointmentStatus = async (req, res) => {
       } else if (status === 'cancelled') {
         await sendAppointmentCancellationEmails(appointment);
       } else if (status === 'completed') {
-        await sendAppointmentCompletionEmail(appointment);
+        await sendAppointmentCompletionEmail(appointment, 0);
       } else if (status === 'rescheduled') {
         await sendAppointmentRescheduleEmail(appointment);
       }
@@ -737,56 +737,6 @@ const cancelAppointment = async (req, res) => {
   }
 };
 
-// Send appointment completion email
-const sendAppointmentCompletionEmail = async (appointment) => {
-  try {
-    // Skip silently if email creds are not configured
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-      return;
-    }
-
-    const transporter = nodemailer.createTransporter({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-      }
-    });
-
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: appointment.userEmail,
-      subject: 'Appointment Completed - Arcular Plus',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #27ae60;">Appointment Completed</h2>
-          
-          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <h3>Appointment Details</h3>
-            <p><strong>Appointment ID:</strong> ${appointment.appointmentId}</p>
-            <p><strong>Doctor:</strong> Dr. ${appointment.doctorName}</p>
-            <p><strong>Specialization:</strong> ${appointment.doctorSpecialization}</p>
-            <p><strong>Hospital:</strong> ${appointment.hospitalName}</p>
-            <p><strong>Date:</strong> ${appointment.appointmentDate.toDateString()}</p>
-            <p><strong>Time:</strong> ${appointment.appointmentTime}</p>
-            <p><strong>Status:</strong> <span style="color: #27ae60; font-weight: bold;">COMPLETED</span></p>
-          </div>
-          
-          <p>Thank you for choosing Arcular Plus. We hope your appointment was helpful!</p>
-          
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="https://arcular-plus.onrender.com" style="background-color: #32CCBC; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px;">Visit Arcular Plus</a>
-          </div>
-        </div>
-      `
-    };
-
-    await transporter.sendMail(mailOptions);
-    console.log('Appointment completion email sent successfully');
-  } catch (error) {
-    console.error('Error sending appointment completion email:', error);
-  }
-};
 
 // Send appointment reschedule email
 const sendAppointmentRescheduleEmail = async (appointment) => {
@@ -839,6 +789,299 @@ const sendAppointmentRescheduleEmail = async (appointment) => {
   }
 };
 
+// Reschedule appointment by hospital
+const rescheduleAppointmentByHospital = async (req, res) => {
+  try {
+    const { appointmentId } = req.params;
+    const { newDate, newTime, reason } = req.body;
+
+    const appointment = await Appointment.findById(appointmentId);
+    if (!appointment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Appointment not found'
+      });
+    }
+
+    // Update appointment
+    appointment.appointmentDate = new Date(newDate);
+    appointment.appointmentTime = newTime;
+    appointment.status = 'rescheduled';
+    appointment.rescheduleReason = reason;
+    appointment.rescheduledAt = new Date();
+
+    await appointment.save();
+
+    // Send notification to patient
+    await sendAppointmentRescheduleEmail(appointment);
+
+    res.json({
+      success: true,
+      message: 'Appointment rescheduled successfully',
+      data: appointment
+    });
+  } catch (error) {
+    console.error('Error rescheduling appointment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to reschedule appointment',
+      error: error.message
+    });
+  }
+};
+
+// Cancel appointment by hospital
+const cancelAppointmentByHospital = async (req, res) => {
+  try {
+    const { appointmentId } = req.params;
+    const { reason } = req.body;
+
+    const appointment = await Appointment.findById(appointmentId);
+    if (!appointment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Appointment not found'
+      });
+    }
+
+    // Update appointment
+    appointment.status = 'cancelled';
+    appointment.cancellationReason = reason;
+    appointment.cancelledAt = new Date();
+
+    await appointment.save();
+
+    // Send notification to patient
+    await sendAppointmentCancellationEmail(appointment);
+
+    res.json({
+      success: true,
+      message: 'Appointment cancelled successfully',
+      data: appointment
+    });
+  } catch (error) {
+    console.error('Error cancelling appointment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to cancel appointment',
+      error: error.message
+    });
+  }
+};
+
+// Complete appointment and send bill
+const completeAppointment = async (req, res) => {
+  try {
+    const { appointmentId } = req.params;
+    const { billAmount, notes } = req.body;
+
+    const appointment = await Appointment.findById(appointmentId);
+    if (!appointment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Appointment not found'
+      });
+    }
+
+    // Update appointment status
+    appointment.status = 'completed';
+    appointment.completedAt = new Date();
+    appointment.billAmount = billAmount || 0;
+    appointment.completionNotes = notes;
+
+    await appointment.save();
+
+    // Save to health history (create a new health record)
+    const HealthRecord = require('../models/HealthRecord');
+    const healthRecord = new HealthRecord({
+      patientId: appointment.patientId,
+      patientName: appointment.patientName,
+      hospitalId: appointment.hospitalId,
+      hospitalName: appointment.hospitalName,
+      doctorId: appointment.doctorId,
+      doctorName: appointment.doctorName,
+      appointmentId: appointment._id,
+      type: 'appointment',
+      title: 'Appointment Completed',
+      description: `Appointment with Dr. ${appointment.doctorName} at ${appointment.hospitalName}`,
+      date: appointment.completedAt,
+      status: 'completed',
+      billAmount: billAmount || 0,
+      notes: notes
+    });
+
+    await healthRecord.save();
+
+    // Send completion email with payment details
+    await sendAppointmentCompletionEmail(appointment, billAmount);
+
+    // Delete the appointment from appointments collection
+    await Appointment.findByIdAndDelete(appointmentId);
+
+    res.json({
+      success: true,
+      message: 'Appointment completed successfully',
+      data: {
+        appointmentId: appointment._id,
+        healthRecordId: healthRecord._id,
+        billAmount: billAmount || 0
+      }
+    });
+  } catch (error) {
+    console.error('Error completing appointment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to complete appointment',
+      error: error.message
+    });
+  }
+};
+
+// Create offline appointment (for walk-in patients)
+const createOfflineAppointment = async (req, res) => {
+  try {
+    const {
+      patientName,
+      patientPhone,
+      patientEmail,
+      patientAge,
+      patientGender,
+      doctorId,
+      appointmentDate,
+      appointmentTime,
+      reason,
+      notes
+    } = req.body;
+
+    const firebaseUser = req.user;
+    if (!firebaseUser || !firebaseUser.uid) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid Firebase user'
+      });
+    }
+
+    // Get hospital information
+    const hospital = await Hospital.findOne({ uid: firebaseUser.uid });
+    if (!hospital) {
+      return res.status(404).json({
+        success: false,
+        error: 'Hospital not found'
+      });
+    }
+
+    // Get doctor information
+    const mongoose = require('mongoose');
+    const Doctor = require('../models/Doctor');
+    const doctorOr = [{ uid: doctorId }, { arcId: doctorId }];
+    if (mongoose.Types.ObjectId.isValid(doctorId)) {
+      doctorOr.push({ _id: doctorId });
+    }
+    const doctor = await Doctor.findOne({ $or: doctorOr });
+    if (!doctor) {
+      return res.status(404).json({
+        success: false,
+        error: 'Doctor not found'
+      });
+    }
+
+    // Create appointment
+    const appointment = new Appointment({
+      appointmentId: `APT-${Date.now()}`,
+      patientId: 'offline', // Special ID for offline appointments
+      patientName,
+      patientPhone,
+      patientEmail,
+      patientAge,
+      patientGender,
+      doctorId: doctor._id,
+      doctorName: doctor.fullName,
+      doctorSpecialization: doctor.specialization,
+      hospitalId: hospital._id,
+      hospitalName: hospital.hospitalName,
+      appointmentDate: new Date(appointmentDate),
+      appointmentTime,
+      reason,
+      notes,
+      status: 'confirmed',
+      appointmentType: 'offline',
+      createdAt: new Date()
+    });
+
+    await appointment.save();
+
+    res.json({
+      success: true,
+      message: 'Offline appointment created successfully',
+      data: appointment
+    });
+  } catch (error) {
+    console.error('Error creating offline appointment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create offline appointment',
+      error: error.message
+    });
+  }
+};
+
+// Send appointment completion email with payment details
+const sendAppointmentCompletionEmail = async (appointment, billAmount) => {
+  try {
+    const transporter = nodemailer.createTransporter({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      }
+    });
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: appointment.patientEmail,
+      subject: 'Appointment Completed - Payment Details - Arcular Plus',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #27ae60;">Appointment Completed Successfully</h2>
+          
+          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3>Appointment Details</h3>
+            <p><strong>Appointment ID:</strong> ${appointment.appointmentId}</p>
+            <p><strong>Patient:</strong> ${appointment.patientName}</p>
+            <p><strong>Doctor:</strong> Dr. ${appointment.doctorName}</p>
+            <p><strong>Hospital:</strong> ${appointment.hospitalName}</p>
+            <p><strong>Date:</strong> ${appointment.appointmentDate.toDateString()}</p>
+            <p><strong>Time:</strong> ${appointment.appointmentTime}</p>
+            <p><strong>Status:</strong> <span style="color: #27ae60; font-weight: bold;">COMPLETED</span></p>
+          </div>
+          
+          <div style="background-color: #e8f5e8; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #27ae60;">
+            <h3 style="color: #27ae60;">Payment Information</h3>
+            <p><strong>Bill Amount:</strong> ₹${billAmount || 0}</p>
+            <p><strong>Payment Method:</strong> Offline Payment</p>
+            <p><strong>Payment Status:</strong> Pending</p>
+            <p style="color: #666; font-size: 14px;">Please complete the payment at the hospital reception desk.</p>
+          </div>
+          
+          <div style="background-color: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107;">
+            <p style="margin: 0; color: #856404;"><strong>Thank you for choosing our hospital!</strong></p>
+            <p style="margin: 5px 0 0 0; color: #856404;">We hope you had a great experience. Please visit us again if needed.</p>
+          </div>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="https://arcular-plus.onrender.com" style="background-color: #32CCBC; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px;">Visit Arcular Plus</a>
+          </div>
+        </div>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log('Appointment completion email sent successfully');
+  } catch (error) {
+    console.error('Error sending appointment completion email:', error);
+  }
+};
+
 module.exports = {
   createAppointment,
   getUserAppointments,
@@ -847,5 +1090,10 @@ module.exports = {
   getHospitalAppointments,
   updateAppointmentStatus,
   cancelAppointment,
-  getAvailableTimeSlots
+  getAvailableTimeSlots,
+  rescheduleAppointmentByHospital,
+  cancelAppointmentByHospital,
+  completeAppointment,
+  createOfflineAppointment,
+  sendAppointmentCompletionEmail
 };

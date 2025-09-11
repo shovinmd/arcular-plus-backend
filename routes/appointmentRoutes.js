@@ -29,5 +29,12 @@ router.delete('/:appointmentId', verifyFirebaseToken, appointmentController.canc
 // Get available time slots
 router.get('/available-slots', verifyFirebaseToken, appointmentController.getAvailableTimeSlots);
 
+// Hospital appointment management routes
+router.put('/:appointmentId/reschedule', verifyFirebaseToken, appointmentController.rescheduleAppointmentByHospital);
+router.put('/:appointmentId/cancel', verifyFirebaseToken, appointmentController.cancelAppointmentByHospital);
+router.put('/:appointmentId/complete', verifyFirebaseToken, appointmentController.completeAppointment);
+
+// Offline appointment booking
+router.post('/offline', verifyFirebaseToken, appointmentController.createOfflineAppointment);
 
 module.exports = router;
