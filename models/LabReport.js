@@ -1,20 +1,73 @@
 const mongoose = require('mongoose');
 
 const labReportSchema = new mongoose.Schema({
-  name: { type: String, required: true, trim: true },
-  url: { type: String, required: true },
-  uploadedAt: { type: Date, default: Date.now },
-  patientId: { type: String, required: true, index: true },
-  doctorId: { type: String, index: true },
-  description: { type: String, trim: true },
-  category: { type: String, trim: true },
-  fileSize: { type: Number },
-  mimeType: { type: String },
-  status: { type: String, enum: ['uploaded', 'processing', 'completed', 'error'], default: 'uploaded' },
-  tags: [{ type: String, trim: true }]
-}, { timestamps: true });
+  labId: {
+    type: String,
+    required: true,
+    ref: 'User'
+  },
+  patientId: {
+    type: String,
+    required: true,
+    ref: 'User'
+  },
+  patientName: {
+    type: String,
+    required: true
+  },
+  patientEmail: {
+    type: String,
+    default: ''
+  },
+  testName: {
+    type: String,
+    required: true
+  },
+  doctorId: {
+    type: String,
+    required: true,
+    ref: 'User'
+  },
+  doctorName: {
+    type: String,
+    required: true
+  },
+  hospitalId: {
+    type: String,
+    required: true,
+    ref: 'Hospital'
+  },
+  prescription: {
+    type: String,
+    required: true
+  },
+  urgency: {
+    type: String,
+    enum: ['normal', 'urgent', 'emergency'],
+    default: 'normal'
+  },
+  notes: {
+    type: String,
+    default: ''
+  },
+  results: {
+    type: String,
+    default: ''
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'in_progress', 'completed', 'cancelled'],
+    default: 'pending'
+  },
+  requestedAt: {
+    type: Date,
+    default: Date.now
+  },
+  completedAt: {
+    type: Date
+  }
+}, {
+  timestamps: true
+});
 
-labReportSchema.index({ patientId: 1, uploadedAt: -1 });
-labReportSchema.index({ doctorId: 1, uploadedAt: -1 });
-
-module.exports = mongoose.model('LabReport', labReportSchema); 
+module.exports = mongoose.model('LabReport', labReportSchema);

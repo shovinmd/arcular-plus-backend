@@ -562,6 +562,63 @@ const getLabsByAffiliation = async (req, res) => {
   }
 };
 
+// Associate lab with hospital
+const associateLabWithHospital = async (req, res) => {
+  try {
+    const { labArcId } = req.body;
+    const { hospitalId } = req.params;
+    
+    if (!labArcId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Lab ARC ID is required'
+      });
+    }
+
+    // Find lab by ARC ID
+    const lab = await Lab.findOne({ arcId: labArcId });
+    if (!lab) {
+      return res.status(404).json({
+        success: false,
+        error: 'Lab not found with the provided ARC ID'
+      });
+    }
+
+    // Check if lab is already affiliated with this hospital
+    const isAlreadyAffiliated = lab.affiliatedHospitals.some(
+      (affiliation) => affiliation.hospitalId === hospitalId
+    );
+
+    if (isAlreadyAffiliated) {
+      return res.status(400).json({
+        success: false,
+        error: 'Lab is already affiliated with this hospital'
+      });
+    }
+
+    // Add hospital to lab's affiliated hospitals
+    lab.affiliatedHospitals.push({
+      hospitalId: hospitalId,
+      associatedAt: new Date(),
+      status: 'active'
+    });
+
+    await lab.save();
+
+    res.json({
+      success: true,
+      message: 'Lab associated with hospital successfully',
+      data: lab
+    });
+  } catch (error) {
+    console.error('Error associating lab with hospital:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to associate lab with hospital'
+    });
+  }
+};
+
 module.exports = {
   registerLab,
   getAllLabs,
@@ -580,4 +637,5 @@ module.exports = {
   approveLabByStaff,
   rejectLabByStaff,
   getLabsByAffiliation,
+  associateLabWithHospital,
 }; 

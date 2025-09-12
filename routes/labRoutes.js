@@ -15,6 +15,9 @@ router.get('/pending-approvals', firebaseAuthMiddleware, labController.getPendin
 // Get labs affiliated to a hospital (by Mongo _id)
 router.get('/affiliated/:hospitalId', firebaseAuthMiddleware, labController.getLabsByAffiliation);
 
+// Associate lab with hospital
+router.post('/associate/:hospitalId', firebaseAuthMiddleware, labController.associateLabWithHospital);
+
 // Approve a lab by staff
 router.post('/:labId/approve', firebaseAuthMiddleware, labController.approveLabByStaff);
 router.post('/:labId/reject', firebaseAuthMiddleware, labController.rejectLabByStaff);

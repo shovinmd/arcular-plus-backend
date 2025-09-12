@@ -1,17 +1,15 @@
 const express = require('express');
-const { authenticateToken } = require('../middleware/auth');
-const labReportController = require('../controllers/labReportController');
 const router = express.Router();
+const labReportController = require('../controllers/labReportController');
+const { verifyFirebaseToken } = require('../middleware/firebaseAuth');
 
-// Get all lab reports for a user
-router.get('/user/:userId', authenticateToken, labReportController.getLabReportsByUser);
-// Get a single lab report by ID
-router.get('/:id', authenticateToken, labReportController.getLabReportById);
-// Upload a new lab report
-router.post('/upload', authenticateToken, labReportController.uploadLabReport);
-// Update a lab report
-router.put('/:id', authenticateToken, labReportController.updateLabReport);
-// Delete a lab report
-router.delete('/:id', authenticateToken, labReportController.deleteLabReport);
+// Get lab reports by hospital
+router.get('/hospital/:hospitalId', verifyFirebaseToken, labReportController.getLabReportsByHospital);
 
-module.exports = router; 
+// Create lab test request
+router.post('/', verifyFirebaseToken, labReportController.createLabTestRequest);
+
+// Update lab report status
+router.put('/:reportId/status', verifyFirebaseToken, labReportController.updateLabReportStatus);
+
+module.exports = router;
