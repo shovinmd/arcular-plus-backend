@@ -952,8 +952,7 @@ const completeAppointment = async (req, res) => {
       console.error('Complete: email send failed (non-blocking):', mailErr);
     }
 
-    // Delete the appointment from appointments collection
-    await Appointment.findByIdAndDelete(appointmentId);
+    // Keep the appointment for records - DO NOT DELETE
 
     res.json({
       success: true,
