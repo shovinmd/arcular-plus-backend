@@ -876,7 +876,7 @@ const cancelAppointmentByHospital = async (req, res) => {
 
     // Send notification to patient (non-blocking)
     try {
-      await sendAppointmentCancellationEmail(appointment);
+      await sendAppointmentCancellationEmails(appointment);
     } catch (mailErr) {
       console.error('Cancel: email send failed (non-blocking):', mailErr);
     }
@@ -1074,7 +1074,7 @@ const sendAppointmentCompletionEmail = async (appointment, billAmount) => {
 
     const mailOptions = {
       from: process.env.EMAIL_USER,
-      to: appointment.patientEmail,
+      to: appointment.userEmail,
       subject: 'Appointment Completed - Payment Details - Arcular Plus',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
