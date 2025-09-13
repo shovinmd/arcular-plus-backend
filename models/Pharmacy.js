@@ -222,7 +222,8 @@ const pharmacySchema = new mongoose.Schema({
   // Profile and System
   profileImageUrl: {
     type: String,
-    required: true
+    required: false,
+    default: ''
   },
   
   // Documents
