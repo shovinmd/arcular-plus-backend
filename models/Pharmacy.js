@@ -83,6 +83,40 @@ const pharmacySchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  operatingHours: {
+    openTime: {
+      type: String,
+      required: false,
+      trim: true
+    },
+    closeTime: {
+      type: String,
+      required: false,
+      trim: true
+    },
+    workingDays: [{
+      type: String,
+      enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+      required: false
+    }]
+  },
+  
+  // Pharmacist Professional Information
+  pharmacistLicenseNumber: {
+    type: String,
+    required: false,
+    trim: true
+  },
+  pharmacistQualification: {
+    type: String,
+    required: false,
+    trim: true
+  },
+  pharmacistExperienceYears: {
+    type: Number,
+    required: false,
+    min: 0
+  },
   
   // Hospital Affiliations
   affiliatedHospitals: [{

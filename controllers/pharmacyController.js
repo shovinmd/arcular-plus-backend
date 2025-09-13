@@ -57,6 +57,15 @@ const registerPharmacy = async (req, res) => {
       affiliatedHospitals: cleanUserData.affiliatedHospitals || cleanUserData.pharmacyAffiliatedHospitals || [],
       drugLicenseUrl: cleanUserData.drugLicenseUrl || cleanUserData.licenseDocumentUrl || '',
       premisesCertificateUrl: cleanUserData.premisesCertificateUrl || cleanUserData.profileImageUrl || '',
+      // New fields with proper defaults
+      operatingHours: cleanUserData.operatingHours || {
+        openTime: '09:00',
+        closeTime: '21:00',
+        workingDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+      },
+      pharmacistLicenseNumber: cleanUserData.pharmacistLicenseNumber || '',
+      pharmacistQualification: cleanUserData.pharmacistQualification || '',
+      pharmacistExperienceYears: cleanUserData.pharmacistExperienceYears || 0,
       status: 'active', // Changed from 'pending' to 'active' (valid enum value)
       isApproved: false,
       approvalStatus: 'pending',
