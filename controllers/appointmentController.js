@@ -594,11 +594,14 @@ const sendAppointmentCancellationEmails = async (appointment) => {
           <div style="background-color: #fdf2f2; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #e74c3c;">
             <h3>Your appointment has been cancelled</h3>
             <p><strong>Appointment ID:</strong> ${appointment.appointmentId}</p>
+            <p><strong>Patient:</strong> ${appointment.patientName}</p>
             <p><strong>Doctor:</strong> Dr. ${appointment.doctorName}</p>
+            <p><strong>Specialization:</strong> ${appointment.doctorSpecialization}</p>
             <p><strong>Hospital:</strong> ${appointment.hospitalName}</p>
             <p><strong>Date:</strong> ${appointmentDateFormatted}</p>
             <p><strong>Time:</strong> ${appointment.appointmentTime}</p>
-            <p><strong>Reason:</strong> ${appointment.reason}</p>
+            <p><strong>Status:</strong> <span style="color: #e74c3c; font-weight: bold;">CANCELLED</span></p>
+            <p><strong>Reason:</strong> ${appointment.cancellationReason || appointment.reason || 'No reason provided'}</p>
           </div>
           
           <div style="background-color: #e3f2fd; padding: 15px; border-radius: 8px; margin: 20px 0;">
@@ -799,15 +802,20 @@ const sendAppointmentRescheduleEmail = async (appointment) => {
           <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
             <h3>Appointment Details</h3>
             <p><strong>Appointment ID:</strong> ${appointment.appointmentId}</p>
+            <p><strong>Patient:</strong> ${appointment.patientName}</p>
             <p><strong>Doctor:</strong> Dr. ${appointment.doctorName}</p>
             <p><strong>Specialization:</strong> ${appointment.doctorSpecialization}</p>
             <p><strong>Hospital:</strong> ${appointment.hospitalName}</p>
-            <p><strong>Date:</strong> ${appointment.appointmentDate.toDateString()}</p>
-            <p><strong>Time:</strong> ${appointment.appointmentTime}</p>
+            <p><strong>New Date:</strong> ${appointment.appointmentDate.toDateString()}</p>
+            <p><strong>New Time:</strong> ${appointment.appointmentTime}</p>
             <p><strong>Status:</strong> <span style="color: #f39c12; font-weight: bold;">RESCHEDULED</span></p>
+            ${appointment.rescheduleReason ? `<p><strong>Reason:</strong> ${appointment.rescheduleReason}</p>` : ''}
           </div>
           
-          <p>Your appointment has been rescheduled. Please contact us if you have any questions.</p>
+          <div style="background-color: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107;">
+            <p style="margin: 0; color: #856404;"><strong>Important:</strong> Your appointment has been rescheduled to the new date and time shown above.</p>
+            <p style="margin: 5px 0 0 0; color: #856404;">Please contact the hospital if you have any questions or need to make further changes.</p>
+          </div>
           
           <div style="text-align: center; margin: 30px 0;">
             <a href="https://arcular-plus.onrender.com" style="background-color: #32CCBC; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px;">Visit Arcular Plus</a>
@@ -954,20 +962,19 @@ const completeAppointment = async (req, res) => {
     // Save to health history (create a new health record)
     const HealthRecord = require('../models/HealthRecord');
     const healthRecord = new HealthRecord({
-      patientId: appointment.patientId,
-      patientName: appointment.patientName,
+      patientId: appointment.patientId || appointment.userId,
+      patientName: appointment.patientName || 'Unknown Patient',
+      patientPhone: appointment.patientPhone || 'N/A',
       hospitalId: appointment.hospitalId,
       hospitalName: appointment.hospitalName,
       doctorId: appointment.doctorId,
       doctorName: appointment.doctorName,
-      appointmentId: appointment._id,
-      type: 'appointment',
-      title: 'Appointment Completed',
-      description: `Appointment with Dr. ${appointment.doctorName} at ${appointment.hospitalName}`,
-      date: appointment.completedAt,
-      status: 'completed',
-      billAmount: billAmount || 0,
-      notes: notes
+      appointmentId: appointment._id.toString(),
+      visitDate: appointment.completedAt,
+      consultationFee: billAmount || 0,
+      diagnosis: notes || 'Appointment completed',
+      treatment: 'Consultation completed',
+      status: 'completed'
     });
 
     await healthRecord.save();
@@ -1125,6 +1132,13 @@ const sendAppointmentCompletionEmail = async (appointment, billAmount) => {
             <p><strong>Payment Status:</strong> Pending</p>
             <p style="color: #666; font-size: 14px;">Please complete the payment at the hospital reception desk.</p>
           </div>
+          
+          ${appointment.completionNotes ? `
+          <div style="background-color: #f0f8ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #007bff;">
+            <h3 style="color: #007bff;">Consultation Notes</h3>
+            <p style="color: #333; line-height: 1.6;">${appointment.completionNotes}</p>
+          </div>
+          ` : ''}
           
           <div style="background-color: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107;">
             <p style="margin: 0; color: #856404;"><strong>Thank you for choosing our hospital!</strong></p>
