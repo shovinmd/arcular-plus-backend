@@ -112,7 +112,7 @@ const appointmentSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    enum: ['cash', 'online', 'insurance'],
+    enum: ['cash', 'card', 'upi', 'online', 'insurance'],
     default: 'cash'
   },
   

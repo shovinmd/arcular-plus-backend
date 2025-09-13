@@ -993,6 +993,11 @@ const completeAppointment = async (req, res) => {
     
     console.log('📋 Complete request data:', { appointmentId, billAmount, notes, paymentMethod });
 
+    // Validate payment method
+    const validPaymentMethods = ['cash', 'card', 'upi', 'online', 'insurance'];
+    const finalPaymentMethod = validPaymentMethods.includes(paymentMethod) ? paymentMethod : 'cash';
+    console.log('💳 Payment method validation:', { original: paymentMethod, final: finalPaymentMethod });
+
     let appointment = null;
     if (mongoose.isValidObjectId(appointmentId)) {
       appointment = await Appointment.findById(appointmentId);
@@ -1013,7 +1018,7 @@ const completeAppointment = async (req, res) => {
     appointment.billAmount = billAmount || 0;
     appointment.completionNotes = notes;
     appointment.paymentStatus = 'pending';
-    appointment.paymentMethod = paymentMethod || 'cash';
+    appointment.paymentMethod = finalPaymentMethod;
 
     // Ensure patient name is set
     if (!appointment.patientName && appointment.userName) {
@@ -1298,6 +1303,10 @@ const completePayment = async (req, res) => {
     const { appointmentId } = req.params;
     const { paymentMethod } = req.body;
 
+    // Validate payment method
+    const validPaymentMethods = ['cash', 'card', 'upi', 'online', 'insurance'];
+    const finalPaymentMethod = validPaymentMethods.includes(paymentMethod) ? paymentMethod : 'cash';
+
     let appointment = null;
     if (mongoose.isValidObjectId(appointmentId)) {
       appointment = await Appointment.findById(appointmentId);
@@ -1315,7 +1324,7 @@ const completePayment = async (req, res) => {
     // Update appointment status to fully completed
     appointment.status = 'completed';
     appointment.paymentStatus = 'completed';
-    appointment.paymentMethod = paymentMethod || 'cash';
+    appointment.paymentMethod = finalPaymentMethod;
     appointment.completedAt = new Date();
 
     console.log('💳 Completing payment for appointment:', appointment._id);
