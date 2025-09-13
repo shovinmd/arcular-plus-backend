@@ -612,6 +612,38 @@ const getPharmaciesByAffiliation = async (req, res) => {
   }
 };
 
+// Get pharmacy approval status
+const getPharmacyApprovalStatus = async (req, res) => {
+  try {
+    const { uid } = req.params;
+    const pharmacy = await Pharmacy.findOne({ uid });
+    
+    if (!pharmacy) {
+      return res.status(404).json({
+        success: false,
+        message: 'Pharmacy not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        isApproved: pharmacy.isApproved,
+        approvalStatus: pharmacy.approvalStatus,
+        status: pharmacy.status,
+        approvedAt: pharmacy.approvedAt,
+        approvedBy: pharmacy.approvedBy
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch pharmacy approval status',
+      error: error.message
+    });
+  }
+};
+
 // Note: Database cleanup function removed - no longer needed with the permanent fix
 
 module.exports = {
@@ -632,4 +664,5 @@ module.exports = {
   approvePharmacyByStaff,
   rejectPharmacyByStaff,
   getPharmaciesByAffiliation,
+  getPharmacyApprovalStatus
 }; 
