@@ -878,6 +878,14 @@ const rescheduleAppointmentByHospital = async (req, res) => {
       });
     }
 
+    // Ensure patient name is set
+    if (!appointment.patientName && appointment.userName) {
+      appointment.patientName = appointment.userName;
+    }
+    if (!appointment.patientId && appointment.userId) {
+      appointment.patientId = appointment.userId;
+    }
+
     // Update appointment
     appointment.appointmentDate = new Date(newDate);
     appointment.appointmentTime = newTime;
@@ -1023,24 +1031,30 @@ const completeAppointment = async (req, res) => {
     console.log('✅ Appointment status updated successfully');
 
     // Save to health history (create a new health record)
-    const HealthRecord = require('../models/HealthRecord');
-    const healthRecord = new HealthRecord({
-      patientId: appointment.patientId || appointment.userId,
-      patientName: appointment.patientName || appointment.userName || 'Unknown Patient',
-      patientPhone: appointment.patientPhone || 'N/A',
-      hospitalId: appointment.hospitalId,
-      hospitalName: appointment.hospitalName,
-      doctorId: appointment.doctorId,
-      doctorName: appointment.doctorName,
-      appointmentId: appointment._id.toString(),
-      visitDate: appointment.consultationCompletedAt,
-      consultationFee: billAmount || 0,
-      diagnosis: notes || 'Appointment completed',
-      treatment: 'Consultation completed',
-      status: 'completed'
-    });
+    try {
+      const HealthRecord = require('../models/HealthRecord');
+      const healthRecord = new HealthRecord({
+        patientId: appointment.patientId || appointment.userId || 'unknown',
+        patientName: appointment.patientName || appointment.userName || 'Unknown Patient',
+        patientPhone: appointment.patientPhone || appointment.userPhone || 'N/A',
+        hospitalId: appointment.hospitalId || 'unknown',
+        hospitalName: appointment.hospitalName || 'Unknown Hospital',
+        doctorId: appointment.doctorId || 'unknown',
+        doctorName: appointment.doctorName || 'Unknown Doctor',
+        appointmentId: appointment._id.toString(),
+        visitDate: appointment.consultationCompletedAt,
+        consultationFee: billAmount || 0,
+        diagnosis: notes || 'Appointment completed',
+        treatment: 'Consultation completed',
+        status: 'completed'
+      });
 
-    await healthRecord.save();
+      await healthRecord.save();
+      console.log('✅ Health record created successfully');
+    } catch (healthRecordError) {
+      console.error('❌ Error creating health record:', healthRecordError);
+      // Don't fail the entire operation for health record creation
+    }
 
     // Send completion email with payment details (non-blocking)
     try {
