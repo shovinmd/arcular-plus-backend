@@ -972,7 +972,21 @@ const completeAppointment = async (req, res) => {
     appointment.completionNotes = notes;
     appointment.paymentStatus = 'pending';
 
+    // Ensure patient name is set
+    if (!appointment.patientName && appointment.userName) {
+      appointment.patientName = appointment.userName;
+    }
+    if (!appointment.patientId && appointment.userId) {
+      appointment.patientId = appointment.userId;
+    }
+
     console.log('🔄 Updating appointment status to completed:', appointment._id);
+    console.log('📋 Appointment data:', {
+      patientName: appointment.patientName,
+      userName: appointment.userName,
+      patientId: appointment.patientId,
+      userId: appointment.userId
+    });
     await appointment.save();
     console.log('✅ Appointment status updated successfully');
 
@@ -980,14 +994,14 @@ const completeAppointment = async (req, res) => {
     const HealthRecord = require('../models/HealthRecord');
     const healthRecord = new HealthRecord({
       patientId: appointment.patientId || appointment.userId,
-      patientName: appointment.patientName || 'Patient' || 'Unknown Patient',
+      patientName: appointment.patientName || appointment.userName || 'Unknown Patient',
       patientPhone: appointment.patientPhone || 'N/A',
       hospitalId: appointment.hospitalId,
       hospitalName: appointment.hospitalName,
       doctorId: appointment.doctorId,
       doctorName: appointment.doctorName,
       appointmentId: appointment._id.toString(),
-      visitDate: appointment.completedAt,
+      visitDate: appointment.consultationCompletedAt,
       consultationFee: billAmount || 0,
       diagnosis: notes || 'Appointment completed',
       treatment: 'Consultation completed',

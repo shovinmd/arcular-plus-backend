@@ -365,7 +365,7 @@ const cancelOrder = async (req, res) => {
 // Send order confirmation email
 const sendOrderConfirmationEmail = async (order) => {
   try {
-    const transporter = nodemailer.createTransporter({
+    const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
         user: process.env.EMAIL_USER,

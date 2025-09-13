@@ -283,10 +283,14 @@ router.post('/unsubscribe-topic', authenticateToken, async (req, res) => {
 // Send appointment reminder email
 router.post('/send-appointment-reminder', authenticateToken, async (req, res) => {
   try {
+    console.log('📧 FCM: Appointment reminder request received');
     const { appointmentId, doctorName, hospitalName, appointmentDate, appointmentTime, reason } = req.body;
     const userId = req.user.uid;
 
+    console.log('📧 FCM: Request data:', { appointmentId, doctorName, hospitalName, appointmentDate, appointmentTime, reason, userId });
+
     if (!appointmentId || !doctorName || !hospitalName || !appointmentDate || !appointmentTime) {
+      console.log('❌ FCM: Missing required appointment details');
       return res.status(400).json({
         success: false,
         error: 'Missing required appointment details'
@@ -309,14 +313,16 @@ router.post('/send-appointment-reminder', authenticateToken, async (req, res) =>
     
     // Skip if email credentials not configured
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-      console.log('⚠️ Skipping appointment reminder email: EMAIL_USER or EMAIL_PASS not configured');
+      console.log('⚠️ FCM: Skipping appointment reminder email: EMAIL_USER or EMAIL_PASS not configured');
       return res.json({
         success: true,
         message: 'Appointment reminder email skipped (email not configured)'
       });
     }
 
-    const transporter = nodemailer.createTransporter({
+    console.log('📧 FCM: Email credentials found, proceeding with email send');
+
+    const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
         user: process.env.EMAIL_USER,
@@ -342,7 +348,7 @@ router.post('/send-appointment-reminder', authenticateToken, async (req, res) =>
           <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
             <h3>You have an appointment today!</h3>
             <p><strong>Appointment ID:</strong> ${appointmentId}</p>
-            <p><strong>Doctor:</strong> Dr. ${doctorName}</p>
+            <p><strong>Doctor:</strong> ${doctorName}</p>
             <p><strong>Hospital:</strong> ${hospitalName}</p>
             <p><strong>Date:</strong> ${appointmentDateFormatted}</p>
             <p><strong>Time:</strong> ${appointmentTime}</p>
