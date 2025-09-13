@@ -24,10 +24,19 @@ const registerPharmacy = async (req, res) => {
     const userData = req.body;
     const { uid } = userData;
 
-    // Check if pharmacy already exists
-    const existingPharmacy = await Pharmacy.findOne({ uid });
+    // Check if pharmacy already exists by email or UID
+    const existingPharmacy = await Pharmacy.findOne({ 
+      $or: [
+        { uid: uid },
+        { email: cleanUserData.email }
+      ]
+    });
     if (existingPharmacy) {
-      return res.status(400).json({ error: 'Pharmacy already registered' });
+      return res.status(400).json({ 
+        success: false,
+        error: 'Pharmacy already registered',
+        message: 'A pharmacy with this email or UID already exists. Please try logging in instead.'
+      });
     }
 
     // PERMANENT FIX: Remove any problematic fields that might cause E11000 errors
