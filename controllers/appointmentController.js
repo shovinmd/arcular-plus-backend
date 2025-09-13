@@ -81,11 +81,34 @@ const createAppointment = async (req, res) => {
     const appointmentId = `APT-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     // Resolve hospital id fallback from doctor's affiliation if not provided
-    const resolvedHospitalId = hospital
-      ? hospital._id
-      : (doctor.affiliatedHospitals && doctor.affiliatedHospitals.length > 0
-          ? doctor.affiliatedHospitals[0].hospitalId
-          : hospitalId);
+    let resolvedHospitalId = hospital ? hospital._id : null;
+    
+    if (!resolvedHospitalId && doctor.affiliatedHospitals && doctor.affiliatedHospitals.length > 0) {
+      // Find the first active hospital affiliation
+      const activeHospital = doctor.affiliatedHospitals.find(aff => aff.isActive !== false);
+      if (activeHospital) {
+        // Try to find the hospital by ID or name
+        const Hospital = require('../models/Hospital');
+        const hospitalLookup = await Hospital.findOne({
+          $or: [
+            { _id: activeHospital.hospitalId },
+            { hospitalName: activeHospital.hospitalName },
+            { uid: activeHospital.hospitalId }
+          ]
+        });
+        if (hospitalLookup) {
+          resolvedHospitalId = hospitalLookup._id;
+          hospital = hospitalLookup;
+        }
+      }
+    }
+    
+    if (!resolvedHospitalId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Hospital information not found for this doctor'
+      });
+    }
 
     // Create appointment
     const appointment = new Appointment({
@@ -949,7 +972,7 @@ const cancelAppointmentByHospital = async (req, res) => {
 const completeAppointment = async (req, res) => {
   try {
     const { appointmentId } = req.params;
-    const { billAmount, notes } = req.body;
+    const { billAmount, notes, paymentMethod } = req.body;
 
     let appointment = null;
     if (mongoose.isValidObjectId(appointmentId)) {
@@ -971,6 +994,7 @@ const completeAppointment = async (req, res) => {
     appointment.billAmount = billAmount || 0;
     appointment.completionNotes = notes;
     appointment.paymentStatus = 'pending';
+    appointment.paymentMethod = paymentMethod || 'cash';
 
     // Ensure patient name is set
     if (!appointment.patientName && appointment.userName) {
@@ -1168,7 +1192,7 @@ const sendAppointmentCompletionEmail = async (appointment, billAmount) => {
           <div style="background-color: #e8f5e8; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #27ae60;">
             <h3 style="color: #27ae60;">Payment Information</h3>
             <p><strong>Bill Amount:</strong> ₹${billAmount || 0}</p>
-            <p><strong>Payment Method:</strong> Offline Payment</p>
+            <p><strong>Payment Method:</strong> ${appointment.paymentMethod || 'Offline Payment'}</p>
             <p><strong>Payment Status:</strong> <span style="color: #e74c3c; font-weight: bold;">PENDING</span></p>
             <p style="color: #666; font-size: 14px;"><strong>Important:</strong> Please complete the payment at the hospital reception desk to finalize your appointment.</p>
           </div>

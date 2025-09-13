@@ -410,6 +410,24 @@ router.get('/:uid/notifications', firebaseAuthMiddleware, async (req, res) => {
   }
 });
 
+// Get unread notifications count
+router.get('/:uid/notifications/unread-count', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    const { uid } = req.params;
+    
+    // Count unread notifications
+    const unreadCount = await require('../models/Notification').countDocuments({ 
+      userId: uid, 
+      isRead: false 
+    });
+
+    res.json({ unreadCount });
+  } catch (error) {
+    console.error('Error fetching unread notifications count:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get user appointments with details
 router.get('/:uid/appointments-with-details', firebaseAuthMiddleware, async (req, res) => {
   try {
