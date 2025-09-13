@@ -783,7 +783,7 @@ const sendAppointmentRescheduleEmail = async (appointment) => {
       return;
     }
 
-    const transporter = nodemailer.createTransporter({
+    const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
         user: process.env.EMAIL_USER,
@@ -957,7 +957,9 @@ const completeAppointment = async (req, res) => {
     appointment.billAmount = billAmount || 0;
     appointment.completionNotes = notes;
 
+    console.log('🔄 Updating appointment status to completed:', appointment._id);
     await appointment.save();
+    console.log('✅ Appointment status updated successfully');
 
     // Save to health history (create a new health record)
     const HealthRecord = require('../models/HealthRecord');
@@ -988,13 +990,22 @@ const completeAppointment = async (req, res) => {
 
     // Keep the appointment for records - DO NOT DELETE
 
+    console.log('📤 Sending completion response for appointment:', appointment._id, 'Status:', appointment.status);
+    
     res.json({
       success: true,
       message: 'Appointment completed successfully',
       data: {
         appointmentId: appointment._id,
         healthRecordId: healthRecord._id,
-        billAmount: billAmount || 0
+        billAmount: billAmount || 0,
+        appointment: {
+          id: appointment._id,
+          status: appointment.status,
+          completedAt: appointment.completedAt,
+          billAmount: appointment.billAmount,
+          completionNotes: appointment.completionNotes
+        }
       }
     });
   } catch (error) {
@@ -1098,7 +1109,7 @@ const createOfflineAppointment = async (req, res) => {
 // Send appointment completion email with payment details
 const sendAppointmentCompletionEmail = async (appointment, billAmount) => {
   try {
-    const transporter = nodemailer.createTransporter({
+    const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
         user: process.env.EMAIL_USER,
