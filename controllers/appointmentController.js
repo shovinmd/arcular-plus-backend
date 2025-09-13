@@ -1218,6 +1218,15 @@ const createOfflineAppointment = async (req, res) => {
 
     await appointment.save();
 
+    // Send confirmation email to patient
+    try {
+      await sendOfflineAppointmentConfirmationEmail(appointment, hospital, doctor);
+      console.log('📧 Offline appointment confirmation email sent successfully');
+    } catch (emailError) {
+      console.error('❌ Failed to send offline appointment confirmation email:', emailError);
+      // Don't fail the appointment creation if email fails
+    }
+
     res.json({
       success: true,
       message: 'Offline appointment created successfully',
@@ -1351,6 +1360,68 @@ const completePayment = async (req, res) => {
   }
 };
 
+// Send offline appointment confirmation email
+const sendOfflineAppointmentConfirmationEmail = async (appointment, hospital, doctor) => {
+  try {
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      }
+    });
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: appointment.patientEmail,
+      subject: `Appointment Confirmation - ${hospital.hospitalName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #2c3e50; margin: 0;">Appointment Confirmed</h1>
+            <p style="color: #7f8c8d; margin: 5px 0;">${hospital.hospitalName}</p>
+          </div>
+          
+          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h2 style="color: #2c3e50; margin-top: 0;">Appointment Details</h2>
+            <p><strong>Patient Name:</strong> ${appointment.patientName}</p>
+            <p><strong>Doctor:</strong> Dr. ${doctor.fullName}</p>
+            <p><strong>Specialization:</strong> ${doctor.specialization}</p>
+            <p><strong>Date & Time:</strong> ${new Date(appointment.appointmentDate).toLocaleDateString()} at ${appointment.appointmentTime}</p>
+            <p><strong>Appointment Type:</strong> Walk-in (Offline)</p>
+            <p><strong>Status:</strong> <span style="color: #27ae60; font-weight: bold;">CONFIRMED</span></p>
+          </div>
+          
+          <div style="background-color: #e8f5e8; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #27ae60;">
+            <h3 style="color: #27ae60;">Important Information</h3>
+            <p>Please arrive 15 minutes before your scheduled appointment time.</p>
+            <p>Bring a valid ID and any relevant medical documents.</p>
+            <p>If you need to reschedule or cancel, please contact the hospital directly.</p>
+          </div>
+          
+          <div style="text-align: center; margin-top: 30px;">
+            <a href="https://arcular-pluse-a-unified-healthcare-peach.vercel.app/" 
+               style="background-color: #3498db; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+              Visit Our Website
+            </a>
+          </div>
+          
+          <div style="text-align: center; margin-top: 20px; color: #7f8c8d; font-size: 12px;">
+            <p>Thank you for choosing ${hospital.hospitalName}!</p>
+            <p>This is an automated message. Please do not reply to this email.</p>
+          </div>
+        </div>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log('📧 Offline appointment confirmation email sent to:', appointment.patientEmail);
+  } catch (error) {
+    console.error('❌ Error sending offline appointment confirmation email:', error);
+    throw error;
+  }
+};
+
 module.exports = {
   createAppointment,
   getUserAppointments,
@@ -1365,5 +1436,6 @@ module.exports = {
   completeAppointment,
   completePayment,
   createOfflineAppointment,
-  sendAppointmentCompletionEmail
+  sendAppointmentCompletionEmail,
+  sendOfflineAppointmentConfirmationEmail
 };
