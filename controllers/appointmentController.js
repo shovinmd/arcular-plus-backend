@@ -931,6 +931,14 @@ const cancelAppointmentByHospital = async (req, res) => {
       });
     }
 
+    // Ensure patient name is set
+    if (!appointment.patientName && appointment.userName) {
+      appointment.patientName = appointment.userName;
+    }
+    if (!appointment.patientId && appointment.userId) {
+      appointment.patientId = appointment.userId;
+    }
+
     // Set cancellation reason
     appointment.cancellationReason = reason || 'No reason provided';
     appointment.status = 'cancelled';
