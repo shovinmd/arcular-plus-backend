@@ -987,8 +987,11 @@ const cancelAppointmentByHospital = async (req, res) => {
 // Complete appointment and send bill
 const completeAppointment = async (req, res) => {
   try {
+    console.log('🔄 Complete appointment request received');
     const { appointmentId } = req.params;
     const { billAmount, notes, paymentMethod } = req.body;
+    
+    console.log('📋 Complete request data:', { appointmentId, billAmount, notes, paymentMethod });
 
     let appointment = null;
     if (mongoose.isValidObjectId(appointmentId)) {
@@ -1019,6 +1022,38 @@ const completeAppointment = async (req, res) => {
     if (!appointment.patientId && appointment.userId) {
       appointment.patientId = appointment.userId;
     }
+    
+    // Ensure all required fields are present
+    if (!appointment.userEmail) {
+      appointment.userEmail = 'unknown@example.com';
+    }
+    if (!appointment.userPhone) {
+      appointment.userPhone = 'N/A';
+    }
+    if (!appointment.doctorEmail) {
+      appointment.doctorEmail = 'doctor@example.com';
+    }
+    if (!appointment.doctorPhone) {
+      appointment.doctorPhone = 'N/A';
+    }
+    if (!appointment.doctorSpecialization) {
+      appointment.doctorSpecialization = 'General Practice';
+    }
+    if (!appointment.doctorConsultationFee) {
+      appointment.doctorConsultationFee = 0;
+    }
+    if (!appointment.hospitalName) {
+      appointment.hospitalName = 'Unknown Hospital';
+    }
+    if (!appointment.hospitalAddress) {
+      appointment.hospitalAddress = 'N/A';
+    }
+    if (!appointment.reason) {
+      appointment.reason = 'General consultation';
+    }
+    if (!appointment.consultationFee) {
+      appointment.consultationFee = 0;
+    }
 
     console.log('🔄 Updating appointment status to completed:', appointment._id);
     console.log('📋 Appointment data:', {
@@ -1027,8 +1062,18 @@ const completeAppointment = async (req, res) => {
       patientId: appointment.patientId,
       userId: appointment.userId
     });
-    await appointment.save();
-    console.log('✅ Appointment status updated successfully');
+    
+    try {
+      await appointment.save();
+      console.log('✅ Appointment status updated successfully');
+    } catch (saveError) {
+      console.error('❌ Error saving appointment:', saveError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to save appointment',
+        error: saveError.message
+      });
+    }
 
     // Save to health history (create a new health record)
     try {
@@ -1058,9 +1103,11 @@ const completeAppointment = async (req, res) => {
 
     // Send completion email with payment details (non-blocking)
     try {
+      console.log('📧 Sending completion email...');
       await sendAppointmentCompletionEmail(appointment, billAmount);
+      console.log('✅ Completion email sent successfully');
     } catch (mailErr) {
-      console.error('Complete: email send failed (non-blocking):', mailErr);
+      console.error('❌ Complete: email send failed (non-blocking):', mailErr);
     }
 
     // Keep the appointment for records - DO NOT DELETE
