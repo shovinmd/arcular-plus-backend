@@ -76,8 +76,14 @@ router.post('/register', firebaseAuthMiddleware, async (req, res) => {
 // Get all doctors
 router.get('/', firebaseAuthMiddleware, doctorController.getAllDoctors);
 
-// Get all specialties
-router.get('/specialties', firebaseAuthMiddleware, async (req, res) => {
+// Get specialties
+router.get('/specialties', firebaseAuthMiddleware, doctorController.getSpecialties);
+
+// Get doctors by specialty and hospital
+router.get('/specialty/:specialty/hospital/:hospitalId', firebaseAuthMiddleware, doctorController.getDoctorsBySpecialtyAndHospital);
+
+// Get all specialties (legacy route)
+router.get('/specialties-legacy', firebaseAuthMiddleware, async (req, res) => {
   try {
     console.log('🔍 Fetching all specialties...');
     

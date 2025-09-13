@@ -831,6 +831,67 @@ const removeDoctorAssociation = async (req, res) => {
   }
 };
 
+// Get specialties
+const getSpecialties = async (req, res) => {
+  try {
+    const doctors = await Doctor.find({ 
+      isApproved: true,
+      approvalStatus: 'approved',
+      status: 'active'
+    });
+    
+    const specialties = new Set();
+    doctors.forEach(doctor => {
+      if (doctor.specialization) {
+        specialties.add(doctor.specialization);
+      }
+      if (doctor.specializations && Array.isArray(doctor.specializations)) {
+        doctor.specializations.forEach(spec => specialties.add(spec));
+      }
+    });
+    
+    res.json({
+      success: true,
+      data: Array.from(specialties).sort()
+    });
+  } catch (error) {
+    console.error('Error fetching specialties:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch specialties'
+    });
+  }
+};
+
+// Get doctors by specialty and hospital
+const getDoctorsBySpecialtyAndHospital = async (req, res) => {
+  try {
+    const { specialty, hospitalId } = req.params;
+    
+    const doctors = await Doctor.find({
+      isApproved: true,
+      approvalStatus: 'approved',
+      status: 'active',
+      $or: [
+        { specialization: specialty },
+        { specializations: specialty }
+      ],
+      'affiliatedHospitals.hospitalId': hospitalId
+    }).select('-__v').sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      data: doctors,
+      count: doctors.length
+    });
+  } catch (error) {
+    console.error('Error fetching doctors by specialty and hospital:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch doctors'
+    });
+  }
+};
 
 module.exports = {
   registerDoctor,
@@ -852,4 +913,6 @@ module.exports = {
   getDoctorsByAffiliation,
   associateDoctorByArcId,
   removeDoctorAssociation,
+  getSpecialties,
+  getDoctorsBySpecialtyAndHospital,
 }; 

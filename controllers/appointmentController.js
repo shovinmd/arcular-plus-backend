@@ -3,6 +3,7 @@ const User = require('../models/User');
 const Hospital = require('../models/Hospital');
 const nodemailer = require('nodemailer');
 const fcmService = require('../services/fcmService');
+const mongoose = require('mongoose');
 
 // Create appointment
 const createAppointment = async (req, res) => {
@@ -682,11 +683,24 @@ const cancelAppointment = async (req, res) => {
     console.log('🔍 Backend: Cancelling appointment:', appointmentId, 'for user:', firebaseUser.uid);
     console.log('🔍 Backend: Looking for appointment with appointmentId:', appointmentId);
 
-    // Find the appointment by appointmentId (custom field) and userId
-    const appointment = await Appointment.findOne({
-      appointmentId: appointmentId,
-      userId: firebaseUser.uid
-    });
+    // Find the appointment by _id or appointmentId and userId
+    let appointment = null;
+    
+    // First try to find by MongoDB _id
+    if (mongoose.isValidObjectId(appointmentId)) {
+      appointment = await Appointment.findOne({
+        _id: appointmentId,
+        userId: firebaseUser.uid
+      });
+    }
+    
+    // If not found by _id, try by appointmentId field
+    if (!appointment) {
+      appointment = await Appointment.findOne({
+        appointmentId: appointmentId,
+        userId: firebaseUser.uid
+      });
+    }
 
     console.log('🔍 Backend: Query result:', appointment ? 'Found' : 'Not found');
 
