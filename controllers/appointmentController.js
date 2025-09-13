@@ -1012,12 +1012,13 @@ const completeAppointment = async (req, res) => {
       });
     }
 
-    // Update appointment status - consultation done, payment pending
-    appointment.status = 'consultation_completed';
+    // Update appointment status - consultation done, payment completed
+    appointment.status = 'completed';
     appointment.consultationCompletedAt = new Date();
+    appointment.completedAt = new Date();
     appointment.billAmount = billAmount || 0;
     appointment.completionNotes = notes;
-    appointment.paymentStatus = 'pending';
+    appointment.paymentStatus = 'completed';
     appointment.paymentMethod = finalPaymentMethod;
 
     // Ensure patient name is set
@@ -1124,7 +1125,6 @@ const completeAppointment = async (req, res) => {
       message: 'Appointment completed successfully',
       data: {
         appointmentId: appointment._id,
-        healthRecordId: healthRecord._id,
         billAmount: billAmount || 0,
         appointment: {
           id: appointment._id,
@@ -1267,8 +1267,8 @@ const sendAppointmentCompletionEmail = async (appointment, billAmount) => {
             <h3 style="color: #27ae60;">Payment Information</h3>
             <p><strong>Bill Amount:</strong> ₹${billAmount || 0}</p>
             <p><strong>Payment Method:</strong> ${appointment.paymentMethod || 'Offline Payment'}</p>
-            <p><strong>Payment Status:</strong> <span style="color: #e74c3c; font-weight: bold;">PENDING</span></p>
-            <p style="color: #666; font-size: 14px;"><strong>Important:</strong> Please complete the payment at the hospital reception desk to finalize your appointment.</p>
+            <p><strong>Payment Status:</strong> <span style="color: #27ae60; font-weight: bold;">COMPLETED</span></p>
+            <p style="color: #666; font-size: 14px;"><strong>Thank you for choosing our hospital!</strong> Your appointment has been successfully completed.</p>
           </div>
           
           ${appointment.completionNotes ? `
