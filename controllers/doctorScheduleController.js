@@ -147,6 +147,15 @@ const getAvailableTimeSlots = async (req, res) => {
     const { doctorId } = req.params;
     const { date } = req.query;
 
+    console.log('🕐 Getting time slots for doctor:', doctorId, 'date:', date);
+
+    if (!doctorId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Doctor ID is required'
+      });
+    }
+
     if (!date) {
       return res.status(400).json({
         success: false,
@@ -179,41 +188,65 @@ const getAvailableTimeSlots = async (req, res) => {
       ];
 
       // Create a default schedule for this date
-      const defaultSchedule = new DoctorSchedule({
-        doctorId,
-        date,
-        timeSlots: defaultTimeSlots,
-        isActive: true
-      });
+      try {
+        const defaultSchedule = new DoctorSchedule({
+          doctorId,
+          date,
+          timeSlots: defaultTimeSlots,
+          isActive: true
+        });
 
-      await defaultSchedule.save();
-      console.log('📅 Created default schedule for doctor', doctorId, 'on', date);
+        await defaultSchedule.save();
+        console.log('📅 Created default schedule for doctor', doctorId, 'on', date);
 
-      // Use the default schedule
-      schedule = defaultSchedule;
+        // Use the default schedule
+        schedule = defaultSchedule;
+      } catch (scheduleError) {
+        console.error('❌ Error creating default schedule:', scheduleError);
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to create default schedule',
+          error: scheduleError.message
+        });
+      }
     }
 
     // Get existing appointments for this doctor and date
-    const appointments = await Appointment.find({
-      doctorId,
-      appointmentDate: new Date(date),
-      status: { $in: ['confirmed', 'scheduled', 'pending'] }
-    });
+    let appointments = [];
+    try {
+      appointments = await Appointment.find({
+        doctorId,
+        appointmentDate: new Date(date),
+        status: { $in: ['confirmed', 'scheduled', 'pending'] }
+      });
+      console.log('📅 Found', appointments.length, 'existing appointments for', date);
+    } catch (appointmentError) {
+      console.log('⚠️ Error fetching appointments (continuing with empty list):', appointmentError.message);
+      appointments = [];
+    }
 
     // Filter available slots and return simple time strings
-    const availableSlots = schedule.timeSlots.filter(slot => {
-      if (!slot.isAvailable) return false;
-      
-      // Check if slot is fully booked
-      const slotAppointments = appointments.filter(apt => {
-        const aptTime = apt.appointmentTime;
-        return aptTime >= slot.startTime && aptTime < slot.endTime;
-      });
-      
-      return slotAppointments.length < slot.maxBookings;
-    }).map(slot => slot.startTime); // Return just the start time as string
+    let availableSlots = [];
+    
+    try {
+      availableSlots = schedule.timeSlots.filter(slot => {
+        if (!slot.isAvailable) return false;
+        
+        // Check if slot is fully booked
+        const slotAppointments = appointments.filter(apt => {
+          const aptTime = apt.appointmentTime;
+          return aptTime >= slot.startTime && aptTime < slot.endTime;
+        });
+        
+        return slotAppointments.length < slot.maxBookings;
+      }).map(slot => slot.startTime); // Return just the start time as string
 
-    console.log('🕐 Available time slots for doctor', doctorId, 'on', date, ':', availableSlots);
+      console.log('🕐 Available time slots for doctor', doctorId, 'on', date, ':', availableSlots);
+    } catch (filterError) {
+      console.error('❌ Error filtering time slots:', filterError);
+      // Return default time slots as fallback
+      availableSlots = ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30'];
+    }
 
     res.json({
       success: true,
