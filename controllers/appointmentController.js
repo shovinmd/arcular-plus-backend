@@ -594,7 +594,7 @@ const sendAppointmentCancellationEmails = async (appointment) => {
           <div style="background-color: #fdf2f2; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #e74c3c;">
             <h3>Your appointment has been cancelled</h3>
             <p><strong>Appointment ID:</strong> ${appointment.appointmentId}</p>
-            <p><strong>Patient:</strong> ${appointment.patientName}</p>
+            <p><strong>Patient:</strong> ${appointment.patientName || 'Patient'}</p>
             <p><strong>Doctor:</strong> Dr. ${appointment.doctorName}</p>
             <p><strong>Specialization:</strong> ${appointment.doctorSpecialization}</p>
             <p><strong>Hospital:</strong> ${appointment.hospitalName}</p>
@@ -802,7 +802,7 @@ const sendAppointmentRescheduleEmail = async (appointment) => {
           <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
             <h3>Appointment Details</h3>
             <p><strong>Appointment ID:</strong> ${appointment.appointmentId}</p>
-            <p><strong>Patient:</strong> ${appointment.patientName}</p>
+            <p><strong>Patient:</strong> ${appointment.patientName || 'Patient'}</p>
             <p><strong>Doctor:</strong> Dr. ${appointment.doctorName}</p>
             <p><strong>Specialization:</strong> ${appointment.doctorSpecialization}</p>
             <p><strong>Hospital:</strong> ${appointment.hospitalName}</p>
@@ -818,7 +818,7 @@ const sendAppointmentRescheduleEmail = async (appointment) => {
           </div>
           
           <div style="text-align: center; margin: 30px 0;">
-            <a href="https://arcular-plus.onrender.com" style="background-color: #32CCBC; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px;">Visit Arcular Plus</a>
+            <a href="https://arcular-pluse-a-unified-healthcare-peach.vercel.app/" style="background-color: #32CCBC; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px;">Visit Arcular Plus</a>
           </div>
         </div>
       `
@@ -957,11 +957,12 @@ const completeAppointment = async (req, res) => {
       });
     }
 
-    // Update appointment status
-    appointment.status = 'completed';
-    appointment.completedAt = new Date();
+    // Update appointment status - consultation done, payment pending
+    appointment.status = 'consultation_completed';
+    appointment.consultationCompletedAt = new Date();
     appointment.billAmount = billAmount || 0;
     appointment.completionNotes = notes;
+    appointment.paymentStatus = 'pending';
 
     console.log('🔄 Updating appointment status to completed:', appointment._id);
     await appointment.save();
@@ -971,7 +972,7 @@ const completeAppointment = async (req, res) => {
     const HealthRecord = require('../models/HealthRecord');
     const healthRecord = new HealthRecord({
       patientId: appointment.patientId || appointment.userId,
-      patientName: appointment.patientName || 'Unknown Patient',
+      patientName: appointment.patientName || 'Patient' || 'Unknown Patient',
       patientPhone: appointment.patientPhone || 'N/A',
       hospitalId: appointment.hospitalId,
       hospitalName: appointment.hospitalName,
@@ -1134,20 +1135,20 @@ const sendAppointmentCompletionEmail = async (appointment, billAmount) => {
           <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
             <h3>Appointment Details</h3>
             <p><strong>Appointment ID:</strong> ${appointment.appointmentId}</p>
-            <p><strong>Patient:</strong> ${appointment.patientName}</p>
+            <p><strong>Patient:</strong> ${appointment.patientName || 'Patient'}</p>
             <p><strong>Doctor:</strong> Dr. ${appointment.doctorName}</p>
             <p><strong>Hospital:</strong> ${appointment.hospitalName}</p>
             <p><strong>Date:</strong> ${appointment.appointmentDate.toDateString()}</p>
             <p><strong>Time:</strong> ${appointment.appointmentTime}</p>
-            <p><strong>Status:</strong> <span style="color: #27ae60; font-weight: bold;">COMPLETED</span></p>
+            <p><strong>Status:</strong> <span style="color: #f39c12; font-weight: bold;">CONSULTATION COMPLETED</span></p>
           </div>
           
           <div style="background-color: #e8f5e8; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #27ae60;">
             <h3 style="color: #27ae60;">Payment Information</h3>
             <p><strong>Bill Amount:</strong> ₹${billAmount || 0}</p>
             <p><strong>Payment Method:</strong> Offline Payment</p>
-            <p><strong>Payment Status:</strong> Pending</p>
-            <p style="color: #666; font-size: 14px;">Please complete the payment at the hospital reception desk.</p>
+            <p><strong>Payment Status:</strong> <span style="color: #e74c3c; font-weight: bold;">PENDING</span></p>
+            <p style="color: #666; font-size: 14px;"><strong>Important:</strong> Please complete the payment at the hospital reception desk to finalize your appointment.</p>
           </div>
           
           ${appointment.completionNotes ? `
@@ -1163,7 +1164,7 @@ const sendAppointmentCompletionEmail = async (appointment, billAmount) => {
           </div>
           
           <div style="text-align: center; margin: 30px 0;">
-            <a href="https://arcular-plus.onrender.com" style="background-color: #32CCBC; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px;">Visit Arcular Plus</a>
+            <a href="https://arcular-pluse-a-unified-healthcare-peach.vercel.app/" style="background-color: #32CCBC; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px;">Visit Arcular Plus</a>
           </div>
         </div>
       `

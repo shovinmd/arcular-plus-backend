@@ -19,7 +19,14 @@ const createHospitalRecord = async (req, res) => {
       followUpDate
     } = req.body;
 
-    const hospitalId = req.user.hospitalId;
+    const hospitalId = req.body.hospitalId || req.user?.hospitalId;
+
+    if (!hospitalId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Hospital ID is required'
+      });
+    }
 
     // Get hospital details
     const hospital = await Hospital.findById(hospitalId);
