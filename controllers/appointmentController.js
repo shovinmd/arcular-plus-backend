@@ -137,7 +137,8 @@ const createAppointment = async (req, res) => {
       symptoms: symptoms,
       medicalHistory: medicalHistory,
       consultationFee: doctor.consultationFee,
-      paymentMethod: 'cash'
+      paymentMethod: 'cash',
+      appointmentStatus: 'confirmed'
     });
 
     await appointment.save();
@@ -890,6 +891,7 @@ const rescheduleAppointmentByHospital = async (req, res) => {
     appointment.appointmentDate = new Date(newDate);
     appointment.appointmentTime = newTime;
     appointment.status = 'rescheduled';
+    appointment.appointmentStatus = 'rescheduled';
     appointment.rescheduleReason = reason;
     appointment.rescheduledAt = new Date();
 
@@ -950,6 +952,7 @@ const cancelAppointmentByHospital = async (req, res) => {
     // Set cancellation reason
     appointment.cancellationReason = reason || 'No reason provided';
     appointment.status = 'cancelled';
+    appointment.appointmentStatus = 'cancelled';
 
     // Send notification to patient before deleting (non-blocking)
     try {
@@ -1014,6 +1017,7 @@ const completeAppointment = async (req, res) => {
 
     // Update appointment status - consultation done, payment completed
     appointment.status = 'completed';
+    appointment.appointmentStatus = 'completed';
     appointment.consultationCompletedAt = new Date();
     appointment.completedAt = new Date();
     appointment.billAmount = billAmount || 0;
@@ -1212,6 +1216,7 @@ const createOfflineAppointment = async (req, res) => {
       reason,
       notes,
       status: 'confirmed',
+      appointmentStatus: 'confirmed',
       appointmentType: 'offline',
       createdAt: new Date()
     });
@@ -1332,6 +1337,7 @@ const completePayment = async (req, res) => {
 
     // Update appointment status to fully completed
     appointment.status = 'completed';
+    appointment.appointmentStatus = 'completed';
     appointment.paymentStatus = 'paid';
     appointment.paymentMethod = finalPaymentMethod;
     appointment.completedAt = new Date();
