@@ -728,11 +728,24 @@ const cancelAppointment = async (req, res) => {
     // Send cancellation emails before deleting
     await sendAppointmentCancellationEmails(appointment);
 
-    // Delete the appointment by appointmentId
-    const deleteResult = await Appointment.findOneAndDelete({
-      appointmentId: appointmentId,
-      userId: firebaseUser.uid
-    });
+    // Delete the appointment by _id or appointmentId
+    let deleteResult = null;
+    
+    // First try to delete by MongoDB _id
+    if (mongoose.isValidObjectId(appointmentId)) {
+      deleteResult = await Appointment.findOneAndDelete({
+        _id: appointmentId,
+        userId: firebaseUser.uid
+      });
+    }
+    
+    // If not found by _id, try by appointmentId field
+    if (!deleteResult) {
+      deleteResult = await Appointment.findOneAndDelete({
+        appointmentId: appointmentId,
+        userId: firebaseUser.uid
+      });
+    }
 
     if (!deleteResult) {
       console.log('❌ Failed to delete appointment:', appointmentId);
