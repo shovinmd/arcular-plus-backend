@@ -862,9 +862,11 @@ const rescheduleAppointmentByHospital = async (req, res) => {
 
     // Send notification to patient (non-blocking)
     try {
+      console.log('📧 Sending reschedule email to:', appointment.userEmail);
       await sendAppointmentRescheduleEmail(appointment);
+      console.log('✅ Reschedule email sent successfully');
     } catch (mailErr) {
-      console.error('Reschedule: email send failed (non-blocking):', mailErr);
+      console.error('❌ Reschedule: email send failed (non-blocking):', mailErr);
     }
 
     res.json({
@@ -902,24 +904,28 @@ const cancelAppointmentByHospital = async (req, res) => {
       });
     }
 
-    // Update appointment
-    appointment.status = 'cancelled';
-    appointment.cancellationReason = reason;
-    appointment.cancelledAt = new Date();
-
-    await appointment.save();
-
-    // Send notification to patient (non-blocking)
+    // Send notification to patient before deleting (non-blocking)
     try {
+      console.log('📧 Sending cancellation email to:', appointment.userEmail);
       await sendAppointmentCancellationEmails(appointment);
+      console.log('✅ Cancellation email sent successfully');
     } catch (mailErr) {
-      console.error('Cancel: email send failed (non-blocking):', mailErr);
+      console.error('❌ Cancel: email send failed (non-blocking):', mailErr);
     }
+
+    // Delete the appointment from database
+    console.log('🗑️ Deleting appointment:', appointment._id);
+    await Appointment.findByIdAndDelete(appointment._id);
+    console.log('✅ Appointment deleted successfully');
 
     res.json({
       success: true,
-      message: 'Appointment cancelled successfully',
-      data: appointment
+      message: 'Appointment cancelled and deleted successfully',
+      data: {
+        appointmentId: appointment._id,
+        status: 'cancelled',
+        deletedAt: new Date()
+      }
     });
   } catch (error) {
     console.error('Error cancelling appointment:', error);
