@@ -162,11 +162,35 @@ const getAvailableTimeSlots = async (req, res) => {
     });
 
     if (!schedule) {
-      return res.json({
-        success: true,
-        data: [],
-        message: 'No schedule found for this date'
+      // Create default time slots if no schedule exists
+      const defaultTimeSlots = [
+        { startTime: '09:00', endTime: '09:30', isAvailable: true, maxBookings: 1, currentBookings: 0 },
+        { startTime: '09:30', endTime: '10:00', isAvailable: true, maxBookings: 1, currentBookings: 0 },
+        { startTime: '10:00', endTime: '10:30', isAvailable: true, maxBookings: 1, currentBookings: 0 },
+        { startTime: '10:30', endTime: '11:00', isAvailable: true, maxBookings: 1, currentBookings: 0 },
+        { startTime: '11:00', endTime: '11:30', isAvailable: true, maxBookings: 1, currentBookings: 0 },
+        { startTime: '11:30', endTime: '12:00', isAvailable: true, maxBookings: 1, currentBookings: 0 },
+        { startTime: '14:00', endTime: '14:30', isAvailable: true, maxBookings: 1, currentBookings: 0 },
+        { startTime: '14:30', endTime: '15:00', isAvailable: true, maxBookings: 1, currentBookings: 0 },
+        { startTime: '15:00', endTime: '15:30', isAvailable: true, maxBookings: 1, currentBookings: 0 },
+        { startTime: '15:30', endTime: '16:00', isAvailable: true, maxBookings: 1, currentBookings: 0 },
+        { startTime: '16:00', endTime: '16:30', isAvailable: true, maxBookings: 1, currentBookings: 0 },
+        { startTime: '16:30', endTime: '17:00', isAvailable: true, maxBookings: 1, currentBookings: 0 },
+      ];
+
+      // Create a default schedule for this date
+      const defaultSchedule = new DoctorSchedule({
+        doctorId,
+        date,
+        timeSlots: defaultTimeSlots,
+        isActive: true
       });
+
+      await defaultSchedule.save();
+      console.log('📅 Created default schedule for doctor', doctorId, 'on', date);
+
+      // Use the default schedule
+      schedule = defaultSchedule;
     }
 
     // Get existing appointments for this doctor and date
@@ -176,7 +200,7 @@ const getAvailableTimeSlots = async (req, res) => {
       status: { $in: ['confirmed', 'scheduled', 'pending'] }
     });
 
-    // Filter available slots
+    // Filter available slots and return simple time strings
     const availableSlots = schedule.timeSlots.filter(slot => {
       if (!slot.isAvailable) return false;
       
@@ -187,12 +211,9 @@ const getAvailableTimeSlots = async (req, res) => {
       });
       
       return slotAppointments.length < slot.maxBookings;
-    }).map(slot => ({
-      startTime: slot.startTime,
-      endTime: slot.endTime,
-      maxBookings: slot.maxBookings,
-      currentBookings: slot.currentBookings
-    }));
+    }).map(slot => slot.startTime); // Return just the start time as string
+
+    console.log('🕐 Available time slots for doctor', doctorId, 'on', date, ':', availableSlots);
 
     res.json({
       success: true,
