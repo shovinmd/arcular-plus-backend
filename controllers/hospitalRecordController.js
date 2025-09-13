@@ -37,11 +37,22 @@ const createHospitalRecord = async (req, res) => {
       });
     }
 
-    // Find patient by ARC ID
-    const patient = await UserModel.findOne({ 
-      healthQrId: patientArcId,
-      userType: 'patient'
-    });
+    // Find patient by ARC ID or patient ID
+    let patient = null;
+    if (patientArcId) {
+      patient = await UserModel.findOne({ 
+        healthQrId: patientArcId,
+        userType: 'patient'
+      });
+    }
+    
+    // If not found by ARC ID, try to find by patient ID
+    if (!patient && req.body.patientId) {
+      patient = await UserModel.findOne({ 
+        uid: req.body.patientId,
+        userType: 'patient'
+      });
+    }
 
     if (!patient) {
       return res.status(404).json({
