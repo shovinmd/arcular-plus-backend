@@ -94,6 +94,10 @@ const createAppointment = async (req, res) => {
       userEmail: user.email,
       userName: user.fullName,
       userPhone: user.mobileNumber,
+      patientId: firebaseUser.uid,
+      patientName: user.fullName,
+      patientPhone: user.mobileNumber,
+      patientEmail: user.email,
       doctorId: doctorId,
       doctorName: doctor.fullName,
       doctorEmail: doctor.email,
@@ -523,7 +527,7 @@ const sendAppointmentConfirmationEmail = async (appointment) => {
           <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
             <h3>Appointment Details</h3>
             <p><strong>Appointment ID:</strong> ${appointment.appointmentId}</p>
-            <p><strong>Doctor:</strong> Dr. ${appointment.doctorName}</p>
+            <p><strong>Doctor:</strong> ${appointment.doctorName}</p>
             <p><strong>Specialization:</strong> ${appointment.doctorSpecialization}</p>
             <p><strong>Hospital:</strong> ${appointment.hospitalName}</p>
             <p><strong>Date:</strong> ${appointment.appointmentDate.toDateString()}</p>
@@ -595,7 +599,7 @@ const sendAppointmentCancellationEmails = async (appointment) => {
             <h3>Your appointment has been cancelled</h3>
             <p><strong>Appointment ID:</strong> ${appointment.appointmentId}</p>
             <p><strong>Patient:</strong> ${appointment.patientName || 'Patient'}</p>
-            <p><strong>Doctor:</strong> Dr. ${appointment.doctorName}</p>
+            <p><strong>Doctor:</strong> ${appointment.doctorName}</p>
             <p><strong>Specialization:</strong> ${appointment.doctorSpecialization}</p>
             <p><strong>Hospital:</strong> ${appointment.hospitalName}</p>
             <p><strong>Date:</strong> ${appointmentDateFormatted}</p>
@@ -636,7 +640,7 @@ const sendAppointmentCancellationEmails = async (appointment) => {
             <p><strong>Patient:</strong> ${appointment.userName}</p>
             <p><strong>Patient Email:</strong> ${appointment.userEmail}</p>
             <p><strong>Patient Phone:</strong> ${appointment.userPhone}</p>
-            <p><strong>Doctor:</strong> Dr. ${appointment.doctorName}</p>
+            <p><strong>Doctor:</strong> ${appointment.doctorName}</p>
             <p><strong>Date:</strong> ${appointmentDateFormatted}</p>
             <p><strong>Time:</strong> ${appointment.appointmentTime}</p>
             <p><strong>Reason:</strong> ${appointment.reason}</p>
@@ -803,7 +807,7 @@ const sendAppointmentRescheduleEmail = async (appointment) => {
             <h3>Appointment Details</h3>
             <p><strong>Appointment ID:</strong> ${appointment.appointmentId}</p>
             <p><strong>Patient:</strong> ${appointment.patientName || 'Patient'}</p>
-            <p><strong>Doctor:</strong> Dr. ${appointment.doctorName}</p>
+            <p><strong>Doctor:</strong> ${appointment.doctorName}</p>
             <p><strong>Specialization:</strong> ${appointment.doctorSpecialization}</p>
             <p><strong>Hospital:</strong> ${appointment.hospitalName}</p>
             <p><strong>New Date:</strong> ${appointment.appointmentDate.toDateString()}</p>
@@ -903,6 +907,10 @@ const cancelAppointmentByHospital = async (req, res) => {
         message: 'Appointment not found'
       });
     }
+
+    // Set cancellation reason
+    appointment.cancellationReason = reason || 'No reason provided';
+    appointment.status = 'cancelled';
 
     // Send notification to patient before deleting (non-blocking)
     try {
@@ -1136,7 +1144,7 @@ const sendAppointmentCompletionEmail = async (appointment, billAmount) => {
             <h3>Appointment Details</h3>
             <p><strong>Appointment ID:</strong> ${appointment.appointmentId}</p>
             <p><strong>Patient:</strong> ${appointment.patientName || 'Patient'}</p>
-            <p><strong>Doctor:</strong> Dr. ${appointment.doctorName}</p>
+            <p><strong>Doctor:</strong> ${appointment.doctorName}</p>
             <p><strong>Hospital:</strong> ${appointment.hospitalName}</p>
             <p><strong>Date:</strong> ${appointment.appointmentDate.toDateString()}</p>
             <p><strong>Time:</strong> ${appointment.appointmentTime}</p>
@@ -1177,6 +1185,56 @@ const sendAppointmentCompletionEmail = async (appointment, billAmount) => {
   }
 };
 
+// Mark appointment as fully completed after payment
+const completePayment = async (req, res) => {
+  try {
+    const { appointmentId } = req.params;
+    const { paymentMethod } = req.body;
+
+    let appointment = null;
+    if (mongoose.isValidObjectId(appointmentId)) {
+      appointment = await Appointment.findById(appointmentId);
+    }
+    if (!appointment) {
+      appointment = await Appointment.findOne({ appointmentId });
+    }
+    if (!appointment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Appointment not found'
+      });
+    }
+
+    // Update appointment status to fully completed
+    appointment.status = 'completed';
+    appointment.paymentStatus = 'completed';
+    appointment.paymentMethod = paymentMethod || 'cash';
+    appointment.completedAt = new Date();
+
+    console.log('💳 Completing payment for appointment:', appointment._id);
+    await appointment.save();
+    console.log('✅ Payment completed successfully');
+
+    res.json({
+      success: true,
+      message: 'Payment completed successfully',
+      data: {
+        appointmentId: appointment._id,
+        status: appointment.status,
+        paymentStatus: appointment.paymentStatus,
+        paymentMethod: appointment.paymentMethod
+      }
+    });
+  } catch (error) {
+    console.error('Error completing payment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to complete payment',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createAppointment,
   getUserAppointments,
@@ -1189,6 +1247,7 @@ module.exports = {
   rescheduleAppointmentByHospital,
   cancelAppointmentByHospital,
   completeAppointment,
+  completePayment,
   createOfflineAppointment,
   sendAppointmentCompletionEmail
 };

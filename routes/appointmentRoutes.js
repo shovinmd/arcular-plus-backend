@@ -33,6 +33,7 @@ router.get('/available-slots', verifyFirebaseToken, appointmentController.getAva
 router.put('/:appointmentId/reschedule', verifyFirebaseToken, appointmentController.rescheduleAppointmentByHospital);
 router.put('/:appointmentId/cancel', verifyFirebaseToken, appointmentController.cancelAppointmentByHospital);
 router.put('/:appointmentId/complete', verifyFirebaseToken, appointmentController.completeAppointment);
+router.put('/:appointmentId/complete-payment', verifyFirebaseToken, appointmentController.completePayment);
 
 // Offline appointment booking
 router.post('/offline', verifyFirebaseToken, appointmentController.createOfflineAppointment);
