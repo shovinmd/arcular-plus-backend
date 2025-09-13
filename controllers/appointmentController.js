@@ -1018,7 +1018,7 @@ const completeAppointment = async (req, res) => {
     appointment.completedAt = new Date();
     appointment.billAmount = billAmount || 0;
     appointment.completionNotes = notes;
-    appointment.paymentStatus = 'completed';
+    appointment.paymentStatus = 'paid';
     appointment.paymentMethod = finalPaymentMethod;
 
     // Ensure patient name is set
@@ -1267,7 +1267,7 @@ const sendAppointmentCompletionEmail = async (appointment, billAmount) => {
             <h3 style="color: #27ae60;">Payment Information</h3>
             <p><strong>Bill Amount:</strong> ₹${billAmount || 0}</p>
             <p><strong>Payment Method:</strong> ${appointment.paymentMethod || 'Offline Payment'}</p>
-            <p><strong>Payment Status:</strong> <span style="color: #27ae60; font-weight: bold;">COMPLETED</span></p>
+            <p><strong>Payment Status:</strong> <span style="color: #27ae60; font-weight: bold;">PAID</span></p>
             <p style="color: #666; font-size: 14px;"><strong>Thank you for choosing our hospital!</strong> Your appointment has been successfully completed.</p>
           </div>
           
@@ -1323,7 +1323,7 @@ const completePayment = async (req, res) => {
 
     // Update appointment status to fully completed
     appointment.status = 'completed';
-    appointment.paymentStatus = 'completed';
+    appointment.paymentStatus = 'paid';
     appointment.paymentMethod = finalPaymentMethod;
     appointment.completedAt = new Date();
 
