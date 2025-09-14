@@ -100,7 +100,7 @@ const placeOrder = async (req, res) => {
       });
     }
     
-    const deliveryFee = deliveryMethod === 'Home Delivery' ? 50 : 0;
+    const deliveryFee = deliveryMethod === 'Home Delivery' ? 30 : 0;
     const totalAmount = subtotal + deliveryFee;
     
     // Get pharmacy information (from first item)
