@@ -17,6 +17,12 @@ const createTransporter = () => {
 // Send email notification
 const sendEmail = async (to, subject, html) => {
   try {
+    // Check if email credentials are configured
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      console.warn('⚠️ Email credentials not configured. Skipping email send.');
+      return;
+    }
+    
     const transporter = createTransporter();
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
@@ -171,7 +177,13 @@ const placeOrder = async (req, res) => {
       <p>Please confirm this order in your pharmacy dashboard.</p>
     `;
     
-    await sendEmail(pharmacy.email, `New Order: ${order.orderId}`, pharmacyEmailHtml);
+    // Send email to pharmacy
+    try {
+      await sendEmail(pharmacy.email, `New Order: ${order.orderId}`, pharmacyEmailHtml);
+      console.log('✅ Pharmacy email sent to:', pharmacy.email);
+    } catch (emailError) {
+      console.error('❌ Error sending email to pharmacy:', emailError);
+    }
     
     // Send confirmation email to user
     const userEmailHtml = `
@@ -181,10 +193,22 @@ const placeOrder = async (req, res) => {
       <p><strong>Total Amount:</strong> ₹${totalAmount}</p>
       <p><strong>Status:</strong> Pending Confirmation</p>
       
+      <h3>Order Items:</h3>
+      <ul>
+        ${processedItems.map(item => `
+          <li>${item.medicineName} (${item.type}) - Qty: ${item.quantity} - ₹${item.totalPrice}</li>
+        `).join('')}
+      </ul>
+      
       <p>You will receive another email once the pharmacy confirms your order.</p>
     `;
     
-    await sendEmail(user.email, `Order Confirmed: ${order.orderId}`, userEmailHtml);
+    try {
+      await sendEmail(user.email, `Order Confirmed: ${order.orderId}`, userEmailHtml);
+      console.log('✅ User email sent to:', user.email);
+    } catch (emailError) {
+      console.error('❌ Error sending email to user:', emailError);
+    }
     
     res.json({
       success: true,
@@ -232,10 +256,35 @@ const getOrdersByPharmacy = async (req, res) => {
   try {
     const { pharmacyId } = req.params;
     
-    const orders = await Order.find({ pharmacyId: pharmacyId })
+    console.log('🔍 Fetching orders for pharmacy:', pharmacyId);
+    
+    // First, try to find pharmacy by UID to get MongoDB ID
+    const Pharmacy = require('../models/Pharmacy');
+    let pharmacy = await Pharmacy.findOne({ uid: pharmacyId });
+    
+    if (!pharmacy) {
+      // If not found by UID, try by MongoDB ID
+      pharmacy = await Pharmacy.findById(pharmacyId);
+    }
+    
+    if (!pharmacy) {
+      return res.status(404).json({
+        success: false,
+        error: 'Pharmacy not found'
+      });
+    }
+    
+    console.log('🏥 Found pharmacy:', {
+      uid: pharmacy.uid,
+      _id: pharmacy._id,
+      name: pharmacy.pharmacyName
+    });
+    
+    // Find orders by pharmacy MongoDB ID
+    const orders = await Order.find({ pharmacyId: pharmacy._id })
       .sort({ orderDate: -1 });
     
-    console.log(`✅ Found ${orders.length} orders for pharmacy ${pharmacyId}`);
+    console.log(`✅ Found ${orders.length} orders for pharmacy ${pharmacy.pharmacyName}`);
     
     res.json({
       success: true,
