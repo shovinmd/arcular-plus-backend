@@ -114,6 +114,9 @@ const orderSchema = new mongoose.Schema({
   trackingUrl: {
     type: String
   },
+  estimatedDelivery: {
+    type: String
+  },
   
   // Payment Information
   paymentMethod: {

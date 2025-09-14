@@ -279,7 +279,7 @@ const placeOrder = async (req, res) => {
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Order Confirmed</title>
+        <title>Order Placed</title>
         <style>
           body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5; }
           .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
@@ -300,7 +300,7 @@ const placeOrder = async (req, res) => {
       <body>
         <div class="container">
           <div class="header">
-            <h1>✅ Order Confirmed</h1>
+            <h1>✅ Order Placed</h1>
             <p>Thank you for your order! Your order has been placed successfully.</p>
           </div>
           <div class="content">
@@ -360,7 +360,7 @@ const placeOrder = async (req, res) => {
     try {
       if (user.email) {
         console.log('📧 Sending email to user:', user.email);
-        await sendEmail(user.email, `Order Confirmed: ${order.orderId}`, userEmailHtml);
+        await sendEmail(user.email, `Order Placed: ${order.orderId}`, userEmailHtml);
         console.log('✅ User email sent successfully to:', user.email);
       } else {
         console.warn('⚠️ User email not found, skipping email send');
@@ -485,6 +485,7 @@ const updateOrderStatus = async (req, res) => {
       order.trackingNumber = trackingInfo.trackingId;
       order.courierService = trackingInfo.courierService;
       order.trackingUrl = trackingInfo.trackingUrl;
+      order.estimatedDelivery = trackingInfo.estimatedDelivery;
       await order.save();
     }
     
@@ -551,6 +552,7 @@ const updateOrderStatus = async (req, res) => {
                 <div class="tracking-id">Tracking ID: ${order.trackingNumber}</div>
                 <div class="courier-info">
                   <p><strong>Courier Service:</strong> ${order.courierService || 'Not specified'}</p>
+                  ${order.estimatedDelivery ? `<p><strong>Estimated Delivery:</strong> ${order.estimatedDelivery}</p>` : ''}
                   ${order.trackingUrl ? `<p><strong>Tracking URL:</strong> <a href="${order.trackingUrl}" target="_blank">${order.trackingUrl}</a></p>` : ''}
                 </div>
                 ${order.trackingUrl ? `
