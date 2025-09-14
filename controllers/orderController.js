@@ -20,19 +20,28 @@ const sendEmail = async (to, subject, html) => {
     // Check if email credentials are configured
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
       console.warn('⚠️ Email credentials not configured. Skipping email send.');
+      console.warn('EMAIL_USER:', process.env.EMAIL_USER ? 'Set' : 'Not set');
+      console.warn('EMAIL_PASS:', process.env.EMAIL_PASS ? 'Set' : 'Not set');
       return;
     }
     
+    console.log(`📧 Attempting to send email to: ${to}`);
+    console.log(`📧 Subject: ${subject}`);
+    
     const transporter = createTransporter();
-    await transporter.sendMail({
+    const result = await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: to,
       subject: subject,
       html: html
     });
-    console.log(`✅ Email sent to ${to}: ${subject}`);
+    
+    console.log(`✅ Email sent successfully to ${to}: ${subject}`);
+    console.log(`📧 Message ID: ${result.messageId}`);
   } catch (error) {
     console.error('❌ Error sending email:', error);
+    console.error('❌ Error details:', error.message);
+    console.error('❌ Error code:', error.code);
   }
 };
 
@@ -180,13 +189,16 @@ const placeOrder = async (req, res) => {
     // Send email to pharmacy
     try {
       if (pharmacy.email) {
+        console.log('📧 Sending email to pharmacy:', pharmacy.email);
         await sendEmail(pharmacy.email, `New Order: ${order.orderId}`, pharmacyEmailHtml);
-        console.log('✅ Pharmacy email sent to:', pharmacy.email);
+        console.log('✅ Pharmacy email sent successfully to:', pharmacy.email);
       } else {
         console.warn('⚠️ Pharmacy email not found, skipping email send');
+        console.warn('Pharmacy data:', { pharmacyName: pharmacy.pharmacyName, email: pharmacy.email });
       }
     } catch (emailError) {
       console.error('❌ Error sending email to pharmacy:', emailError);
+      console.error('❌ Pharmacy email error details:', emailError.message);
     }
     
     // Send confirmation email to user
@@ -209,13 +221,16 @@ const placeOrder = async (req, res) => {
     
     try {
       if (user.email) {
+        console.log('📧 Sending email to user:', user.email);
         await sendEmail(user.email, `Order Confirmed: ${order.orderId}`, userEmailHtml);
-        console.log('✅ User email sent to:', user.email);
+        console.log('✅ User email sent successfully to:', user.email);
       } else {
         console.warn('⚠️ User email not found, skipping email send');
+        console.warn('User data:', { userName: userName, email: user.email });
       }
     } catch (emailError) {
       console.error('❌ Error sending email to user:', emailError);
+      console.error('❌ User email error details:', emailError.message);
     }
     
     res.json({
@@ -336,7 +351,13 @@ const updateOrderStatus = async (req, res) => {
         <p><strong>Status:</strong> Confirmed</p>
         <p>Your order is being prepared and will be shipped soon.</p>
       `;
-      await sendEmail(order.userEmail, `Order Confirmed: ${order.orderId}`, userEmailHtml);
+      try {
+        console.log('📧 Sending confirmation email to user:', order.userEmail);
+        await sendEmail(order.userEmail, `Order Confirmed: ${order.orderId}`, userEmailHtml);
+        console.log('✅ User confirmation email sent successfully');
+      } catch (emailError) {
+        console.error('❌ Error sending confirmation email to user:', emailError);
+      }
     } else if (status === 'Shipped') {
       const userEmailHtml = `
         <h2>Order Shipped</h2>
@@ -346,7 +367,13 @@ const updateOrderStatus = async (req, res) => {
         ${order.trackingNumber ? `<p><strong>Tracking Number:</strong> ${order.trackingNumber}</p>` : ''}
         <p>You should receive your order soon.</p>
       `;
-      await sendEmail(order.userEmail, `Order Shipped: ${order.orderId}`, userEmailHtml);
+      try {
+        console.log('📧 Sending shipped email to user:', order.userEmail);
+        await sendEmail(order.userEmail, `Order Shipped: ${order.orderId}`, userEmailHtml);
+        console.log('✅ User shipped email sent successfully');
+      } catch (emailError) {
+        console.error('❌ Error sending shipped email to user:', emailError);
+      }
     } else if (status === 'Delivered') {
       const userEmailHtml = `
         <h2>Order Delivered</h2>
@@ -355,7 +382,13 @@ const updateOrderStatus = async (req, res) => {
         <p><strong>Status:</strong> Delivered</p>
         <p>Thank you for choosing our service!</p>
       `;
-      await sendEmail(order.userEmail, `Order Delivered: ${order.orderId}`, userEmailHtml);
+      try {
+        console.log('📧 Sending delivered email to user:', order.userEmail);
+        await sendEmail(order.userEmail, `Order Delivered: ${order.orderId}`, userEmailHtml);
+        console.log('✅ User delivered email sent successfully');
+      } catch (emailError) {
+        console.error('❌ Error sending delivered email to user:', emailError);
+      }
     } else if (status === 'Cancelled') {
       // Send cancellation email to user
       const userEmailHtml = `
@@ -366,7 +399,13 @@ const updateOrderStatus = async (req, res) => {
         <p><strong>Reason:</strong> ${note || 'No reason provided'}</p>
         <p>If you have any questions, please contact our support team.</p>
       `;
-      await sendEmail(order.userEmail, `Order Cancelled: ${order.orderId}`, userEmailHtml);
+      try {
+        console.log('📧 Sending cancellation email to user:', order.userEmail);
+        await sendEmail(order.userEmail, `Order Cancelled: ${order.orderId}`, userEmailHtml);
+        console.log('✅ User cancellation email sent successfully');
+      } catch (emailError) {
+        console.error('❌ Error sending cancellation email to user:', emailError);
+      }
       
       // Send cancellation notification to pharmacy
       const pharmacyEmailHtml = `
@@ -378,7 +417,14 @@ const updateOrderStatus = async (req, res) => {
         <p><strong>Reason:</strong> ${note || 'Cancelled by customer'}</p>
         <p>Please update your inventory accordingly.</p>
       `;
-      await sendEmail(order.pharmacyEmail, `Order Cancelled: ${order.orderId}`, pharmacyEmailHtml);
+      
+      try {
+        console.log('📧 Sending cancellation email to pharmacy:', order.pharmacyEmail);
+        await sendEmail(order.pharmacyEmail, `Order Cancelled: ${order.orderId}`, pharmacyEmailHtml);
+        console.log('✅ Pharmacy cancellation email sent successfully');
+      } catch (emailError) {
+        console.error('❌ Error sending cancellation email to pharmacy:', emailError);
+      }
     }
     
     console.log(`✅ Order ${orderId} status updated to ${status}`);
