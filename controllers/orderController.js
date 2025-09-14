@@ -179,8 +179,12 @@ const placeOrder = async (req, res) => {
     
     // Send email to pharmacy
     try {
-      await sendEmail(pharmacy.email, `New Order: ${order.orderId}`, pharmacyEmailHtml);
-      console.log('✅ Pharmacy email sent to:', pharmacy.email);
+      if (pharmacy.email) {
+        await sendEmail(pharmacy.email, `New Order: ${order.orderId}`, pharmacyEmailHtml);
+        console.log('✅ Pharmacy email sent to:', pharmacy.email);
+      } else {
+        console.warn('⚠️ Pharmacy email not found, skipping email send');
+      }
     } catch (emailError) {
       console.error('❌ Error sending email to pharmacy:', emailError);
     }
@@ -204,8 +208,12 @@ const placeOrder = async (req, res) => {
     `;
     
     try {
-      await sendEmail(user.email, `Order Confirmed: ${order.orderId}`, userEmailHtml);
-      console.log('✅ User email sent to:', user.email);
+      if (user.email) {
+        await sendEmail(user.email, `Order Confirmed: ${order.orderId}`, userEmailHtml);
+        console.log('✅ User email sent to:', user.email);
+      } else {
+        console.warn('⚠️ User email not found, skipping email send');
+      }
     } catch (emailError) {
       console.error('❌ Error sending email to user:', emailError);
     }
