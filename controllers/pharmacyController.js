@@ -199,7 +199,6 @@ const getPharmacyByUID = async (req, res) => {
     data.operatingHours = data.operatingHours ? JSON.stringify(data.operatingHours) : '';
     data.documents = data.documents ? JSON.stringify(data.documents) : '';
     data.affiliatedHospitals = data.affiliatedHospitals ? JSON.stringify(data.affiliatedHospitals) : '';
-    data.pharmacyAffiliatedHospitals = data.pharmacyAffiliatedHospitals ? JSON.stringify(data.pharmacyAffiliatedHospitals) : '';
     data.medicineInventory = data.medicineInventory ? JSON.stringify(data.medicineInventory) : '';
     data.geoCoordinates = data.geoCoordinates ? JSON.stringify(data.geoCoordinates) : '';
     
@@ -286,7 +285,6 @@ const getPharmacyByEmail = async (req, res) => {
     data.operatingHours = data.operatingHours ? JSON.stringify(data.operatingHours) : '';
     data.documents = data.documents ? JSON.stringify(data.documents) : '';
     data.affiliatedHospitals = data.affiliatedHospitals ? JSON.stringify(data.affiliatedHospitals) : '';
-    data.pharmacyAffiliatedHospitals = data.pharmacyAffiliatedHospitals ? JSON.stringify(data.pharmacyAffiliatedHospitals) : '';
     data.medicineInventory = data.medicineInventory ? JSON.stringify(data.medicineInventory) : '';
     data.geoCoordinates = data.geoCoordinates ? JSON.stringify(data.geoCoordinates) : '';
     
