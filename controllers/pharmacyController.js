@@ -1173,10 +1173,10 @@ const addPharmacyMedicine = async (req, res) => {
     medicineData.strength = medicineData.dose || 'Standard';
     medicineData.composition = medicineData.name; // Use name as composition
     medicineData.indications = ['General use']; // Default indication
-    medicineData.dosageInstructions = medicineData.frequency || 'As directed by pharmacist';
-      medicineData.price = medicineData.sellingPrice || medicineData.unitPrice;
-    medicineData.manufacturer = medicineData.supplier || 'Unknown';
-    medicineData.licenseNumber = pharmacy.licenseNumber || 'N/A';
+    medicineData.dosageInstructions = medicineData.dose || 'As directed by physician';
+    medicineData.price = medicineData.sellingPrice || medicineData.unitPrice || 0;
+    medicineData.manufacturer = medicineData.supplier || 'Generic Manufacturer';
+    medicineData.licenseNumber = pharmacy.licenseNumber || 'LIC-' + Date.now();
 
     const Medicine = require('../models/Medicine');
     const medicine = new Medicine(medicineData);
@@ -1490,6 +1490,18 @@ const searchMedicines = async (req, res) => {
     let medicines = await Medicine.find(searchCriteria)
       .populate('pharmacyId', 'pharmacyName city state address mobileNumber')
       .sort({ name: 1 });
+    
+    console.log(`🔍 Found ${medicines.length} medicines with search criteria:`, searchCriteria);
+    
+    // Debug: Log first few medicines
+    if (medicines.length > 0) {
+      console.log('📋 First medicine:', {
+        name: medicines[0].name,
+        status: medicines[0].status,
+        stock: medicines[0].stock,
+        pharmacyId: medicines[0].pharmacyId
+      });
+    }
     
     // Filter by city if specified
     if (city && city.trim()) {
