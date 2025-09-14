@@ -168,22 +168,93 @@ const placeOrder = async (req, res) => {
     
     // Send email to pharmacy
     const pharmacyEmailHtml = `
-      <h2>New Order Received</h2>
-      <p><strong>Order ID:</strong> ${order.orderId}</p>
-      <p><strong>Customer:</strong> ${userName}</p>
-      <p><strong>Email:</strong> ${user.email}</p>
-      <p><strong>Phone:</strong> ${user.mobileNumber || 'Not provided'}</p>
-      <p><strong>Total Amount:</strong> ₹${totalAmount}</p>
-      <p><strong>Delivery Method:</strong> ${deliveryMethod}</p>
-      
-      <h3>Order Items:</h3>
-      <ul>
-        ${processedItems.map(item => `
-          <li>${item.medicineName} (${item.type}) - Qty: ${item.quantity} - ₹${item.totalPrice}</li>
-        `).join('')}
-      </ul>
-      
-      <p>Please confirm this order in your pharmacy dashboard.</p>
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>New Order Received</title>
+        <style>
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5; }
+          .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; }
+          .header h1 { margin: 0; font-size: 28px; font-weight: 600; }
+          .content { padding: 30px; }
+          .order-card { background-color: #f8f9fa; border-left: 4px solid #28a745; padding: 20px; margin: 20px 0; border-radius: 0 8px 8px 0; }
+          .order-id { font-size: 24px; font-weight: bold; color: #28a745; margin: 10px 0; }
+          .customer-info { background-color: #e3f2fd; padding: 15px; border-radius: 8px; margin: 15px 0; }
+          .items-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+          .items-table th, .items-table td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+          .items-table th { background-color: #f8f9fa; font-weight: 600; }
+          .total-amount { font-size: 20px; font-weight: bold; color: #28a745; text-align: right; margin: 20px 0; }
+          .cta-button { display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 25px; font-weight: 600; margin: 20px 0; }
+          .footer { background-color: #f8f9fa; padding: 20px; text-align: center; color: #666; font-size: 14px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>🛒 New Order Received</h1>
+            <p>You have received a new order from a customer</p>
+          </div>
+          <div class="content">
+            <div class="order-card">
+              <div class="order-id">Order ID: ${order.orderId}</div>
+              <p><strong>Status:</strong> Pending Confirmation</p>
+              <p><strong>Order Time:</strong> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</p>
+            </div>
+            
+            <div class="customer-info">
+              <h3 style="margin-top: 0; color: #1976d2;">👤 Customer Information</h3>
+              <p><strong>Name:</strong> ${userName}</p>
+              <p><strong>Email:</strong> ${user.email}</p>
+              <p><strong>Phone:</strong> ${user.mobileNumber || 'Not provided'}</p>
+              <p><strong>Delivery Method:</strong> ${deliveryMethod}</p>
+            </div>
+            
+            <h3 style="color: #333;">📦 Order Items</h3>
+            <table class="items-table">
+              <thead>
+                <tr>
+                  <th>Medicine</th>
+                  <th>Type</th>
+                  <th>Quantity</th>
+                  <th>Unit Price</th>
+                  <th>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${processedItems.map(item => `
+                  <tr>
+                    <td>${item.medicineName}</td>
+                    <td>${item.type}</td>
+                    <td>${item.quantity}</td>
+                    <td>₹${item.unitPrice}</td>
+                    <td>₹${item.totalPrice}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+            
+            <div class="total-amount">
+              <strong>Total Amount: ₹${totalAmount}</strong>
+            </div>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="#" class="cta-button">View Order in Dashboard</a>
+            </div>
+            
+            <p style="background-color: #fff3cd; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107; margin: 20px 0;">
+              <strong>⚠️ Action Required:</strong> Please confirm this order in your pharmacy dashboard as soon as possible.
+            </p>
+          </div>
+          <div class="footer">
+            <p>This is an automated notification from Arcular Plus</p>
+            <p>Please do not reply to this email</p>
+          </div>
+        </div>
+      </body>
+      </html>
     `;
     
     // Send email to pharmacy
@@ -203,20 +274,87 @@ const placeOrder = async (req, res) => {
     
     // Send confirmation email to user
     const userEmailHtml = `
-      <h2>Order Confirmed</h2>
-      <p>Thank you for your order! Your order has been placed successfully.</p>
-      <p><strong>Order ID:</strong> ${order.orderId}</p>
-      <p><strong>Total Amount:</strong> ₹${totalAmount}</p>
-      <p><strong>Status:</strong> Pending Confirmation</p>
-      
-      <h3>Order Items:</h3>
-      <ul>
-        ${processedItems.map(item => `
-          <li>${item.medicineName} (${item.type}) - Qty: ${item.quantity} - ₹${item.totalPrice}</li>
-        `).join('')}
-      </ul>
-      
-      <p>You will receive another email once the pharmacy confirms your order.</p>
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Order Confirmed</title>
+        <style>
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5; }
+          .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+          .header { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 30px; text-align: center; }
+          .header h1 { margin: 0; font-size: 28px; font-weight: 600; }
+          .content { padding: 30px; }
+          .order-card { background-color: #f8f9fa; border-left: 4px solid #28a745; padding: 20px; margin: 20px 0; border-radius: 0 8px 8px 0; }
+          .order-id { font-size: 24px; font-weight: bold; color: #28a745; margin: 10px 0; }
+          .status-badge { display: inline-block; background-color: #ffc107; color: #000; padding: 8px 16px; border-radius: 20px; font-weight: 600; margin: 10px 0; }
+          .items-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+          .items-table th, .items-table td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+          .items-table th { background-color: #f8f9fa; font-weight: 600; }
+          .total-amount { font-size: 20px; font-weight: bold; color: #28a745; text-align: right; margin: 20px 0; }
+          .next-steps { background-color: #e3f2fd; padding: 20px; border-radius: 8px; margin: 20px 0; }
+          .footer { background-color: #f8f9fa; padding: 20px; text-align: center; color: #666; font-size: 14px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>✅ Order Confirmed</h1>
+            <p>Thank you for your order! Your order has been placed successfully.</p>
+          </div>
+          <div class="content">
+            <div class="order-card">
+              <div class="order-id">Order ID: ${order.orderId}</div>
+              <div class="status-badge">Pending Confirmation</div>
+              <p><strong>Order Time:</strong> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</p>
+            </div>
+            
+            <h3 style="color: #333;">📦 Your Order Items</h3>
+            <table class="items-table">
+              <thead>
+                <tr>
+                  <th>Medicine</th>
+                  <th>Type</th>
+                  <th>Quantity</th>
+                  <th>Unit Price</th>
+                  <th>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${processedItems.map(item => `
+                  <tr>
+                    <td>${item.medicineName}</td>
+                    <td>${item.type}</td>
+                    <td>${item.quantity}</td>
+                    <td>₹${item.unitPrice}</td>
+                    <td>₹${item.totalPrice}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+            
+            <div class="total-amount">
+              <strong>Total Amount: ₹${totalAmount}</strong>
+            </div>
+            
+            <div class="next-steps">
+              <h3 style="margin-top: 0; color: #1976d2;">📋 What's Next?</h3>
+              <ul>
+                <li>Your order is being processed by the pharmacy</li>
+                <li>You will receive another email once the pharmacy confirms your order</li>
+                <li>Track your order status in the "My Orders" section</li>
+                <li>Estimated delivery time will be provided after confirmation</li>
+              </ul>
+            </div>
+          </div>
+          <div class="footer">
+            <p>This is an automated confirmation from Arcular Plus</p>
+            <p>For support, contact us through the app</p>
+          </div>
+        </div>
+      </body>
+      </html>
     `;
     
     try {
@@ -392,12 +530,61 @@ const updateOrderStatus = async (req, res) => {
     } else if (status === 'Cancelled') {
       // Send cancellation email to user
       const userEmailHtml = `
-        <h2>Order Cancelled</h2>
-        <p>Your order has been cancelled.</p>
-        <p><strong>Order ID:</strong> ${order.orderId}</p>
-        <p><strong>Status:</strong> Cancelled</p>
-        <p><strong>Reason:</strong> ${note || 'No reason provided'}</p>
-        <p>If you have any questions, please contact our support team.</p>
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Order Cancelled</title>
+          <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5; }
+            .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+            .header { background: linear-gradient(135deg, #dc3545 0%, #e83e8c 100%); color: white; padding: 30px; text-align: center; }
+            .header h1 { margin: 0; font-size: 28px; font-weight: 600; }
+            .content { padding: 30px; }
+            .order-card { background-color: #f8f9fa; border-left: 4px solid #dc3545; padding: 20px; margin: 20px 0; border-radius: 0 8px 8px 0; }
+            .order-id { font-size: 24px; font-weight: bold; color: #dc3545; margin: 10px 0; }
+            .status-badge { display: inline-block; background-color: #dc3545; color: white; padding: 8px 16px; border-radius: 20px; font-weight: 600; margin: 10px 0; }
+            .reason-box { background-color: #f8d7da; padding: 15px; border-radius: 8px; border-left: 4px solid #dc3545; margin: 15px 0; }
+            .next-steps { background-color: #e3f2fd; padding: 20px; border-radius: 8px; margin: 20px 0; }
+            .footer { background-color: #f8f9fa; padding: 20px; text-align: center; color: #666; font-size: 14px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>❌ Order Cancelled</h1>
+              <p>Your order has been cancelled as requested</p>
+            </div>
+            <div class="content">
+              <div class="order-card">
+                <div class="order-id">Order ID: ${order.orderId}</div>
+                <div class="status-badge">Cancelled</div>
+                <p><strong>Cancellation Time:</strong> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</p>
+              </div>
+              
+              <div class="reason-box">
+                <h3 style="margin-top: 0; color: #721c24;">📝 Cancellation Reason</h3>
+                <p><strong>Reason:</strong> ${note || 'Order cancelled by user'}</p>
+              </div>
+              
+              <div class="next-steps">
+                <h3 style="margin-top: 0; color: #1976d2;">🔄 What's Next?</h3>
+                <ul>
+                  <li>Your order has been successfully cancelled</li>
+                  <li>No charges will be applied to your account</li>
+                  <li>You can place a new order anytime</li>
+                  <li>If you have any questions, contact our support team</li>
+                </ul>
+              </div>
+            </div>
+            <div class="footer">
+              <p>This is an automated notification from Arcular Plus</p>
+              <p>For support, contact us through the app</p>
+            </div>
+          </div>
+        </body>
+        </html>
       `;
       try {
         console.log('📧 Sending cancellation email to user:', order.userEmail);
@@ -409,13 +596,69 @@ const updateOrderStatus = async (req, res) => {
       
       // Send cancellation notification to pharmacy
       const pharmacyEmailHtml = `
-        <h2>Order Cancelled</h2>
-        <p>An order has been cancelled by the customer.</p>
-        <p><strong>Order ID:</strong> ${order.orderId}</p>
-        <p><strong>Customer:</strong> ${order.userName}</p>
-        <p><strong>Status:</strong> Cancelled</p>
-        <p><strong>Reason:</strong> ${note || 'Cancelled by customer'}</p>
-        <p>Please update your inventory accordingly.</p>
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Order Cancelled</title>
+          <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5; }
+            .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+            .header { background: linear-gradient(135deg, #dc3545 0%, #e83e8c 100%); color: white; padding: 30px; text-align: center; }
+            .header h1 { margin: 0; font-size: 28px; font-weight: 600; }
+            .content { padding: 30px; }
+            .order-card { background-color: #f8f9fa; border-left: 4px solid #dc3545; padding: 20px; margin: 20px 0; border-radius: 0 8px 8px 0; }
+            .order-id { font-size: 24px; font-weight: bold; color: #dc3545; margin: 10px 0; }
+            .status-badge { display: inline-block; background-color: #dc3545; color: white; padding: 8px 16px; border-radius: 20px; font-weight: 600; margin: 10px 0; }
+            .customer-info { background-color: #f8d7da; padding: 15px; border-radius: 8px; margin: 15px 0; }
+            .reason-box { background-color: #fff3cd; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107; margin: 15px 0; }
+            .action-required { background-color: #d1ecf1; padding: 20px; border-radius: 8px; border-left: 4px solid #17a2b8; margin: 20px 0; }
+            .footer { background-color: #f8f9fa; padding: 20px; text-align: center; color: #666; font-size: 14px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>❌ Order Cancelled</h1>
+              <p>An order has been cancelled by the customer</p>
+            </div>
+            <div class="content">
+              <div class="order-card">
+                <div class="order-id">Order ID: ${order.orderId}</div>
+                <div class="status-badge">Cancelled</div>
+                <p><strong>Cancellation Time:</strong> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</p>
+              </div>
+              
+              <div class="customer-info">
+                <h3 style="margin-top: 0; color: #721c24;">👤 Customer Information</h3>
+                <p><strong>Customer:</strong> ${order.userName}</p>
+                <p><strong>Email:</strong> ${order.userEmail}</p>
+                <p><strong>Phone:</strong> ${order.userPhone || 'Not provided'}</p>
+              </div>
+              
+              <div class="reason-box">
+                <h3 style="margin-top: 0; color: #856404;">📝 Cancellation Reason</h3>
+                <p><strong>Reason:</strong> ${note || 'Cancelled by customer'}</p>
+              </div>
+              
+              <div class="action-required">
+                <h3 style="margin-top: 0; color: #0c5460;">⚠️ Action Required</h3>
+                <ul>
+                  <li>Update your inventory to reflect the cancelled order</li>
+                  <li>Return any reserved stock to available inventory</li>
+                  <li>Process any refunds if payment was already collected</li>
+                  <li>Update your order management system</li>
+                </ul>
+              </div>
+            </div>
+            <div class="footer">
+              <p>This is an automated notification from Arcular Plus</p>
+              <p>Please do not reply to this email</p>
+            </div>
+          </div>
+        </body>
+        </html>
       `;
       
       try {
