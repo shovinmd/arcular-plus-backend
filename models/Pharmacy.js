@@ -216,6 +216,7 @@ const pharmacySchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  geoCoordinates: { lat: Number, lng: Number },
   longitude: { type: Number, required: false },
   latitude: { type: Number, required: false },
   
