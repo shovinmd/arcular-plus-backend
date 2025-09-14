@@ -34,6 +34,12 @@ router.put('/uid/:uid', firebaseAuthMiddleware, pharmacyController.updatePharmac
 // Get pharmacy approval status
 router.get('/approval-status/:uid', firebaseAuthMiddleware, pharmacyController.getPharmacyApprovalStatus);
 
+// Associate pharmacy with hospital by ARC ID
+router.post('/associate/by-arcid', firebaseAuthMiddleware, pharmacyController.associatePharmacyByArcId);
+
+// Remove pharmacy association
+router.delete('/associate/:pharmacyUid', firebaseAuthMiddleware, pharmacyController.removePharmacyAssociation);
+
 // Get pharmacy by email (for login verification)
 router.get('/email/:email', firebaseAuthMiddleware, pharmacyController.getPharmacyByEmail);
 

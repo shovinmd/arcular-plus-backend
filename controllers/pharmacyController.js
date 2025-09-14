@@ -832,6 +832,143 @@ const getPharmacyApprovalStatus = async (req, res) => {
   }
 };
 
+// Associate pharmacy with hospital by ARC ID
+const associatePharmacyByArcId = async (req, res) => {
+  try {
+    const { arcId } = req.body;
+    const hospitalUid = req.user.uid; // From Firebase auth middleware
+
+    console.log(`🔗 Associating pharmacy with ARC ID: ${arcId} to hospital: ${hospitalUid}`);
+
+    // Get hospital MongoDB ID
+    const Hospital = require('../models/Hospital');
+    const hospital = await Hospital.findOne({ uid: hospitalUid });
+    if (!hospital) {
+      return res.status(404).json({
+        success: false,
+        message: 'Hospital not found'
+      });
+    }
+
+    // Find pharmacy by ARC ID
+    const pharmacy = await Pharmacy.findOne({ 
+      $or: [
+        { arcId: arcId },
+        { healthQrId: arcId },
+        { uid: arcId }
+      ]
+    });
+
+    if (!pharmacy) {
+      return res.status(404).json({
+        success: false,
+        message: 'Pharmacy not found with the provided ARC ID'
+      });
+    }
+
+    // Check if pharmacy is approved
+    if (!pharmacy.isApproved || pharmacy.approvalStatus !== 'approved') {
+      return res.status(400).json({
+        success: false,
+        message: 'Pharmacy is not approved and cannot be associated'
+      });
+    }
+
+    // Check if already associated
+    const existingAssociation = pharmacy.affiliatedHospitals.find(
+      (affiliation) => affiliation.hospitalId === hospital._id.toString()
+    );
+
+    if (existingAssociation) {
+      return res.status(400).json({
+        success: false,
+        message: 'Pharmacy is already associated with this hospital'
+      });
+    }
+
+    // Add hospital association to pharmacy
+    pharmacy.affiliatedHospitals.push({
+      hospitalId: hospital._id.toString(),
+      hospitalName: hospital.hospitalName || hospital.fullName,
+      role: 'Partner',
+      startDate: new Date(),
+      isActive: true
+    });
+
+    await pharmacy.save();
+
+    console.log(`✅ Pharmacy ${pharmacy.pharmacyName} associated with hospital ${hospital.hospitalName}`);
+
+    res.json({
+      success: true,
+      message: 'Pharmacy associated successfully',
+      data: {
+        pharmacyId: pharmacy._id,
+        pharmacyName: pharmacy.pharmacyName,
+        hospitalId: hospital._id,
+        hospitalName: hospital.hospitalName
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error associating pharmacy by ARC ID:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to associate pharmacy',
+      error: error.message
+    });
+  }
+};
+
+// Remove pharmacy association
+const removePharmacyAssociation = async (req, res) => {
+  try {
+    const { pharmacyUid } = req.params;
+    const hospitalUid = req.user.uid; // From Firebase auth middleware
+
+    console.log(`🗑️ Removing pharmacy association: ${pharmacyUid} from hospital: ${hospitalUid}`);
+
+    // Get hospital MongoDB ID
+    const Hospital = require('../models/Hospital');
+    const hospital = await Hospital.findOne({ uid: hospitalUid });
+    if (!hospital) {
+      return res.status(404).json({
+        success: false,
+        message: 'Hospital not found'
+      });
+    }
+
+    // Find pharmacy by UID
+    const pharmacy = await Pharmacy.findOne({ uid: pharmacyUid });
+    if (!pharmacy) {
+      return res.status(404).json({
+        success: false,
+        message: 'Pharmacy not found'
+      });
+    }
+
+    // Remove hospital association from pharmacy
+    pharmacy.affiliatedHospitals = pharmacy.affiliatedHospitals.filter(
+      (affiliation) => affiliation.hospitalId !== hospital._id.toString()
+    );
+
+    await pharmacy.save();
+
+    console.log(`✅ Pharmacy ${pharmacy.pharmacyName} disassociated from hospital ${hospital.hospitalName}`);
+
+    res.json({
+      success: true,
+      message: 'Pharmacy association removed successfully'
+    });
+  } catch (error) {
+    console.error('❌ Error removing pharmacy association:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to remove pharmacy association',
+      error: error.message
+    });
+  }
+};
+
 // Note: Database cleanup function removed - no longer needed with the permanent fix
 
 module.exports = {
@@ -853,5 +990,7 @@ module.exports = {
   approvePharmacyByStaff,
   rejectPharmacyByStaff,
   getPharmaciesByAffiliation,
-  getPharmacyApprovalStatus
+  getPharmacyApprovalStatus,
+  associatePharmacyByArcId,
+  removePharmacyAssociation
 }; 
