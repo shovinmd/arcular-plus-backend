@@ -114,6 +114,10 @@ const medicineSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  sellingPrice: {
+    type: Number,
+    required: true
+  },
   supplier: {
     type: String,
     default: ''

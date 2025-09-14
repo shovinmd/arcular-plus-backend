@@ -1174,7 +1174,7 @@ const addPharmacyMedicine = async (req, res) => {
     medicineData.composition = medicineData.name; // Use name as composition
     medicineData.indications = ['General use']; // Default indication
     medicineData.dosageInstructions = medicineData.frequency || 'As directed by pharmacist';
-    medicineData.price = medicineData.unitPrice;
+      medicineData.price = medicineData.sellingPrice || medicineData.unitPrice;
     medicineData.manufacturer = medicineData.supplier || 'Unknown';
     medicineData.licenseNumber = pharmacy.licenseNumber || 'N/A';
 
