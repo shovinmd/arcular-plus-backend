@@ -201,6 +201,7 @@ const getPharmacyByUID = async (req, res) => {
     data.affiliatedHospitals = data.affiliatedHospitals ? JSON.stringify(data.affiliatedHospitals) : '';
     data.pharmacyAffiliatedHospitals = data.pharmacyAffiliatedHospitals ? JSON.stringify(data.pharmacyAffiliatedHospitals) : '';
     data.medicineInventory = data.medicineInventory ? JSON.stringify(data.medicineInventory) : '';
+    data.geoCoordinates = data.geoCoordinates ? JSON.stringify(data.geoCoordinates) : '';
     
     // Ensure arrays are properly formatted
     data.servicesProvided = data.servicesProvided || [];
@@ -287,6 +288,7 @@ const getPharmacyByEmail = async (req, res) => {
     data.affiliatedHospitals = data.affiliatedHospitals ? JSON.stringify(data.affiliatedHospitals) : '';
     data.pharmacyAffiliatedHospitals = data.pharmacyAffiliatedHospitals ? JSON.stringify(data.pharmacyAffiliatedHospitals) : '';
     data.medicineInventory = data.medicineInventory ? JSON.stringify(data.medicineInventory) : '';
+    data.geoCoordinates = data.geoCoordinates ? JSON.stringify(data.geoCoordinates) : '';
     
     // Ensure arrays are properly formatted
     data.servicesProvided = data.servicesProvided || [];
