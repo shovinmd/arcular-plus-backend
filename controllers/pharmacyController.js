@@ -835,6 +835,9 @@ const getPharmacyApprovalStatus = async (req, res) => {
 // Associate pharmacy with hospital by ARC ID
 const associatePharmacyByArcId = async (req, res) => {
   try {
+    console.log('🔗 AssociatePharmacyByArcId - Request body:', JSON.stringify(req.body, null, 2));
+    console.log('🔗 AssociatePharmacyByArcId - User from auth:', JSON.stringify(req.user, null, 2));
+    
     const { arcId } = req.body;
     const hospitalUid = req.user.uid; // From Firebase auth middleware
 
@@ -843,6 +846,16 @@ const associatePharmacyByArcId = async (req, res) => {
     // Get hospital MongoDB ID
     const Hospital = require('../models/Hospital');
     const hospital = await Hospital.findOne({ uid: hospitalUid });
+    console.log('🔗 Hospital found:', hospital ? 'Yes' : 'No');
+    if (hospital) {
+      console.log('🔗 Hospital details:', {
+        _id: hospital._id,
+        hospitalName: hospital.hospitalName,
+        fullName: hospital.fullName,
+        uid: hospital.uid
+      });
+    }
+    
     if (!hospital) {
       return res.status(404).json({
         success: false,
@@ -851,6 +864,7 @@ const associatePharmacyByArcId = async (req, res) => {
     }
 
     // Find pharmacy by ARC ID
+    console.log('🔍 Searching for pharmacy with ARC ID:', arcId);
     const pharmacy = await Pharmacy.findOne({ 
       $or: [
         { arcId: arcId },
@@ -858,6 +872,17 @@ const associatePharmacyByArcId = async (req, res) => {
         { uid: arcId }
       ]
     });
+    console.log('🔍 Pharmacy found:', pharmacy ? 'Yes' : 'No');
+    if (pharmacy) {
+      console.log('🔍 Pharmacy details:', {
+        _id: pharmacy._id,
+        pharmacyName: pharmacy.pharmacyName,
+        arcId: pharmacy.arcId,
+        uid: pharmacy.uid,
+        isApproved: pharmacy.isApproved,
+        approvalStatus: pharmacy.approvalStatus
+      });
+    }
 
     if (!pharmacy) {
       return res.status(404).json({
@@ -875,9 +900,13 @@ const associatePharmacyByArcId = async (req, res) => {
     }
 
     // Check if already associated
+    console.log('🔍 Current affiliated hospitals:', pharmacy.affiliatedHospitals);
+    console.log('🔍 Looking for hospital ID:', hospital._id.toString());
+    
     const existingAssociation = pharmacy.affiliatedHospitals.find(
       (affiliation) => affiliation.hospitalId === hospital._id.toString()
     );
+    console.log('🔍 Existing association found:', existingAssociation ? 'Yes' : 'No');
 
     if (existingAssociation) {
       return res.status(400).json({
@@ -887,15 +916,20 @@ const associatePharmacyByArcId = async (req, res) => {
     }
 
     // Add hospital association to pharmacy
-    pharmacy.affiliatedHospitals.push({
+    const newAssociation = {
       hospitalId: hospital._id.toString(),
       hospitalName: hospital.hospitalName || hospital.fullName,
       role: 'Partner',
       startDate: new Date(),
       isActive: true
-    });
+    };
+    console.log('🔗 Adding new association:', newAssociation);
+    
+    pharmacy.affiliatedHospitals.push(newAssociation);
+    console.log('🔗 Updated affiliated hospitals:', pharmacy.affiliatedHospitals);
 
     await pharmacy.save();
+    console.log('✅ Pharmacy saved successfully');
 
     console.log(`✅ Pharmacy ${pharmacy.pharmacyName} associated with hospital ${hospital.hospitalName}`);
 
