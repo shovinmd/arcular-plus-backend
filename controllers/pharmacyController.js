@@ -1152,6 +1152,7 @@ const addPharmacyMedicine = async (req, res) => {
 
     // Add pharmacy ID and set status
     medicineData.pharmacyId = actualPharmacyId;
+    medicineData.pharmacyName = pharmacy.pharmacyName;
     medicineData.lastUpdated = new Date().toISOString().split('T')[0];
     
     // Determine status based on stock
@@ -1162,6 +1163,20 @@ const addPharmacyMedicine = async (req, res) => {
     } else {
       medicineData.status = 'In Stock';
     }
+
+    // Set required fields for Medicine model
+    medicineData.medicineId = `MED-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    medicineData.genericName = medicineData.name; // Use name as generic name
+    medicineData.brand = medicineData.name; // Use name as brand
+    medicineData.dosage = medicineData.dose || 'As directed';
+    medicineData.form = medicineData.type || 'tablet';
+    medicineData.strength = medicineData.dose || 'Standard';
+    medicineData.composition = medicineData.name; // Use name as composition
+    medicineData.indications = ['General use']; // Default indication
+    medicineData.dosageInstructions = medicineData.frequency || 'As directed by pharmacist';
+    medicineData.price = medicineData.unitPrice;
+    medicineData.manufacturer = medicineData.supplier || 'Unknown';
+    medicineData.licenseNumber = pharmacy.licenseNumber || 'N/A';
 
     const Medicine = require('../models/Medicine');
     const medicine = new Medicine(medicineData);
