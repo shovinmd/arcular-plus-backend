@@ -63,6 +63,9 @@ router.delete('/:pharmacyId/medicines/:medicineId', firebaseAuthMiddleware, phar
 router.get('/:pharmacyId/medicines/alerts', firebaseAuthMiddleware, pharmacyController.getPharmacyMedicineAlerts);
 router.get('/:pharmacyId/medicines/overview', firebaseAuthMiddleware, pharmacyController.getPharmacyMedicineOverview);
 
+// Public medicine search endpoint (for users to search medicines across all pharmacies)
+router.get('/inventory/medicines/search', pharmacyController.searchMedicines);
+
 // Note: Database cleanup route removed - no longer needed with the permanent fix
 
 // Public QR scanning endpoints

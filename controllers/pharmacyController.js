@@ -1458,6 +1458,87 @@ const getPharmacyMedicineOverview = async (req, res) => {
   }
 };
 
+// Search medicines across all pharmacies (public endpoint for users)
+const searchMedicines = async (req, res) => {
+  try {
+    const { searchQuery, city } = req.query;
+    
+    console.log('🔍 Searching medicines with query:', searchQuery, 'city:', city);
+    
+    const Medicine = require('../models/Medicine');
+    const Pharmacy = require('../models/Pharmacy');
+    
+    // Build search criteria
+    let searchCriteria = {};
+    
+    if (searchQuery && searchQuery.trim()) {
+      const query = searchQuery.trim();
+      searchCriteria = {
+        $or: [
+          { name: { $regex: query, $options: 'i' } },
+          { category: { $regex: query, $options: 'i' } },
+          { type: { $regex: query, $options: 'i' } },
+          { supplier: { $regex: query, $options: 'i' } }
+        ]
+      };
+    }
+    
+    // Only show medicines that are in stock
+    searchCriteria.status = { $in: ['In Stock', 'Low Stock'] };
+    
+    // Find medicines
+    let medicines = await Medicine.find(searchCriteria)
+      .populate('pharmacyId', 'pharmacyName city state address mobileNumber')
+      .sort({ name: 1 });
+    
+    // Filter by city if specified
+    if (city && city.trim()) {
+      medicines = medicines.filter(medicine => 
+        medicine.pharmacyId && 
+        medicine.pharmacyId.city && 
+        medicine.pharmacyId.city.toLowerCase().includes(city.toLowerCase())
+      );
+    }
+    
+    // Format response
+    const formattedMedicines = medicines.map(medicine => ({
+      id: medicine._id,
+      name: medicine.name,
+      category: medicine.category,
+      type: medicine.type,
+      stock: medicine.stock,
+      unitPrice: medicine.unitPrice,
+      sellingPrice: medicine.sellingPrice,
+      status: medicine.status,
+      expiryDate: medicine.expiryDate,
+      supplier: medicine.supplier,
+      pharmacy: {
+        id: medicine.pharmacyId?._id,
+        name: medicine.pharmacyId?.pharmacyName,
+        city: medicine.pharmacyId?.city,
+        state: medicine.pharmacyId?.state,
+        address: medicine.pharmacyId?.address,
+        phone: medicine.pharmacyId?.mobileNumber
+      }
+    }));
+    
+    console.log(`✅ Found ${formattedMedicines.length} medicines matching search criteria`);
+    
+    res.json({
+      success: true,
+      data: formattedMedicines
+    });
+    
+  } catch (error) {
+    console.error('❌ Error searching medicines:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error searching medicines',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   registerPharmacy,
   getAllPharmacies,
@@ -1486,5 +1567,6 @@ module.exports = {
   updatePharmacyMedicine,
   deletePharmacyMedicine,
   getPharmacyMedicineAlerts,
-  getPharmacyMedicineOverview
+  getPharmacyMedicineOverview,
+  searchMedicines
 }; 
