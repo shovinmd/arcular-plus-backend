@@ -348,6 +348,29 @@ const updateOrderStatus = async (req, res) => {
         <p>Thank you for choosing our service!</p>
       `;
       await sendEmail(order.userEmail, `Order Delivered: ${order.orderId}`, userEmailHtml);
+    } else if (status === 'Cancelled') {
+      // Send cancellation email to user
+      const userEmailHtml = `
+        <h2>Order Cancelled</h2>
+        <p>Your order has been cancelled.</p>
+        <p><strong>Order ID:</strong> ${order.orderId}</p>
+        <p><strong>Status:</strong> Cancelled</p>
+        <p><strong>Reason:</strong> ${note || 'No reason provided'}</p>
+        <p>If you have any questions, please contact our support team.</p>
+      `;
+      await sendEmail(order.userEmail, `Order Cancelled: ${order.orderId}`, userEmailHtml);
+      
+      // Send cancellation notification to pharmacy
+      const pharmacyEmailHtml = `
+        <h2>Order Cancelled</h2>
+        <p>An order has been cancelled by the customer.</p>
+        <p><strong>Order ID:</strong> ${order.orderId}</p>
+        <p><strong>Customer:</strong> ${order.userName}</p>
+        <p><strong>Status:</strong> Cancelled</p>
+        <p><strong>Reason:</strong> ${note || 'Cancelled by customer'}</p>
+        <p>Please update your inventory accordingly.</p>
+      `;
+      await sendEmail(order.pharmacyEmail, `Order Cancelled: ${order.orderId}`, pharmacyEmailHtml);
     }
     
     console.log(`✅ Order ${orderId} status updated to ${status}`);
