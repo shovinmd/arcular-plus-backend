@@ -1047,10 +1047,30 @@ const getPharmacyMedicines = async (req, res) => {
     const { pharmacyId } = req.params;
     const { category, search, sortBy } = req.query;
 
-    console.log('💊 Fetching medicines for pharmacy:', pharmacyId);
+    console.log('💊 Fetching medicines for pharmacy ID/UID:', pharmacyId);
 
-    // Build filter object
-    let filter = { pharmacyId: pharmacyId };
+    // First, try to find pharmacy by UID to get MongoDB ID
+    const Pharmacy = require('../models/Pharmacy');
+    let pharmacy = await Pharmacy.findOne({ uid: pharmacyId });
+    
+    if (!pharmacy) {
+      // If not found by UID, try by MongoDB ID
+      pharmacy = await Pharmacy.findById(pharmacyId);
+    }
+    
+    if (!pharmacy) {
+      return res.status(404).json({
+        success: false,
+        error: 'Pharmacy not found',
+        message: 'No pharmacy found with the provided identifier'
+      });
+    }
+
+    const actualPharmacyId = pharmacy._id.toString();
+    console.log('✅ Found pharmacy:', pharmacy.pharmacyName, 'MongoDB ID:', actualPharmacyId);
+
+    // Build filter object using the actual MongoDB ID
+    let filter = { pharmacyId: actualPharmacyId };
     
     if (category && category !== 'All') {
       filter.category = category;
@@ -1086,7 +1106,7 @@ const getPharmacyMedicines = async (req, res) => {
     const Medicine = require('../models/Medicine');
     const medicines = await Medicine.find(filter).sort(sort);
 
-    console.log(`✅ Found ${medicines.length} medicines for pharmacy ${pharmacyId}`);
+    console.log(`✅ Found ${medicines.length} medicines for pharmacy ${actualPharmacyId}`);
 
     res.json({
       success: true,
@@ -1108,11 +1128,30 @@ const addPharmacyMedicine = async (req, res) => {
     const { pharmacyId } = req.params;
     const medicineData = req.body;
 
-    console.log('💊 Adding medicine for pharmacy:', pharmacyId);
-    console.log('📋 Medicine data:', JSON.stringify(medicineData, null, 2));
+    console.log('💊 Adding medicine for pharmacy ID/UID:', pharmacyId);
+
+    // First, try to find pharmacy by UID to get MongoDB ID
+    const Pharmacy = require('../models/Pharmacy');
+    let pharmacy = await Pharmacy.findOne({ uid: pharmacyId });
+    
+    if (!pharmacy) {
+      // If not found by UID, try by MongoDB ID
+      pharmacy = await Pharmacy.findById(pharmacyId);
+    }
+    
+    if (!pharmacy) {
+      return res.status(404).json({
+        success: false,
+        error: 'Pharmacy not found',
+        message: 'No pharmacy found with the provided identifier'
+      });
+    }
+
+    const actualPharmacyId = pharmacy._id.toString();
+    console.log('✅ Found pharmacy:', pharmacy.pharmacyName, 'MongoDB ID:', actualPharmacyId);
 
     // Add pharmacy ID and set status
-    medicineData.pharmacyId = pharmacyId;
+    medicineData.pharmacyId = actualPharmacyId;
     medicineData.lastUpdated = new Date().toISOString().split('T')[0];
     
     // Determine status based on stock
@@ -1150,7 +1189,27 @@ const updatePharmacyMedicine = async (req, res) => {
     const { pharmacyId, medicineId } = req.params;
     const updateData = req.body;
 
-    console.log('💊 Updating medicine:', medicineId, 'for pharmacy:', pharmacyId);
+    console.log('💊 Updating medicine:', medicineId, 'for pharmacy ID/UID:', pharmacyId);
+
+    // First, try to find pharmacy by UID to get MongoDB ID
+    const Pharmacy = require('../models/Pharmacy');
+    let pharmacy = await Pharmacy.findOne({ uid: pharmacyId });
+    
+    if (!pharmacy) {
+      // If not found by UID, try by MongoDB ID
+      pharmacy = await Pharmacy.findById(pharmacyId);
+    }
+    
+    if (!pharmacy) {
+      return res.status(404).json({
+        success: false,
+        error: 'Pharmacy not found',
+        message: 'No pharmacy found with the provided identifier'
+      });
+    }
+
+    const actualPharmacyId = pharmacy._id.toString();
+    console.log('✅ Found pharmacy:', pharmacy.pharmacyName, 'MongoDB ID:', actualPharmacyId);
 
     // Add last updated timestamp
     updateData.lastUpdated = new Date().toISOString().split('T')[0];
@@ -1166,7 +1225,7 @@ const updatePharmacyMedicine = async (req, res) => {
 
     const Medicine = require('../models/Medicine');
     const medicine = await Medicine.findOneAndUpdate(
-      { _id: medicineId, pharmacyId: pharmacyId },
+      { _id: medicineId, pharmacyId: actualPharmacyId },
       updateData,
       { new: true, runValidators: true }
     );
@@ -1200,12 +1259,32 @@ const deletePharmacyMedicine = async (req, res) => {
   try {
     const { pharmacyId, medicineId } = req.params;
 
-    console.log('💊 Deleting medicine:', medicineId, 'for pharmacy:', pharmacyId);
+    console.log('💊 Deleting medicine:', medicineId, 'for pharmacy ID/UID:', pharmacyId);
+
+    // First, try to find pharmacy by UID to get MongoDB ID
+    const Pharmacy = require('../models/Pharmacy');
+    let pharmacy = await Pharmacy.findOne({ uid: pharmacyId });
+    
+    if (!pharmacy) {
+      // If not found by UID, try by MongoDB ID
+      pharmacy = await Pharmacy.findById(pharmacyId);
+    }
+    
+    if (!pharmacy) {
+      return res.status(404).json({
+        success: false,
+        error: 'Pharmacy not found',
+        message: 'No pharmacy found with the provided identifier'
+      });
+    }
+
+    const actualPharmacyId = pharmacy._id.toString();
+    console.log('✅ Found pharmacy:', pharmacy.pharmacyName, 'MongoDB ID:', actualPharmacyId);
 
     const Medicine = require('../models/Medicine');
     const medicine = await Medicine.findOneAndDelete({
       _id: medicineId,
-      pharmacyId: pharmacyId
+      pharmacyId: actualPharmacyId
     });
 
     if (!medicine) {
@@ -1236,18 +1315,38 @@ const getPharmacyMedicineAlerts = async (req, res) => {
   try {
     const { pharmacyId } = req.params;
 
-    console.log('💊 Fetching medicine alerts for pharmacy:', pharmacyId);
+    console.log('💊 Fetching medicine alerts for pharmacy ID/UID:', pharmacyId);
+
+    // First, try to find pharmacy by UID to get MongoDB ID
+    const Pharmacy = require('../models/Pharmacy');
+    let pharmacy = await Pharmacy.findOne({ uid: pharmacyId });
+    
+    if (!pharmacy) {
+      // If not found by UID, try by MongoDB ID
+      pharmacy = await Pharmacy.findById(pharmacyId);
+    }
+    
+    if (!pharmacy) {
+      return res.status(404).json({
+        success: false,
+        error: 'Pharmacy not found',
+        message: 'No pharmacy found with the provided identifier'
+      });
+    }
+
+    const actualPharmacyId = pharmacy._id.toString();
+    console.log('✅ Found pharmacy:', pharmacy.pharmacyName, 'MongoDB ID:', actualPharmacyId);
 
     const Medicine = require('../models/Medicine');
     const alerts = await Medicine.find({
-      pharmacyId: pharmacyId,
+      pharmacyId: actualPharmacyId,
       $or: [
         { status: 'Low Stock' },
         { status: 'Out of Stock' }
       ]
     }).sort({ stock: 1 });
 
-    console.log(`✅ Found ${alerts.length} medicine alerts for pharmacy ${pharmacyId}`);
+    console.log(`✅ Found ${alerts.length} medicine alerts for pharmacy ${actualPharmacyId}`);
 
     res.json({
       success: true,
@@ -1268,10 +1367,30 @@ const getPharmacyMedicineOverview = async (req, res) => {
   try {
     const { pharmacyId } = req.params;
 
-    console.log('💊 Fetching medicine overview for pharmacy:', pharmacyId);
+    console.log('💊 Fetching medicine overview for pharmacy ID/UID:', pharmacyId);
+
+    // First, try to find pharmacy by UID to get MongoDB ID
+    const Pharmacy = require('../models/Pharmacy');
+    let pharmacy = await Pharmacy.findOne({ uid: pharmacyId });
+    
+    if (!pharmacy) {
+      // If not found by UID, try by MongoDB ID
+      pharmacy = await Pharmacy.findById(pharmacyId);
+    }
+    
+    if (!pharmacy) {
+      return res.status(404).json({
+        success: false,
+        error: 'Pharmacy not found',
+        message: 'No pharmacy found with the provided identifier'
+      });
+    }
+
+    const actualPharmacyId = pharmacy._id.toString();
+    console.log('✅ Found pharmacy:', pharmacy.pharmacyName, 'MongoDB ID:', actualPharmacyId);
 
     const Medicine = require('../models/Medicine');
-    const medicines = await Medicine.find({ pharmacyId: pharmacyId });
+    const medicines = await Medicine.find({ pharmacyId: actualPharmacyId });
 
     // Calculate statistics
     const totalMedicines = medicines.length;
