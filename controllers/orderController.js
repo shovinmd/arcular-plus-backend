@@ -241,7 +241,7 @@ const placeOrder = async (req, res) => {
             </div>
             
             <div style="text-align: center; margin: 30px 0;">
-              <a href="#" class="cta-button">View Order in Dashboard</a>
+              <a href="https://arcular-pluse-a-unified-healthcare-peach.vercel.app/" class="cta-button" target="_blank">View Order in Dashboard</a>
             </div>
             
             <p style="background-color: #fff3cd; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107; margin: 20px 0;">
@@ -336,6 +336,10 @@ const placeOrder = async (req, res) => {
             
             <div class="total-amount">
               <strong>Total Amount: ₹${totalAmount}</strong>
+            </div>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="https://arcular-pluse-a-unified-healthcare-peach.vercel.app/" class="cta-button" target="_blank">Track Your Order</a>
             </div>
             
             <div class="next-steps">
@@ -495,11 +499,60 @@ const updateOrderStatus = async (req, res) => {
     // Send email notifications based on status
     if (status === 'Confirmed') {
       const userEmailHtml = `
-        <h2>Order Confirmed</h2>
-        <p>Great news! Your order has been confirmed by the pharmacy.</p>
-        <p><strong>Order ID:</strong> ${order.orderId}</p>
-        <p><strong>Status:</strong> Confirmed</p>
-        <p>Your order is being prepared and will be shipped soon.</p>
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Order Confirmed</title>
+          <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5; }
+            .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+            .header { background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); color: white; padding: 30px; text-align: center; }
+            .header h1 { margin: 0; font-size: 28px; font-weight: 600; }
+            .content { padding: 30px; }
+            .order-card { background-color: #f8f9fa; border-left: 4px solid #ff9800; padding: 20px; margin: 20px 0; border-radius: 0 8px 8px 0; }
+            .order-id { font-size: 24px; font-weight: bold; color: #ff9800; margin: 10px 0; }
+            .status-badge { display: inline-block; background-color: #ff9800; color: white; padding: 8px 16px; border-radius: 20px; font-weight: 600; margin: 10px 0; }
+            .cta-button { display: inline-block; background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 25px; font-weight: 600; margin: 20px 0; }
+            .next-steps { background-color: #fff3e0; padding: 20px; border-radius: 8px; margin: 20px 0; }
+            .footer { background-color: #f8f9fa; padding: 20px; text-align: center; color: #666; font-size: 14px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>✅ Order Confirmed</h1>
+              <p>Great news! Your order has been confirmed by the pharmacy.</p>
+            </div>
+            <div class="content">
+              <div class="order-card">
+                <div class="order-id">Order ID: ${order.orderId}</div>
+                <div class="status-badge">Confirmed</div>
+                <p><strong>Confirmed Time:</strong> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</p>
+              </div>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="https://arcular-pluse-a-unified-healthcare-peach.vercel.app/" class="cta-button" target="_blank">Track Your Order</a>
+              </div>
+              
+              <div class="next-steps">
+                <h3 style="margin-top: 0; color: #e65100;">📋 What's Next?</h3>
+                <ul>
+                  <li>Your order is being prepared by the pharmacy</li>
+                  <li>You will receive another email when your order is shipped</li>
+                  <li>Track your order status in the "My Orders" section</li>
+                  <li>Estimated delivery time will be provided after shipping</li>
+                </ul>
+              </div>
+            </div>
+            <div class="footer">
+              <p>This is an automated notification from Arcular Plus</p>
+              <p>For support, contact us through the app</p>
+            </div>
+          </div>
+        </body>
+        </html>
       `;
       try {
         console.log('📧 Sending confirmation email to user:', order.userEmail);
@@ -563,6 +616,10 @@ const updateOrderStatus = async (req, res) => {
               </div>
               ` : ''}
               
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="https://arcular-pluse-a-unified-healthcare-peach.vercel.app/" class="track-button" target="_blank">View Order Details</a>
+              </div>
+              
               <div class="next-steps">
                 <h3 style="margin-top: 0; color: #2e7d32;">📋 What's Next?</h3>
                 <ul>
@@ -591,11 +648,60 @@ const updateOrderStatus = async (req, res) => {
       }
     } else if (status === 'Delivered') {
       const userEmailHtml = `
-        <h2>Order Delivered</h2>
-        <p>Your order has been delivered successfully!</p>
-        <p><strong>Order ID:</strong> ${order.orderId}</p>
-        <p><strong>Status:</strong> Delivered</p>
-        <p>Thank you for choosing our service!</p>
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Order Delivered</title>
+          <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5; }
+            .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+            .header { background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%); color: white; padding: 30px; text-align: center; }
+            .header h1 { margin: 0; font-size: 28px; font-weight: 600; }
+            .content { padding: 30px; }
+            .order-card { background-color: #f8f9fa; border-left: 4px solid #4caf50; padding: 20px; margin: 20px 0; border-radius: 0 8px 8px 0; }
+            .order-id { font-size: 24px; font-weight: bold; color: #4caf50; margin: 10px 0; }
+            .status-badge { display: inline-block; background-color: #4caf50; color: white; padding: 8px 16px; border-radius: 20px; font-weight: 600; margin: 10px 0; }
+            .cta-button { display: inline-block; background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 25px; font-weight: 600; margin: 20px 0; }
+            .next-steps { background-color: #e8f5e8; padding: 20px; border-radius: 8px; margin: 20px 0; }
+            .footer { background-color: #f8f9fa; padding: 20px; text-align: center; color: #666; font-size: 14px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>🎉 Order Delivered</h1>
+              <p>Your order has been delivered successfully!</p>
+            </div>
+            <div class="content">
+              <div class="order-card">
+                <div class="order-id">Order ID: ${order.orderId}</div>
+                <div class="status-badge">Delivered</div>
+                <p><strong>Delivered Time:</strong> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</p>
+              </div>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="https://arcular-pluse-a-unified-healthcare-peach.vercel.app/" class="cta-button" target="_blank">Order Again</a>
+              </div>
+              
+              <div class="next-steps">
+                <h3 style="margin-top: 0; color: #2e7d32;">🎉 Thank You!</h3>
+                <ul>
+                  <li>Your order has been delivered successfully</li>
+                  <li>We hope you're satisfied with your purchase</li>
+                  <li>Please rate your experience in the app</li>
+                  <li>Feel free to place another order anytime</li>
+                </ul>
+              </div>
+            </div>
+            <div class="footer">
+              <p>This is an automated notification from Arcular Plus</p>
+              <p>For support, contact us through the app</p>
+            </div>
+          </div>
+        </body>
+        </html>
       `;
       try {
         console.log('📧 Sending delivered email to user:', order.userEmail);
@@ -643,6 +749,10 @@ const updateOrderStatus = async (req, res) => {
               <div class="reason-box">
                 <h3 style="margin-top: 0; color: #721c24;">📝 Cancellation Reason</h3>
                 <p><strong>Reason:</strong> ${note || 'Order cancelled by user'}</p>
+              </div>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="https://arcular-pluse-a-unified-healthcare-peach.vercel.app/" class="cta-button" target="_blank">Place New Order</a>
               </div>
               
               <div class="next-steps">
@@ -717,6 +827,10 @@ const updateOrderStatus = async (req, res) => {
               <div class="reason-box">
                 <h3 style="margin-top: 0; color: #856404;">📝 Cancellation Reason</h3>
                 <p><strong>Reason:</strong> ${note || 'Cancelled by customer'}</p>
+              </div>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="https://arcular-pluse-a-unified-healthcare-peach.vercel.app/" class="cta-button" target="_blank">Manage Orders</a>
               </div>
               
               <div class="action-required">
