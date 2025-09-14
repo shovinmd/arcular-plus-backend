@@ -397,6 +397,46 @@ const updatePharmacy = async (req, res) => {
   }
 };
 
+// Update pharmacy by UID
+const updatePharmacyByUID = async (req, res) => {
+  try {
+    const { uid } = req.params;
+    const updates = req.body;
+    
+    console.log(`🔄 Updating pharmacy with UID: ${uid}`);
+    console.log('📝 Update data:', JSON.stringify(updates, null, 2));
+    
+    // Find pharmacy by UID and update
+    const pharmacy = await Pharmacy.findOneAndUpdate(
+      { uid: uid },
+      { ...updates, updatedAt: new Date() },
+      { new: true }
+    );
+    
+    if (!pharmacy) {
+      return res.status(404).json({
+        success: false,
+        message: 'Pharmacy not found'
+      });
+    }
+    
+    console.log(`✅ Pharmacy updated successfully: ${pharmacy.pharmacyName}`);
+    
+    res.json({
+      success: true,
+      message: 'Pharmacy updated successfully',
+      data: pharmacy
+    });
+  } catch (error) {
+    console.error('❌ Error updating pharmacy by UID:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update pharmacy',
+      error: error.message
+    });
+  }
+};
+
 // Delete pharmacy
 const deletePharmacy = async (req, res) => {
   try {
@@ -801,6 +841,7 @@ module.exports = {
   getPharmacyByUID,
   getPharmacyByEmail,
   updatePharmacy,
+  updatePharmacyByUID,
   deletePharmacy,
   getPharmaciesByCity,
   getPharmaciesByDrug,
