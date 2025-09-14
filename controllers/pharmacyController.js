@@ -786,12 +786,21 @@ const rejectPharmacyByStaff = async (req, res) => {
 const getPharmaciesByAffiliation = async (req, res) => {
   try {
     const { hospitalId } = req.params;
+    console.log('🔍 Getting affiliated pharmacies for hospital ID:', hospitalId);
+    
     const pharmacies = await Pharmacy.find({
       isApproved: true,
       approvalStatus: 'approved',
       status: 'active',
       'affiliatedHospitals.hospitalId': hospitalId,
     }).select('-__v').sort({ createdAt: -1 });
+
+    console.log('🔍 Found pharmacies:', pharmacies.length);
+    console.log('🔍 Pharmacy details:', pharmacies.map(p => ({
+      _id: p._id,
+      pharmacyName: p.pharmacyName,
+      affiliatedHospitals: p.affiliatedHospitals
+    })));
 
     res.json({ success: true, data: pharmacies, count: pharmacies.length });
   } catch (error) {
