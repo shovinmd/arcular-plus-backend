@@ -47,6 +47,24 @@ const placeOrder = async (req, res) => {
       });
     }
     
+    console.log('👤 User found:', {
+      uid: user.uid,
+      fullName: user.fullName,
+      email: user.email,
+      mobileNumber: user.mobileNumber
+    });
+    
+    // Get user name (try fullName first, then email as fallback)
+    const userName = user.fullName || user.email?.split('@')[0] || 'Unknown User';
+    
+    // Validate required user fields
+    if (!userName || userName === 'Unknown User') {
+      return res.status(400).json({
+        success: false,
+        error: 'User name is required. Please complete your profile with full name.'
+      });
+    }
+    
     // Calculate totals
     let subtotal = 0;
     const processedItems = [];
@@ -83,12 +101,19 @@ const placeOrder = async (req, res) => {
       });
     }
     
+    // Generate unique order ID
+    const orderId = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+    
+    console.log('🆔 Generated orderId:', orderId);
+    console.log('👤 User name for order:', userName);
+    
     // Create order
     const order = new Order({
+      orderId: orderId,
       userId: userId,
-      userName: user.name,
+      userName: userName,
       userEmail: user.email,
-      userPhone: user.phoneNumber || 'Not provided',
+      userPhone: user.mobileNumber || 'Not provided',
       userAddress: userAddress,
       pharmacyId: pharmacy._id,
       pharmacyName: pharmacy.pharmacyName,
@@ -115,17 +140,24 @@ const placeOrder = async (req, res) => {
       }]
     });
     
-    await order.save();
-    
-    console.log('✅ Order created successfully:', order.orderId);
+    try {
+      await order.save();
+      console.log('✅ Order created successfully:', order.orderId);
+    } catch (saveError) {
+      console.error('❌ Error saving order:', saveError);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to save order: ' + saveError.message
+      });
+    }
     
     // Send email to pharmacy
     const pharmacyEmailHtml = `
       <h2>New Order Received</h2>
       <p><strong>Order ID:</strong> ${order.orderId}</p>
-      <p><strong>Customer:</strong> ${user.name}</p>
+      <p><strong>Customer:</strong> ${userName}</p>
       <p><strong>Email:</strong> ${user.email}</p>
-      <p><strong>Phone:</strong> ${user.phoneNumber || 'Not provided'}</p>
+      <p><strong>Phone:</strong> ${user.mobileNumber || 'Not provided'}</p>
       <p><strong>Total Amount:</strong> ₹${totalAmount}</p>
       <p><strong>Delivery Method:</strong> ${deliveryMethod}</p>
       
