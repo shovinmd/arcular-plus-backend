@@ -82,17 +82,7 @@ const registerPharmacy = async (req, res) => {
       registrationDate: new Date(),
     });
 
-    console.log('💾 Attempting to save pharmacy to database...');
-    console.log('📋 Pharmacy data:', {
-      pharmacyName: newPharmacy.pharmacyName,
-      email: newPharmacy.email,
-      licenseNumber: newPharmacy.licenseNumber,
-      isApproved: newPharmacy.isApproved,
-      approvalStatus: newPharmacy.approvalStatus
-    });
-    
     const savedPharmacy = await newPharmacy.save();
-    console.log('✅ Pharmacy saved successfully with ID:', savedPharmacy._id);
 
     // Send registration confirmation email
     try {
@@ -113,14 +103,7 @@ const registerPharmacy = async (req, res) => {
       arcId: savedPharmacy.arcId,
     });
   } catch (error) {
-    console.error('❌ Pharmacy registration error:', error);
-    console.error('❌ Error details:', {
-      name: error.name,
-      message: error.message,
-      code: error.code,
-      keyPattern: error.keyPattern,
-      keyValue: error.keyValue
-    });
+    console.error('Pharmacy registration error:', error);
     
     // Handle specific E11000 duplicate key errors
     if (error.code === 11000) {
@@ -217,20 +200,13 @@ const getPharmacyByUID = async (req, res) => {
 const getPharmacyByEmail = async (req, res) => {
   try {
     const { email } = req.params;
-    console.log('🔍 Searching for pharmacy with email:', email);
-    
     const pharmacy = await Pharmacy.findOne({ email: email });
     if (!pharmacy) {
-      console.log('❌ Pharmacy not found for email:', email);
       return res.status(404).json({
         success: false,
         message: 'Pharmacy not found'
       });
     }
-    
-    console.log('✅ Pharmacy found:', pharmacy.pharmacyName);
-    console.log('📋 Pharmacy approval status:', pharmacy.isApproved);
-    console.log('📋 Pharmacy approval status field:', pharmacy.approvalStatus);
     
     const data = pharmacy.toObject();
     data.type = 'pharmacy';
@@ -240,16 +216,16 @@ const getPharmacyByEmail = async (req, res) => {
     data.pharmacyAddress = data.address; // Map address to pharmacyAddress
     data.pharmacyServicesProvided = data.servicesProvided; // Map servicesProvided to pharmacyServicesProvided
     
-    console.log('📤 Returning pharmacy data with type:', data.type);
-    console.log('📤 Pharmacy isApproved:', data.isApproved);
-    console.log('📤 Pharmacy approvalStatus:', data.approvalStatus);
+    // Ensure all required fields for UserModel are present
+    data.gender = data.gender || 'Other'; // Default gender if missing
+    data.dateOfBirth = data.dateOfBirth || new Date('0000-00-00').toISOString(); // Default DOB if missing
+    data.createdAt = data.registrationDate || new Date().toISOString(); // Use registrationDate as createdAt
     
     res.json({
       success: true,
       data
     });
   } catch (error) {
-    console.error('❌ Error in getPharmacyByEmail:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to get pharmacy',

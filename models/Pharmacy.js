@@ -34,6 +34,17 @@ const pharmacySchema = new mongoose.Schema({
     required: false,
     trim: true
   },
+  gender: {
+    type: String,
+    required: false,
+    enum: ['Male', 'Female', 'Other'],
+    default: 'Other'
+  },
+  dateOfBirth: {
+    type: Date,
+    required: false,
+    default: Date.now
+  },
   ownerName: {
     type: String,
     required: true,
