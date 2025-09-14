@@ -9,15 +9,24 @@ const registerPharmacy = async (req, res) => {
 
     // Map documents from RegistrationService format to expected format
     const { documents } = req.body;
+    console.log('📄 Documents received:', documents);
+    
     if (documents) {
       if (documents.pharmacy_license) {
         req.body.licenseDocumentUrl = documents.pharmacy_license;
+        console.log('✅ Pharmacy license URL mapped:', documents.pharmacy_license);
       }
       if (documents.drug_license) {
         req.body.drugLicenseUrl = documents.drug_license;
+        console.log('✅ Drug license URL mapped:', documents.drug_license);
       }
       if (documents.premises_certificate) {
         req.body.premisesCertificateUrl = documents.premises_certificate;
+        console.log('✅ Premises certificate URL mapped:', documents.premises_certificate);
+      }
+      if (documents.profile_picture) {
+        req.body.profileImageUrl = documents.profile_picture;
+        console.log('✅ Profile picture URL mapped:', documents.profile_picture);
       }
     }
 
