@@ -1,22 +1,24 @@
 const express = require('express');
 const router = express.Router();
 const orderController = require('../controllers/orderController');
-const { verifyFirebaseToken } = require('../middleware/firebaseAuth');
+const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
 
-// Create order (support both "/" and "/create" for compatibility)
-router.post('/', verifyFirebaseToken, orderController.createOrder);
-router.post('/create', verifyFirebaseToken, orderController.createOrder);
+// Place a new order (requires authentication)
+router.post('/place', firebaseAuthMiddleware, orderController.placeOrder);
 
-// Get user orders
-router.get('/user/:userId', verifyFirebaseToken, orderController.getUserOrders);
+// Get orders by user (requires authentication)
+router.get('/user/:userId', firebaseAuthMiddleware, orderController.getOrdersByUser);
 
-// Get pharmacy orders
-router.get('/pharmacy/:pharmacyId', verifyFirebaseToken, orderController.getPharmacyOrders);
+// Get orders by pharmacy (requires authentication)
+router.get('/pharmacy/:pharmacyId', firebaseAuthMiddleware, orderController.getOrdersByPharmacy);
 
-// Update order status
-router.put('/:orderId/status', verifyFirebaseToken, orderController.updateOrderStatus);
+// Update order status (requires authentication)
+router.put('/:orderId/status', firebaseAuthMiddleware, orderController.updateOrderStatus);
 
-// Cancel order
-router.put('/:orderId/cancel', verifyFirebaseToken, orderController.cancelOrder);
+// Get order by ID (requires authentication)
+router.get('/:orderId', firebaseAuthMiddleware, orderController.getOrderById);
+
+// Get order statistics for pharmacy (requires authentication)
+router.get('/pharmacy/:pharmacyId/stats', firebaseAuthMiddleware, orderController.getOrderStats);
 
 module.exports = router;

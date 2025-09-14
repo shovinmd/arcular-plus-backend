@@ -1,41 +1,7 @@
 const mongoose = require('mongoose');
 
-const orderItemSchema = new mongoose.Schema({
-  medicineId: {
-    type: String,
-    required: true,
-    ref: 'Medicine'
-  },
-  medicineName: {
-    type: String,
-    required: true
-  },
-  quantity: {
-    type: Number,
-    required: true,
-    min: 1
-  },
-  unitPrice: {
-    type: Number,
-    required: true
-  },
-  totalPrice: {
-    type: Number,
-    required: true
-  },
-  pharmacyId: {
-    type: String,
-    required: true,
-    ref: 'User'
-  },
-  pharmacyName: {
-    type: String,
-    required: true
-  }
-});
-
 const orderSchema = new mongoose.Schema({
-  // Basic Information
+  // Order Identification
   orderId: {
     type: String,
     required: true,
@@ -48,11 +14,11 @@ const orderSchema = new mongoose.Schema({
     required: true,
     ref: 'User'
   },
-  userEmail: {
+  userName: {
     type: String,
     required: true
   },
-  userName: {
+  userEmail: {
     type: String,
     required: true
   },
@@ -60,20 +26,51 @@ const orderSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  
-  // Delivery Information
-  deliveryAddress: {
+  userAddress: {
     street: { type: String, required: true },
     city: { type: String, required: true },
     state: { type: String, required: true },
-    pincode: { type: String, required: true },
-    landmark: { type: String }
+    pincode: { type: String, required: true }
+  },
+  
+  // Pharmacy Information
+  pharmacyId: {
+    type: String,
+    required: true,
+    ref: 'Pharmacy'
+  },
+  pharmacyName: {
+    type: String,
+    required: true
+  },
+  pharmacyEmail: {
+    type: String,
+    required: true
+  },
+  pharmacyPhone: {
+    type: String,
+    required: true
+  },
+  pharmacyAddress: {
+    street: { type: String, required: true },
+    city: { type: String, required: true },
+    state: { type: String, required: true },
+    pincode: { type: String, required: true }
   },
   
   // Order Items
-  items: [orderItemSchema],
+  items: [{
+    medicineId: { type: String, required: true },
+    medicineName: { type: String, required: true },
+    category: { type: String, required: true },
+    type: { type: String, required: true },
+    quantity: { type: Number, required: true, min: 1 },
+    unitPrice: { type: Number, required: true },
+    sellingPrice: { type: Number, required: true },
+    totalPrice: { type: Number, required: true }
+  }],
   
-  // Pricing Information
+  // Order Summary
   subtotal: {
     type: Number,
     required: true
@@ -82,83 +79,64 @@ const orderSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
-  discount: {
-    type: Number,
-    default: 0
-  },
   totalAmount: {
     type: Number,
     required: true
   },
   
-  // Payment Information
-  paymentMethod: {
-    type: String,
-    enum: ['cash_on_delivery', 'online', 'wallet'],
-    default: 'cash_on_delivery'
-  },
-  paymentStatus: {
-    type: String,
-    enum: ['pending', 'paid', 'failed', 'refunded'],
-    default: 'pending'
-  },
-  paymentId: {
-    type: String
-  },
-  
   // Order Status
-  orderStatus: {
+  status: {
     type: String,
-    enum: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'],
-    default: 'pending'
+    enum: ['Pending', 'Confirmed', 'Shipped', 'Delivered', 'Cancelled'],
+    default: 'Pending'
   },
   
   // Delivery Information
+  deliveryMethod: {
+    type: String,
+    enum: ['Home Delivery', 'Pickup'],
+    default: 'Home Delivery'
+  },
   estimatedDelivery: {
     type: Date
   },
   actualDelivery: {
     type: Date
   },
-  deliveryPerson: {
-    name: { type: String },
-    phone: { type: String }
+  
+  // Tracking Information
+  trackingNumber: {
+    type: String
+  },
+  trackingUrl: {
+    type: String
   },
   
-  // Prescription Information
-  prescriptionRequired: {
-    type: Boolean,
-    default: false
+  // Payment Information
+  paymentMethod: {
+    type: String,
+    enum: ['Cash on Delivery', 'Online Payment', 'Wallet'],
+    default: 'Cash on Delivery'
   },
-  prescriptionImages: {
-    type: [String],
-    default: []
-  },
-  prescriptionVerified: {
-    type: Boolean,
-    default: false
+  paymentStatus: {
+    type: String,
+    enum: ['Pending', 'Paid', 'Failed', 'Refunded'],
+    default: 'Pending'
   },
   
-  // Communication
-  emailSent: {
-    type: Boolean,
-    default: false
+  // Notes and Comments
+  userNotes: {
+    type: String
   },
-  smsSent: {
-    type: Boolean,
-    default: false
+  pharmacyNotes: {
+    type: String
   },
-  notificationSent: {
-    type: Boolean,
-    default: false
+  adminNotes: {
+    type: String
   },
   
   // Timestamps
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  updatedAt: {
+  orderDate: {
     type: Date,
     default: Date.now
   },
@@ -175,28 +153,59 @@ const orderSchema = new mongoose.Schema({
     type: Date
   },
   
-  // Additional Information
-  notes: {
-    type: String
-  },
-  cancellationReason: {
-    type: String
-  }
+  // Status History
+  statusHistory: [{
+    status: { type: String, required: true },
+    timestamp: { type: Date, default: Date.now },
+    note: { type: String },
+    updatedBy: { type: String, required: true } // 'user', 'pharmacy', 'admin'
+  }]
+}, {
+  timestamps: true
 });
 
 // Indexes for better performance
-orderSchema.index({ userId: 1, createdAt: -1 });
-orderSchema.index({ orderStatus: 1 });
-orderSchema.index({ paymentStatus: 1 });
-orderSchema.index({ createdAt: -1 });
+orderSchema.index({ userId: 1, orderDate: -1 });
+orderSchema.index({ pharmacyId: 1, orderDate: -1 });
+orderSchema.index({ status: 1 });
+orderSchema.index({ orderId: 1 });
 
 // Pre-save middleware to generate order ID
 orderSchema.pre('save', function(next) {
   if (this.isNew && !this.orderId) {
-    this.orderId = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    this.orderId = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
   }
-  this.updatedAt = new Date();
   next();
 });
+
+// Method to update status
+orderSchema.methods.updateStatus = function(newStatus, updatedBy, note = '') {
+  this.status = newStatus;
+  this.statusHistory.push({
+    status: newStatus,
+    timestamp: new Date(),
+    note: note,
+    updatedBy: updatedBy
+  });
+  
+  // Set specific timestamps
+  switch (newStatus) {
+    case 'Confirmed':
+      this.confirmedAt = new Date();
+      break;
+    case 'Shipped':
+      this.shippedAt = new Date();
+      break;
+    case 'Delivered':
+      this.deliveredAt = new Date();
+      this.actualDelivery = new Date();
+      break;
+    case 'Cancelled':
+      this.cancelledAt = new Date();
+      break;
+  }
+  
+  return this.save();
+};
 
 module.exports = mongoose.model('Order', orderSchema);
