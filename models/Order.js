@@ -168,7 +168,7 @@ const orderSchema = new mongoose.Schema({
 orderSchema.index({ userId: 1, orderDate: -1 });
 orderSchema.index({ pharmacyId: 1, orderDate: -1 });
 orderSchema.index({ status: 1 });
-orderSchema.index({ orderId: 1 });
+// Note: orderId already has unique: true which creates an index automatically
 
 // Pre-save middleware to generate order ID
 orderSchema.pre('save', function(next) {
