@@ -1491,6 +1491,23 @@ const searchMedicines = async (req, res) => {
       .populate('pharmacyId', 'pharmacyName city state address mobileNumber')
       .sort({ name: 1 });
     
+    // If populate didn't work (pharmacyId is string), manually fetch pharmacy data
+    for (let medicine of medicines) {
+      if (!medicine.pharmacyId || typeof medicine.pharmacyId === 'string') {
+        const pharmacy = await Pharmacy.findOne({ uid: medicine.pharmacyId });
+        if (pharmacy) {
+          medicine.pharmacyId = {
+            _id: pharmacy._id,
+            pharmacyName: pharmacy.pharmacyName,
+            city: pharmacy.city,
+            state: pharmacy.state,
+            address: pharmacy.address,
+            mobileNumber: pharmacy.mobileNumber
+          };
+        }
+      }
+    }
+    
     console.log(`🔍 Found ${medicines.length} medicines with search criteria:`, searchCriteria);
     
     // Debug: Log first few medicines

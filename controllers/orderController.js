@@ -38,8 +38,8 @@ const placeOrder = async (req, res) => {
     console.log('🛒 Placing order for user:', userId);
     console.log('📦 Order items:', items.length);
     
-    // Get user information
-    const user = await User.findById(userId);
+    // Get user information by Firebase UID
+    const user = await User.findOne({ uid: userId });
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -71,7 +71,11 @@ const placeOrder = async (req, res) => {
     const totalAmount = subtotal + deliveryFee;
     
     // Get pharmacy information (from first item)
-    const pharmacy = await Pharmacy.findById(items[0].pharmacyId);
+    let pharmacy = await Pharmacy.findOne({ uid: items[0].pharmacyId });
+    if (!pharmacy) {
+      // Try by MongoDB ID as fallback
+      pharmacy = await Pharmacy.findById(items[0].pharmacyId);
+    }
     if (!pharmacy) {
       return res.status(404).json({
         success: false,

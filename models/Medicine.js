@@ -152,8 +152,8 @@ const medicineSchema = new mongoose.Schema({
   
   // Pharmacy Information
   pharmacyId: {
-    type: String,
-    ref: 'User',
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Pharmacy',
     required: true
   },
   pharmacyName: {
