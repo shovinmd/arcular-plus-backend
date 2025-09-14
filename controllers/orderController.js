@@ -219,7 +219,7 @@ const placeOrder = async (req, res) => {
                   <th>Medicine</th>
                   <th>Type</th>
                   <th>Quantity</th>
-                  <th>Unit Price</th>
+                  <th>Selling Price</th>
                   <th>Total</th>
                 </tr>
               </thead>
@@ -229,7 +229,7 @@ const placeOrder = async (req, res) => {
                     <td>${item.medicineName}</td>
                     <td>${item.type}</td>
                     <td>${item.quantity}</td>
-                    <td>₹${item.unitPrice}</td>
+                    <td>₹${item.sellingPrice}</td>
                     <td>₹${item.totalPrice}</td>
                   </tr>
                 `).join('')}
@@ -317,7 +317,7 @@ const placeOrder = async (req, res) => {
                   <th>Medicine</th>
                   <th>Type</th>
                   <th>Quantity</th>
-                  <th>Unit Price</th>
+                  <th>Selling Price</th>
                   <th>Total</th>
                 </tr>
               </thead>
@@ -327,7 +327,7 @@ const placeOrder = async (req, res) => {
                     <td>${item.medicineName}</td>
                     <td>${item.type}</td>
                     <td>${item.quantity}</td>
-                    <td>₹${item.unitPrice}</td>
+                    <td>₹${item.sellingPrice}</td>
                     <td>₹${item.totalPrice}</td>
                   </tr>
                 `).join('')}
@@ -685,12 +685,38 @@ const updateOrderStatus = async (req, res) => {
                 <a href="https://arcular-pluse-a-unified-healthcare-peach.vercel.app/" class="cta-button" target="_blank">Order Again</a>
               </div>
               
+              <!-- Rating Section -->
+              <div style="background-color: #fff3e0; padding: 25px; border-radius: 12px; margin: 25px 0; border: 2px solid #ff9800;">
+                <h3 style="margin-top: 0; color: #e65100; text-align: center;">⭐ Rate Your Experience</h3>
+                <p style="text-align: center; color: #666; margin-bottom: 20px;">Help us improve by rating your order experience</p>
+                
+                <div style="text-align: center; margin: 20px 0;">
+                  <div style="display: inline-block; margin: 0 5px;">
+                    <a href="https://arcular-pluse-a-unified-healthcare-peach.vercel.app/rate?orderId=${order.orderId}&rating=5" 
+                       style="display: inline-block; width: 40px; height: 40px; background-color: #ff9800; color: white; text-decoration: none; border-radius: 50%; line-height: 40px; font-weight: bold; margin: 0 2px;">5</a>
+                    <a href="https://arcular-pluse-a-unified-healthcare-peach.vercel.app/rate?orderId=${order.orderId}&rating=4" 
+                       style="display: inline-block; width: 40px; height: 40px; background-color: #ff9800; color: white; text-decoration: none; border-radius: 50%; line-height: 40px; font-weight: bold; margin: 0 2px;">4</a>
+                    <a href="https://arcular-pluse-a-unified-healthcare-peach.vercel.app/rate?orderId=${order.orderId}&rating=3" 
+                       style="display: inline-block; width: 40px; height: 40px; background-color: #ff9800; color: white; text-decoration: none; border-radius: 50%; line-height: 40px; font-weight: bold; margin: 0 2px;">3</a>
+                    <a href="https://arcular-pluse-a-unified-healthcare-peach.vercel.app/rate?orderId=${order.orderId}&rating=2" 
+                       style="display: inline-block; width: 40px; height: 40px; background-color: #ff9800; color: white; text-decoration: none; border-radius: 50%; line-height: 40px; font-weight: bold; margin: 0 2px;">2</a>
+                    <a href="https://arcular-pluse-a-unified-healthcare-peach.vercel.app/rate?orderId=${order.orderId}&rating=1" 
+                       style="display: inline-block; width: 40px; height: 40px; background-color: #ff9800; color: white; text-decoration: none; border-radius: 50%; line-height: 40px; font-weight: bold; margin: 0 2px;">1</a>
+                  </div>
+                </div>
+                
+                <div style="text-align: center; margin-top: 15px;">
+                  <a href="https://arcular-pluse-a-unified-healthcare-peach.vercel.app/rate?orderId=${order.orderId}" 
+                     style="display: inline-block; background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); color: white; padding: 10px 25px; text-decoration: none; border-radius: 20px; font-weight: 600;">Rate & Review</a>
+                </div>
+              </div>
+              
               <div class="next-steps">
                 <h3 style="margin-top: 0; color: #2e7d32;">🎉 Thank You!</h3>
                 <ul>
                   <li>Your order has been delivered successfully</li>
                   <li>We hope you're satisfied with your purchase</li>
-                  <li>Please rate your experience in the app</li>
+                  <li>Please rate your experience using the buttons above</li>
                   <li>Feel free to place another order anytime</li>
                 </ul>
               </div>
