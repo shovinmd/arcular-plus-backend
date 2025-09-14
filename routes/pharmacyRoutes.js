@@ -55,6 +55,14 @@ router.put('/:id', firebaseAuthMiddleware, pharmacyController.updatePharmacy);
 // Delete pharmacy
 router.delete('/:id', firebaseAuthMiddleware, pharmacyController.deletePharmacy);
 
+// Medicine inventory management routes
+router.get('/:pharmacyId/medicines', firebaseAuthMiddleware, pharmacyController.getPharmacyMedicines);
+router.post('/:pharmacyId/medicines', firebaseAuthMiddleware, pharmacyController.addPharmacyMedicine);
+router.put('/:pharmacyId/medicines/:medicineId', firebaseAuthMiddleware, pharmacyController.updatePharmacyMedicine);
+router.delete('/:pharmacyId/medicines/:medicineId', firebaseAuthMiddleware, pharmacyController.deletePharmacyMedicine);
+router.get('/:pharmacyId/medicines/alerts', firebaseAuthMiddleware, pharmacyController.getPharmacyMedicineAlerts);
+router.get('/:pharmacyId/medicines/overview', firebaseAuthMiddleware, pharmacyController.getPharmacyMedicineOverview);
+
 // Note: Database cleanup route removed - no longer needed with the permanent fix
 
 // Public QR scanning endpoints

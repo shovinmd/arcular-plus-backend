@@ -1041,6 +1041,289 @@ const removePharmacyAssociation = async (req, res) => {
 
 // Note: Database cleanup function removed - no longer needed with the permanent fix
 
+// Medicine inventory management methods
+const getPharmacyMedicines = async (req, res) => {
+  try {
+    const { pharmacyId } = req.params;
+    const { category, search, sortBy } = req.query;
+
+    console.log('💊 Fetching medicines for pharmacy:', pharmacyId);
+
+    // Build filter object
+    let filter = { pharmacyId: pharmacyId };
+    
+    if (category && category !== 'All') {
+      filter.category = category;
+    }
+    
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { supplier: { $regex: search, $options: 'i' } },
+        { batchNumber: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    // Build sort object
+    let sort = {};
+    switch (sortBy) {
+      case 'Name':
+        sort = { name: 1 };
+        break;
+      case 'Stock':
+        sort = { stock: -1 };
+        break;
+      case 'Expiry':
+        sort = { expiryDate: 1 };
+        break;
+      case 'Price':
+        sort = { unitPrice: 1 };
+        break;
+      default:
+        sort = { name: 1 };
+    }
+
+    const Medicine = require('../models/Medicine');
+    const medicines = await Medicine.find(filter).sort(sort);
+
+    console.log(`✅ Found ${medicines.length} medicines for pharmacy ${pharmacyId}`);
+
+    res.json({
+      success: true,
+      data: medicines,
+      count: medicines.length
+    });
+  } catch (error) {
+    console.error('Error fetching pharmacy medicines:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error',
+      message: 'Failed to fetch medicines'
+    });
+  }
+};
+
+const addPharmacyMedicine = async (req, res) => {
+  try {
+    const { pharmacyId } = req.params;
+    const medicineData = req.body;
+
+    console.log('💊 Adding medicine for pharmacy:', pharmacyId);
+    console.log('📋 Medicine data:', JSON.stringify(medicineData, null, 2));
+
+    // Add pharmacy ID and set status
+    medicineData.pharmacyId = pharmacyId;
+    medicineData.lastUpdated = new Date().toISOString().split('T')[0];
+    
+    // Determine status based on stock
+    if (medicineData.stock <= 0) {
+      medicineData.status = 'Out of Stock';
+    } else if (medicineData.stock <= medicineData.minStock) {
+      medicineData.status = 'Low Stock';
+    } else {
+      medicineData.status = 'In Stock';
+    }
+
+    const Medicine = require('../models/Medicine');
+    const medicine = new Medicine(medicineData);
+    await medicine.save();
+
+    console.log('✅ Medicine added successfully:', medicine._id);
+
+    res.status(201).json({
+      success: true,
+      data: medicine,
+      message: 'Medicine added successfully'
+    });
+  } catch (error) {
+    console.error('Error adding pharmacy medicine:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error',
+      message: 'Failed to add medicine'
+    });
+  }
+};
+
+const updatePharmacyMedicine = async (req, res) => {
+  try {
+    const { pharmacyId, medicineId } = req.params;
+    const updateData = req.body;
+
+    console.log('💊 Updating medicine:', medicineId, 'for pharmacy:', pharmacyId);
+
+    // Add last updated timestamp
+    updateData.lastUpdated = new Date().toISOString().split('T')[0];
+    
+    // Determine status based on stock
+    if (updateData.stock <= 0) {
+      updateData.status = 'Out of Stock';
+    } else if (updateData.stock <= updateData.minStock) {
+      updateData.status = 'Low Stock';
+    } else {
+      updateData.status = 'In Stock';
+    }
+
+    const Medicine = require('../models/Medicine');
+    const medicine = await Medicine.findOneAndUpdate(
+      { _id: medicineId, pharmacyId: pharmacyId },
+      updateData,
+      { new: true, runValidators: true }
+    );
+
+    if (!medicine) {
+      return res.status(404).json({
+        success: false,
+        error: 'Medicine not found',
+        message: 'Medicine not found or does not belong to this pharmacy'
+      });
+    }
+
+    console.log('✅ Medicine updated successfully:', medicineId);
+
+    res.json({
+      success: true,
+      data: medicine,
+      message: 'Medicine updated successfully'
+    });
+  } catch (error) {
+    console.error('Error updating pharmacy medicine:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error',
+      message: 'Failed to update medicine'
+    });
+  }
+};
+
+const deletePharmacyMedicine = async (req, res) => {
+  try {
+    const { pharmacyId, medicineId } = req.params;
+
+    console.log('💊 Deleting medicine:', medicineId, 'for pharmacy:', pharmacyId);
+
+    const Medicine = require('../models/Medicine');
+    const medicine = await Medicine.findOneAndDelete({
+      _id: medicineId,
+      pharmacyId: pharmacyId
+    });
+
+    if (!medicine) {
+      return res.status(404).json({
+        success: false,
+        error: 'Medicine not found',
+        message: 'Medicine not found or does not belong to this pharmacy'
+      });
+    }
+
+    console.log('✅ Medicine deleted successfully:', medicineId);
+
+    res.json({
+      success: true,
+      message: 'Medicine deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting pharmacy medicine:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error',
+      message: 'Failed to delete medicine'
+    });
+  }
+};
+
+const getPharmacyMedicineAlerts = async (req, res) => {
+  try {
+    const { pharmacyId } = req.params;
+
+    console.log('💊 Fetching medicine alerts for pharmacy:', pharmacyId);
+
+    const Medicine = require('../models/Medicine');
+    const alerts = await Medicine.find({
+      pharmacyId: pharmacyId,
+      $or: [
+        { status: 'Low Stock' },
+        { status: 'Out of Stock' }
+      ]
+    }).sort({ stock: 1 });
+
+    console.log(`✅ Found ${alerts.length} medicine alerts for pharmacy ${pharmacyId}`);
+
+    res.json({
+      success: true,
+      data: alerts,
+      count: alerts.length
+    });
+  } catch (error) {
+    console.error('Error fetching pharmacy medicine alerts:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error',
+      message: 'Failed to fetch medicine alerts'
+    });
+  }
+};
+
+const getPharmacyMedicineOverview = async (req, res) => {
+  try {
+    const { pharmacyId } = req.params;
+
+    console.log('💊 Fetching medicine overview for pharmacy:', pharmacyId);
+
+    const Medicine = require('../models/Medicine');
+    const medicines = await Medicine.find({ pharmacyId: pharmacyId });
+
+    // Calculate statistics
+    const totalMedicines = medicines.length;
+    const inStock = medicines.filter(m => m.status === 'In Stock').length;
+    const lowStock = medicines.filter(m => m.status === 'Low Stock').length;
+    const outOfStock = medicines.filter(m => m.status === 'Out of Stock').length;
+    
+    const totalValue = medicines.reduce((sum, medicine) => {
+      return sum + (medicine.stock * medicine.unitPrice);
+    }, 0);
+
+    // Get recent activity (last 5 medicines updated)
+    const recentActivity = medicines
+      .sort((a, b) => new Date(b.lastUpdated) - new Date(a.lastUpdated))
+      .slice(0, 5)
+      .map(medicine => ({
+        id: medicine._id,
+        name: medicine.name,
+        action: medicine.status === 'Out of Stock' ? 'out of stock' : 
+                medicine.status === 'Low Stock' ? 'low stock alert' : 'stock updated',
+        details: medicine.status === 'Out of Stock' ? 'Order placed with supplier' :
+                medicine.status === 'Low Stock' ? `Only ${medicine.stock} units remaining` :
+                'Stock level normal',
+        time: medicine.lastUpdated,
+        type: medicine.status
+      }));
+
+    const overview = {
+      totalMedicines,
+      inStock,
+      lowStock,
+      outOfStock,
+      totalValue: totalValue.toFixed(2),
+      recentActivity
+    };
+
+    console.log('✅ Medicine overview calculated for pharmacy:', pharmacyId);
+
+    res.json({
+      success: true,
+      data: overview
+    });
+  } catch (error) {
+    console.error('Error fetching pharmacy medicine overview:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error',
+      message: 'Failed to fetch medicine overview'
+    });
+  }
+};
+
 module.exports = {
   registerPharmacy,
   getAllPharmacies,
@@ -1062,5 +1345,12 @@ module.exports = {
   getPharmaciesByAffiliation,
   getPharmacyApprovalStatus,
   associatePharmacyByArcId,
-  removePharmacyAssociation
+  removePharmacyAssociation,
+  // Medicine management methods
+  getPharmacyMedicines,
+  addPharmacyMedicine,
+  updatePharmacyMedicine,
+  deletePharmacyMedicine,
+  getPharmacyMedicineAlerts,
+  getPharmacyMedicineOverview
 }; 

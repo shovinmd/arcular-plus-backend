@@ -25,7 +25,22 @@ const medicineSchema = new mongoose.Schema({
   category: {
     type: String,
     required: true,
-    enum: ['prescription', 'over-the-counter', 'supplement', 'medical-device']
+    enum: ['prescription', 'over-the-counter', 'supplement', 'medical-device', 'Pain Relief', 'Antibiotic', 'Diabetes', 'Cardiovascular', 'Gastrointestinal', 'Respiratory', 'Neurological']
+  },
+  
+  // Additional fields for pharmacy inventory
+  dose: {
+    type: String,
+    default: ''
+  },
+  frequency: {
+    type: String,
+    default: ''
+  },
+  type: {
+    type: String,
+    enum: ['tablet', 'syrup', 'capsule', 'injection', 'cream', 'ointment', 'drops', 'inhaler', 'patch'],
+    default: 'tablet'
   },
   
   // Medical Information
@@ -80,6 +95,39 @@ const medicineSchema = new mongoose.Schema({
   stockQuantity: {
     type: Number,
     default: 0
+  },
+  
+  // Pharmacy inventory fields (for inventory management)
+  stock: {
+    type: Number,
+    default: 0
+  },
+  minStock: {
+    type: Number,
+    default: 10
+  },
+  maxStock: {
+    type: Number,
+    default: 100
+  },
+  unitPrice: {
+    type: Number,
+    required: true
+  },
+  supplier: {
+    type: String,
+    default: ''
+  },
+  status: {
+    type: String,
+    enum: ['In Stock', 'Low Stock', 'Out of Stock'],
+    default: 'In Stock'
+  },
+  lastUpdated: {
+    type: String,
+    default: function() {
+      return new Date().toISOString().split('T')[0];
+    }
   },
   
   // Regulatory Information
