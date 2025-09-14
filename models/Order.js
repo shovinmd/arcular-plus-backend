@@ -108,6 +108,9 @@ const orderSchema = new mongoose.Schema({
   trackingNumber: {
     type: String
   },
+  courierService: {
+    type: String
+  },
   trackingUrl: {
     type: String
   },

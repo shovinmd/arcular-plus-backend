@@ -465,9 +465,12 @@ const getOrdersByPharmacy = async (req, res) => {
 const updateOrderStatus = async (req, res) => {
   try {
     const { orderId } = req.params;
-    const { status, note, updatedBy } = req.body;
+    const { status, note, updatedBy, trackingInfo } = req.body;
     
     console.log(`🔄 Updating order ${orderId} to status: ${status}`);
+    if (trackingInfo) {
+      console.log('📦 Tracking info:', trackingInfo);
+    }
     
     const order = await Order.findOne({ orderId: orderId });
     if (!order) {
@@ -475,6 +478,14 @@ const updateOrderStatus = async (req, res) => {
         success: false,
         error: 'Order not found'
       });
+    }
+    
+    // Update status with tracking info if provided
+    if (trackingInfo && status === 'Shipped') {
+      order.trackingNumber = trackingInfo.trackingId;
+      order.courierService = trackingInfo.courierService;
+      order.trackingUrl = trackingInfo.trackingUrl;
+      await order.save();
     }
     
     // Update status
@@ -498,12 +509,76 @@ const updateOrderStatus = async (req, res) => {
       }
     } else if (status === 'Shipped') {
       const userEmailHtml = `
-        <h2>Order Shipped</h2>
-        <p>Your order is on the way!</p>
-        <p><strong>Order ID:</strong> ${order.orderId}</p>
-        <p><strong>Status:</strong> Shipped</p>
-        ${order.trackingNumber ? `<p><strong>Tracking Number:</strong> ${order.trackingNumber}</p>` : ''}
-        <p>You should receive your order soon.</p>
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Order Shipped</title>
+          <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5; }
+            .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+            .header { background: linear-gradient(135deg, #17a2b8 0%, #20c997 100%); color: white; padding: 30px; text-align: center; }
+            .header h1 { margin: 0; font-size: 28px; font-weight: 600; }
+            .content { padding: 30px; }
+            .order-card { background-color: #f8f9fa; border-left: 4px solid #17a2b8; padding: 20px; margin: 20px 0; border-radius: 0 8px 8px 0; }
+            .order-id { font-size: 24px; font-weight: bold; color: #17a2b8; margin: 10px 0; }
+            .status-badge { display: inline-block; background-color: #17a2b8; color: white; padding: 8px 16px; border-radius: 20px; font-weight: 600; margin: 10px 0; }
+            .tracking-card { background-color: #e3f2fd; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2196f3; }
+            .tracking-id { font-size: 20px; font-weight: bold; color: #1976d2; margin: 10px 0; }
+            .courier-info { background-color: #f3e5f5; padding: 15px; border-radius: 8px; margin: 15px 0; }
+            .track-button { display: inline-block; background: linear-gradient(135deg, #17a2b8 0%, #20c997 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 25px; font-weight: 600; margin: 20px 0; }
+            .next-steps { background-color: #e8f5e8; padding: 20px; border-radius: 8px; margin: 20px 0; }
+            .footer { background-color: #f8f9fa; padding: 20px; text-align: center; color: #666; font-size: 14px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>🚚 Order Shipped</h1>
+              <p>Your order is on the way!</p>
+            </div>
+            <div class="content">
+              <div class="order-card">
+                <div class="order-id">Order ID: ${order.orderId}</div>
+                <div class="status-badge">Shipped</div>
+                <p><strong>Shipped Time:</strong> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</p>
+              </div>
+              
+              ${order.trackingNumber ? `
+              <div class="tracking-card">
+                <h3 style="margin-top: 0; color: #1976d2;">📦 Tracking Information</h3>
+                <div class="tracking-id">Tracking ID: ${order.trackingNumber}</div>
+                <div class="courier-info">
+                  <p><strong>Courier Service:</strong> ${order.courierService || 'Not specified'}</p>
+                  ${order.trackingUrl ? `<p><strong>Tracking URL:</strong> <a href="${order.trackingUrl}" target="_blank">${order.trackingUrl}</a></p>` : ''}
+                </div>
+                ${order.trackingUrl ? `
+                <div style="text-align: center; margin: 20px 0;">
+                  <a href="${order.trackingUrl}" class="track-button" target="_blank">Track Your Package</a>
+                </div>
+                ` : ''}
+              </div>
+              ` : ''}
+              
+              <div class="next-steps">
+                <h3 style="margin-top: 0; color: #2e7d32;">📋 What's Next?</h3>
+                <ul>
+                  <li>Your order has been shipped and is on its way</li>
+                  <li>Use the tracking information above to monitor your package</li>
+                  <li>You should receive your order within 2-5 business days</li>
+                  <li>Please ensure someone is available to receive the package</li>
+                  <li>Contact us if you have any questions about your delivery</li>
+                </ul>
+              </div>
+            </div>
+            <div class="footer">
+              <p>This is an automated notification from Arcular Plus</p>
+              <p>For support, contact us through the app</p>
+            </div>
+          </div>
+        </body>
+        </html>
       `;
       try {
         console.log('📧 Sending shipped email to user:', order.userEmail);
