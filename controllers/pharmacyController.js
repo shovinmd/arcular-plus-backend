@@ -837,8 +837,18 @@ const associatePharmacyByArcId = async (req, res) => {
   try {
     console.log('🔗 AssociatePharmacyByArcId - Request body:', JSON.stringify(req.body, null, 2));
     console.log('🔗 AssociatePharmacyByArcId - User from auth:', JSON.stringify(req.user, null, 2));
+    console.log('🔗 AssociatePharmacyByArcId - Headers:', JSON.stringify(req.headers, null, 2));
     
     const { arcId } = req.body;
+    
+    if (!arcId) {
+      console.log('❌ Missing arcId in request body');
+      return res.status(400).json({
+        success: false,
+        message: 'ARC ID is required'
+      });
+    }
+    
     const hospitalUid = req.user.uid; // From Firebase auth middleware
 
     console.log(`🔗 Associating pharmacy with ARC ID: ${arcId} to hospital: ${hospitalUid}`);
@@ -857,6 +867,7 @@ const associatePharmacyByArcId = async (req, res) => {
     }
     
     if (!hospital) {
+      console.log('❌ Hospital not found for UID:', hospitalUid);
       return res.status(404).json({
         success: false,
         message: 'Hospital not found'
@@ -885,6 +896,7 @@ const associatePharmacyByArcId = async (req, res) => {
     }
 
     if (!pharmacy) {
+      console.log('❌ Pharmacy not found with ARC ID:', arcId);
       return res.status(404).json({
         success: false,
         message: 'Pharmacy not found with the provided ARC ID'
@@ -893,6 +905,10 @@ const associatePharmacyByArcId = async (req, res) => {
 
     // Check if pharmacy is approved
     if (!pharmacy.isApproved || pharmacy.approvalStatus !== 'approved') {
+      console.log('❌ Pharmacy not approved:', {
+        isApproved: pharmacy.isApproved,
+        approvalStatus: pharmacy.approvalStatus
+      });
       return res.status(400).json({
         success: false,
         message: 'Pharmacy is not approved and cannot be associated'
@@ -909,6 +925,7 @@ const associatePharmacyByArcId = async (req, res) => {
     console.log('🔍 Existing association found:', existingAssociation ? 'Yes' : 'No');
 
     if (existingAssociation) {
+      console.log('❌ Pharmacy already associated with this hospital');
       return res.status(400).json({
         success: false,
         message: 'Pharmacy is already associated with this hospital'
@@ -928,8 +945,17 @@ const associatePharmacyByArcId = async (req, res) => {
     pharmacy.affiliatedHospitals.push(newAssociation);
     console.log('🔗 Updated affiliated hospitals:', pharmacy.affiliatedHospitals);
 
-    await pharmacy.save();
-    console.log('✅ Pharmacy saved successfully');
+    try {
+      await pharmacy.save();
+      console.log('✅ Pharmacy saved successfully');
+    } catch (saveError) {
+      console.error('❌ Error saving pharmacy:', saveError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to save pharmacy association',
+        error: saveError.message
+      });
+    }
 
     console.log(`✅ Pharmacy ${pharmacy.pharmacyName} associated with hospital ${hospital.hospitalName}`);
 
@@ -945,6 +971,7 @@ const associatePharmacyByArcId = async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Error associating pharmacy by ARC ID:', error);
+    console.error('❌ Error stack:', error.stack);
     res.status(500).json({
       success: false,
       message: 'Failed to associate pharmacy',
