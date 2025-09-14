@@ -22,13 +22,13 @@ const registerPharmacy = async (req, res) => {
     }
 
     const userData = req.body;
-    const { uid } = userData;
+    const { uid, email } = userData;
 
     // Check if pharmacy already exists by email or UID
     const existingPharmacy = await Pharmacy.findOne({ 
       $or: [
         { uid: uid },
-        { email: cleanUserData.email }
+        { email: email }
       ]
     });
     if (existingPharmacy) {
