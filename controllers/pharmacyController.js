@@ -218,8 +218,56 @@ const getPharmacyByEmail = async (req, res) => {
     
     // Ensure all required fields for UserModel are present
     data.gender = data.gender || 'Other'; // Default gender if missing
-    data.dateOfBirth = data.dateOfBirth || new Date('0000-00-00').toISOString(); // Default DOB if missing
-    data.createdAt = data.registrationDate || new Date().toISOString(); // Use registrationDate as createdAt
+    data.dateOfBirth = data.dateOfBirth ? new Date(data.dateOfBirth).toISOString() : new Date('1990-01-01').toISOString(); // Ensure proper date format
+    data.createdAt = data.registrationDate ? new Date(data.registrationDate).toISOString() : new Date().toISOString(); // Use registrationDate as createdAt
+    
+    // Convert complex objects to strings for UserModel compatibility
+    data.operatingHours = data.operatingHours ? JSON.stringify(data.operatingHours) : '';
+    data.documents = data.documents ? JSON.stringify(data.documents) : '';
+    data.affiliatedHospitals = data.affiliatedHospitals ? JSON.stringify(data.affiliatedHospitals) : '';
+    data.pharmacyAffiliatedHospitals = data.pharmacyAffiliatedHospitals ? JSON.stringify(data.pharmacyAffiliatedHospitals) : '';
+    data.medicineInventory = data.medicineInventory ? JSON.stringify(data.medicineInventory) : '';
+    
+    // Ensure arrays are properly formatted
+    data.servicesProvided = data.servicesProvided || [];
+    data.drugsAvailable = data.drugsAvailable || [];
+    
+    // Remove MongoDB specific fields that might cause issues
+    delete data.__v;
+    delete data._id;
+    
+    // Ensure all string fields are properly formatted
+    data.uid = String(data.uid || '');
+    data.fullName = String(data.fullName || '');
+    data.email = String(data.email || '');
+    data.mobileNumber = String(data.mobileNumber || '');
+    data.alternateMobile = data.alternateMobile ? String(data.alternateMobile) : null;
+    data.gender = String(data.gender || 'Other');
+    data.address = String(data.address || '');
+    data.city = String(data.city || '');
+    data.state = String(data.state || '');
+    data.pincode = String(data.pincode || '');
+    data.pharmacyName = String(data.pharmacyName || '');
+    data.licenseNumber = String(data.licenseNumber || '');
+    data.pharmacyLicenseNumber = String(data.pharmacyLicenseNumber || '');
+    data.pharmacyAddress = String(data.pharmacyAddress || '');
+    data.ownerName = String(data.ownerName || '');
+    data.pharmacistName = String(data.pharmacistName || '');
+    data.pharmacistLicenseNumber = String(data.pharmacistLicenseNumber || '');
+    data.pharmacistQualification = String(data.pharmacistQualification || '');
+    data.profileImageUrl = String(data.profileImageUrl || '');
+    data.licenseDocumentUrl = String(data.licenseDocumentUrl || '');
+    data.drugLicenseUrl = String(data.drugLicenseUrl || '');
+    data.premisesCertificateUrl = String(data.premisesCertificateUrl || '');
+    data.arcId = String(data.arcId || '');
+    data.approvalStatus = String(data.approvalStatus || 'pending');
+    
+    // Ensure numeric fields are properly formatted
+    data.longitude = Number(data.longitude) || 0;
+    data.latitude = Number(data.latitude) || 0;
+    data.pharmacistExperienceYears = Number(data.pharmacistExperienceYears) || 0;
+    data.homeDelivery = Boolean(data.homeDelivery);
+    data.isApproved = Boolean(data.isApproved);
     
     res.json({
       success: true,
