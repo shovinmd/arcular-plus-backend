@@ -65,12 +65,53 @@ router.get('/qr/:identifier', async (req, res) => {
 
     const Pharmacy = require('../models/Pharmacy');
     
+    // Try to parse JSON identifier first (like user and hospital routes)
+    let parsedIdentifier = identifier;
+    let extractedUid = null;
+    let extractedEmail = null;
+    
+    try {
+      // Check if identifier is JSON and extract uid/email
+      if (identifier.startsWith('{') && identifier.includes('"uid"')) {
+        const jsonData = JSON.parse(identifier);
+        extractedUid = jsonData.uid;
+        extractedEmail = jsonData.contactInfo?.email || jsonData.email;
+        console.log('✅ Parsed JSON - UID:', extractedUid, 'Email:', extractedEmail);
+      }
+    } catch (parseError) {
+      console.log('⚠️ Identifier is not valid JSON, using as-is');
+    }
+    
     // Try to find pharmacy by ARC ID first
     let pharmacy = await Pharmacy.findOne({ arcId: identifier });
+    console.log('🔍 Search by arcId result:', pharmacy ? 'Found' : 'Not found');
     
+    // If not found by ARC ID, try by extracted UID
+    if (!pharmacy && extractedUid) {
+      console.log('🔄 Trying to find by extracted UID:', extractedUid);
+      pharmacy = await Pharmacy.findOne({ uid: extractedUid });
+      console.log('🔍 Search by extracted UID result:', pharmacy ? 'Found' : 'Not found');
+    }
+    
+    // If still not found, try by original identifier as UID
     if (!pharmacy) {
-      // If not found by ARC ID, try by UID
+      console.log('🔄 Trying to find by original identifier as UID...');
       pharmacy = await Pharmacy.findOne({ uid: identifier });
+      console.log('🔍 Search by original identifier as UID result:', pharmacy ? 'Found' : 'Not found');
+    }
+    
+    // If still not found, try by extracted email
+    if (!pharmacy && extractedEmail) {
+      console.log('🔄 Trying to find by extracted email:', extractedEmail);
+      pharmacy = await Pharmacy.findOne({ email: extractedEmail });
+      console.log('🔍 Search by extracted email result:', pharmacy ? 'Found' : 'Not found');
+    }
+    
+    // If still not found, try by original identifier as email
+    if (!pharmacy) {
+      console.log('🔄 Trying to find by original identifier as email...');
+      pharmacy = await Pharmacy.findOne({ email: identifier });
+      console.log('🔍 Search by original identifier as email result:', pharmacy ? 'Found' : 'Not found');
     }
 
     if (!pharmacy) {
@@ -79,6 +120,8 @@ router.get('/qr/:identifier', async (req, res) => {
         message: 'No pharmacy found with the provided identifier'
       });
     }
+
+    console.log('✅ Pharmacy found:', pharmacy.pharmacyName, 'ARC ID:', pharmacy.arcId);
 
     // Return limited pharmacy info for QR scanning
     res.json({
