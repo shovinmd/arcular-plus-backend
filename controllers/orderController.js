@@ -550,9 +550,9 @@ const updateOrderStatus = async (req, res) => {
     
     // Update status with tracking info if provided
     if (trackingInfo && status === 'Shipped') {
-      order.trackingNumber = trackingInfo.trackingId;
-      order.courierService = trackingInfo.courierService;
-      order.trackingUrl = trackingInfo.trackingUrl;
+      order.trackingNumber = trackingInfo.trackingId || trackingInfo.trackingID || trackingInfo.tracking_no;
+      order.courierService = trackingInfo.courierService || trackingInfo.courier || 'Not specified';
+      order.trackingUrl = trackingInfo.trackingUrl || trackingInfo.trackingURL || '';
       order.estimatedDelivery = trackingInfo.estimatedDelivery;
       await order.save();
     }
@@ -695,7 +695,7 @@ const updateOrderStatus = async (req, res) => {
                 <div class="tracking-id">Tracking ID: ${order.trackingNumber}</div>
                 <div class="courier-info">
                   <p><strong>Courier Service:</strong> ${order.courierService || 'Not specified'}</p>
-                  ${order.estimatedDelivery ? `<p><strong>Estimated Delivery:</strong> ${order.estimatedDelivery}</p>` : ''}
+                  ${order.estimatedDelivery ? `<p><strong>Estimated Delivery:</strong> ${new Date(order.estimatedDelivery).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</p>` : ''}
                   ${order.trackingUrl ? `<p><strong>Tracking URL:</strong> <a href="${order.trackingUrl}" target="_blank">${order.trackingUrl}</a></p>` : ''}
                 </div>
                 ${order.trackingUrl ? `
