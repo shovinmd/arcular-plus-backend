@@ -1120,6 +1120,15 @@ const completeAppointment = async (req, res) => {
       console.error('❌ Complete: email send failed (non-blocking):', mailErr);
     }
 
+    // Send rating request email (non-blocking)
+    try {
+      console.log('⭐ Sending rating request email...');
+      await sendRatingRequestEmail(appointment);
+      console.log('✅ Rating request email sent successfully');
+    } catch (ratingMailErr) {
+      console.error('❌ Rating request email failed (non-blocking):', ratingMailErr);
+    }
+
     // Keep the appointment for records - DO NOT DELETE
 
     console.log('📤 Sending completion response for appointment:', appointment._id, 'Status:', appointment.status);
@@ -1311,6 +1320,71 @@ const sendAppointmentCompletionEmail = async (appointment, billAmount) => {
   }
 };
 
+// Send rating request email after appointment completion
+const sendRatingRequestEmail = async (appointment) => {
+  try {
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      }
+    });
+
+    // Determine provider type and name
+    const providerType = appointment.hospitalId ? 'hospital' : 'doctor';
+    const providerName = appointment.hospitalId ? appointment.hospitalName : appointment.doctorName;
+    const providerId = appointment.hospitalId || appointment.doctorId;
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: appointment.userEmail,
+      subject: 'Rate Your Visit - Arcular Plus',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #32CCBC;">How was your visit?</h2>
+          
+          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3>Visit Details</h3>
+            <p><strong>Patient:</strong> ${appointment.patientName || 'Patient'}</p>
+            <p><strong>Provider:</strong> ${providerName}</p>
+            <p><strong>Date:</strong> ${appointment.appointmentDate.toDateString()}</p>
+            <p><strong>Time:</strong> ${appointment.appointmentTime}</p>
+            <p><strong>Status:</strong> <span style="color: #27ae60; font-weight: bold;">COMPLETED</span></p>
+          </div>
+          
+          <div style="background-color: #e8f5e8; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #32CCBC;">
+            <h3 style="color: #32CCBC;">Share Your Experience</h3>
+            <p style="color: #333; line-height: 1.6;">Your feedback helps us improve our services and helps other patients make informed decisions.</p>
+            <p style="color: #666; font-size: 14px;">Please take a moment to rate your experience with ${providerName}.</p>
+          </div>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="https://arcular-pluse-a-unified-healthcare-peach.vercel.app/rating?appointmentId=${appointment._id}&providerType=${providerType}&providerId=${providerId}&providerName=${encodeURIComponent(providerName)}" 
+               style="background-color: #32CCBC; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+              ⭐ Rate Your Visit
+            </a>
+          </div>
+          
+          <div style="background-color: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107;">
+            <p style="margin: 0; color: #856404;"><strong>Thank you for choosing Arcular Plus!</strong></p>
+            <p style="margin: 5px 0 0 0; color: #856404;">Your feedback is valuable to us and helps improve healthcare services.</p>
+          </div>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="https://arcular-pluse-a-unified-healthcare-peach.vercel.app/" style="background-color: #6c757d; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Visit Arcular Plus</a>
+          </div>
+        </div>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log('Rating request email sent successfully');
+  } catch (error) {
+    console.error('Error sending rating request email:', error);
+  }
+};
+
 // Mark appointment as fully completed after payment
 const completePayment = async (req, res) => {
   try {
@@ -1443,5 +1517,6 @@ module.exports = {
   completePayment,
   createOfflineAppointment,
   sendAppointmentCompletionEmail,
+  sendRatingRequestEmail,
   sendOfflineAppointmentConfirmationEmail
 };

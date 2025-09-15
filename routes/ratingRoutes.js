@@ -9,6 +9,11 @@ router.post('/submit', firebaseAuthMiddleware, ratingController.submitRating);
 // Get ratings for a pharmacy (public)
 router.get('/pharmacy/:pharmacyId', ratingController.getPharmacyRatings);
 
+// Provider (Hospital/Doctor) ratings
+router.post('/provider/submit', firebaseAuthMiddleware, ratingController.submitProviderRating);
+router.get('/provider/:providerId/:providerType', ratingController.getProviderRatings);
+router.get('/provider/:providerId/:providerType/summary', ratingController.getProviderRatingSummary);
+
 // Get user's ratings (requires authentication)
 router.get('/user', firebaseAuthMiddleware, ratingController.getUserRatings);
 

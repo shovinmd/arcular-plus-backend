@@ -1063,7 +1063,9 @@ const getOrderStats = async (req, res) => {
         { $group: { _id: null, total: { $sum: '$totalAmount' } } }
       ]);
       totalRevenueValue = Number(agg?.[0]?.total || 0);
+      console.log(`💰 Revenue calculation (aggregate): ${totalRevenueValue} for pharmacy ${actualPharmacyId}`);
     } catch (e) {
+      console.log('⚠️ Aggregate failed, using fallback:', e.message);
       // Fallback using find + reduce
       const deliveredDocs = await Order.find({
         pharmacyId: actualPharmacyId,
@@ -1073,6 +1075,8 @@ const getOrderStats = async (req, res) => {
         (sum, o) => sum + Number(o.totalAmount || 0),
         0
       );
+      console.log(`💰 Revenue calculation (fallback): ${totalRevenueValue} from ${deliveredDocs.length} delivered orders`);
+      console.log('📊 Sample delivered orders:', deliveredDocs.slice(0, 3).map(o => ({ totalAmount: o.totalAmount })));
     }
     
     res.json({
