@@ -236,8 +236,23 @@ const placeOrder = async (req, res) => {
               </tbody>
             </table>
             
-            <div class="total-amount">
-              <strong>Total Amount: ₹${totalAmount}</strong>
+            <div style="margin: 10px 0 20px 0;">
+              <table class="items-table" style="width: 100%; border-collapse: collapse;">
+                <tbody>
+                  <tr>
+                    <td style="padding: 8px;">Subtotal</td>
+                    <td style="padding: 8px; text-align: right;">₹${subtotal}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px;">Delivery Fee</td>
+                    <td style="padding: 8px; text-align: right;">₹${deliveryFee}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px; font-weight: 700;">Grand Total</td>
+                    <td style="padding: 8px; text-align: right; font-weight: 700;">₹${totalAmount}</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
             
             <div style="text-align: center; margin: 30px 0;">
@@ -334,8 +349,23 @@ const placeOrder = async (req, res) => {
               </tbody>
             </table>
             
-            <div class="total-amount">
-              <strong>Total Amount: ₹${totalAmount}</strong>
+            <div style="margin: 10px 0 20px 0;">
+              <table class="items-table" style="width: 100%; border-collapse: collapse;">
+                <tbody>
+                  <tr>
+                    <td style="padding: 8px;">Subtotal</td>
+                    <td style="padding: 8px; text-align: right;">₹${subtotal}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px;">Delivery Fee</td>
+                    <td style="padding: 8px; text-align: right;">₹${deliveryFee}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px; font-weight: 700;">Grand Total</td>
+                    <td style="padding: 8px; text-align: right; font-weight: 700;">₹${totalAmount}</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
             
             <div style="text-align: center; margin: 30px 0;">
