@@ -5,7 +5,6 @@ const providerRatingSchema = new mongoose.Schema({
     type: String,
     required: true,
     index: true,
-    unique: true,
   },
   userId: {
     type: String,
@@ -42,6 +41,9 @@ providerRatingSchema.pre('save', function (next) {
   this.updatedAt = new Date();
   next();
 });
+
+// Compound unique index: one rating per appointment per provider type per user
+providerRatingSchema.index({ appointmentId: 1, providerType: 1, providerId: 1, userId: 1 }, { unique: true });
 
 module.exports = mongoose.model('ProviderRating', providerRatingSchema);
 

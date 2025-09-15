@@ -251,13 +251,19 @@ const submitProviderRating = async (req, res) => {
       userId
     });
 
+    console.log('🔍 Validating provider type...');
     if (!['hospital', 'doctor'].includes(providerType)) {
+      console.log('❌ Invalid provider type:', providerType);
       return res.status(400).json({ success: false, message: 'Invalid provider type' });
     }
+    
+    console.log('🔍 Validating required fields...');
     if (!appointmentId || !providerId || !rating) {
+      console.log('❌ Missing fields:', { appointmentId, providerId, rating });
       return res.status(400).json({ success: false, message: 'Missing fields' });
     }
 
+    console.log('🔍 Checking for existing rating...');
     // Check if this specific provider type is already rated for this appointment
     const existing = await ProviderRating.findOne({ 
       appointmentId, 
@@ -265,12 +271,15 @@ const submitProviderRating = async (req, res) => {
       providerId 
     });
     if (existing) {
+      console.log('❌ Rating already exists for this appointment and provider');
       return res.status(400).json({ 
         success: false, 
         message: `${providerType.charAt(0).toUpperCase() + providerType.slice(1)} already rated for this appointment` 
       });
     }
+    console.log('✅ No existing rating found, proceeding...');
 
+    console.log('💾 Creating ProviderRating document...');
     const pr = new ProviderRating({
       appointmentId,
       userId,
@@ -279,20 +288,42 @@ const submitProviderRating = async (req, res) => {
       rating,
       review: review || ''
     });
+    
+    console.log('💾 Saving ProviderRating to database...');
     await pr.save();
+    console.log('✅ ProviderRating saved successfully');
 
     // Update aggregate on provider doc if available
     const Model = providerType === 'hospital' ? Hospital : Doctor;
     if (Model) {
-      const all = await ProviderRating.find({ providerType, providerId });
-      const avg = all.reduce((s, r) => s + r.rating, 0) / all.length;
-      const updateResult = await Model.findOneAndUpdate(
-        { uid: providerId },
-        { averageRating: Math.round(avg * 10) / 10, totalRatings: all.length }
-      );
-      console.log(`📊 Updated ${providerType} ${providerId} rating: ${Math.round(avg * 10) / 10}/5 (${all.length} ratings)`);
-      if (!updateResult) {
-        console.log(`⚠️ ${providerType} with UID ${providerId} not found for rating update`);
+      try {
+        const all = await ProviderRating.find({ providerType, providerId });
+        const avg = all.reduce((s, r) => s + r.rating, 0) / all.length;
+        
+        console.log(`🔍 Looking for ${providerType} with UID: ${providerId}`);
+        
+        // Try to find by UID first
+        let updateResult = await Model.findOneAndUpdate(
+          { uid: providerId },
+          { averageRating: Math.round(avg * 10) / 10, totalRatings: all.length }
+        );
+        
+        // If not found by UID, try by MongoDB _id
+        if (!updateResult) {
+          console.log(`⚠️ ${providerType} with UID ${providerId} not found, trying MongoDB _id`);
+          updateResult = await Model.findByIdAndUpdate(
+            providerId,
+            { averageRating: Math.round(avg * 10) / 10, totalRatings: all.length }
+          );
+        }
+        
+        console.log(`📊 Updated ${providerType} ${providerId} rating: ${Math.round(avg * 10) / 10}/5 (${all.length} ratings)`);
+        if (!updateResult) {
+          console.log(`⚠️ ${providerType} with ID ${providerId} not found for rating update`);
+        }
+      } catch (updateError) {
+        console.error(`❌ Error updating ${providerType} rating aggregate:`, updateError);
+        // Don't fail the entire request if aggregate update fails
       }
     }
 
