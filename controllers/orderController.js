@@ -1025,27 +1025,38 @@ const getOrderById = async (req, res) => {
 const getOrderStats = async (req, res) => {
   try {
     const { pharmacyId } = req.params;
-    
-    const totalOrders = await Order.countDocuments({ pharmacyId: pharmacyId });
+
+    // Resolve pharmacyId: accept UID or MongoDB ID
+    const Pharmacy = require('../models/Pharmacy');
+    let pharmacy = await Pharmacy.findOne({ uid: pharmacyId });
+    if (!pharmacy) {
+      pharmacy = await Pharmacy.findById(pharmacyId);
+    }
+    if (!pharmacy) {
+      return res.status(404).json({ success: false, error: 'Pharmacy not found' });
+    }
+    const actualPharmacyId = pharmacy._id;
+
+    const totalOrders = await Order.countDocuments({ pharmacyId: actualPharmacyId });
     const pendingOrders = await Order.countDocuments({ 
-      pharmacyId: pharmacyId, 
+      pharmacyId: actualPharmacyId, 
       status: 'Pending' 
     });
     const confirmedOrders = await Order.countDocuments({ 
-      pharmacyId: pharmacyId, 
+      pharmacyId: actualPharmacyId, 
       status: 'Confirmed' 
     });
     const shippedOrders = await Order.countDocuments({ 
-      pharmacyId: pharmacyId, 
+      pharmacyId: actualPharmacyId, 
       status: 'Shipped' 
     });
     const deliveredOrders = await Order.countDocuments({ 
-      pharmacyId: pharmacyId, 
+      pharmacyId: actualPharmacyId, 
       status: 'Delivered' 
     });
     
     const totalRevenue = await Order.aggregate([
-      { $match: { pharmacyId: pharmacyId, status: 'Delivered' } },
+      { $match: { pharmacyId: actualPharmacyId, status: 'Delivered' } },
       { $group: { _id: null, total: { $sum: '$totalAmount' } } }
     ]);
     
