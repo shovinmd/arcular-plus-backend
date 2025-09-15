@@ -249,9 +249,17 @@ const submitProviderRating = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Missing fields' });
     }
 
-    const existing = await ProviderRating.findOne({ appointmentId });
+    // Check if this specific provider type is already rated for this appointment
+    const existing = await ProviderRating.findOne({ 
+      appointmentId, 
+      providerType, 
+      providerId 
+    });
     if (existing) {
-      return res.status(400).json({ success: false, message: 'Appointment already rated' });
+      return res.status(400).json({ 
+        success: false, 
+        message: `${providerType.charAt(0).toUpperCase() + providerType.slice(1)} already rated for this appointment` 
+      });
     }
 
     const pr = new ProviderRating({
