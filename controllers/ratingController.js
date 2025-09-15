@@ -96,15 +96,42 @@ const getPharmacyRatings = async (req, res) => {
     const { pharmacyId } = req.params;
     const { page = 1, limit = 10 } = req.query;
 
+    console.log('🔍 Fetching ratings for pharmacy:', pharmacyId);
+
+    // First, try to find pharmacy by UID to get MongoDB ID
+    const Pharmacy = require('../models/Pharmacy');
+    let pharmacy = await Pharmacy.findOne({ uid: pharmacyId });
+    
+    if (!pharmacy) {
+      // If not found by UID, try by MongoDB ObjectId
+      const mongoose = require('mongoose');
+      if (mongoose.Types.ObjectId.isValid(pharmacyId)) {
+        pharmacy = await Pharmacy.findById(pharmacyId);
+      }
+    }
+    
+    if (!pharmacy) {
+      console.log('❌ Pharmacy not found:', pharmacyId);
+      return res.status(404).json({
+        success: false,
+        message: 'Pharmacy not found'
+      });
+    }
+
+    console.log('✅ Found pharmacy:', pharmacy.pharmacyName, 'MongoDB ID:', pharmacy._id);
+
     const skip = (page - 1) * limit;
 
-    const ratings = await Rating.find({ pharmacyId })
+    // Find ratings by pharmacy MongoDB ID
+    const ratings = await Rating.find({ pharmacyId: pharmacy._id })
       .populate('userId', 'fullName email')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
 
-    const total = await Rating.countDocuments({ pharmacyId });
+    const total = await Rating.countDocuments({ pharmacyId: pharmacy._id });
+
+    console.log(`✅ Found ${ratings.length} ratings for pharmacy ${pharmacy.pharmacyName}`);
 
     res.json({
       success: true,
@@ -220,7 +247,34 @@ const getPharmacyRatingSummary = async (req, res) => {
   try {
     const { pharmacyId } = req.params;
     
-    const ratings = await Rating.find({ pharmacyId });
+    console.log('🔍 Fetching rating summary for pharmacy:', pharmacyId);
+
+    // First, try to find pharmacy by UID to get MongoDB ID
+    const Pharmacy = require('../models/Pharmacy');
+    let pharmacy = await Pharmacy.findOne({ uid: pharmacyId });
+    
+    if (!pharmacy) {
+      // If not found by UID, try by MongoDB ObjectId
+      const mongoose = require('mongoose');
+      if (mongoose.Types.ObjectId.isValid(pharmacyId)) {
+        pharmacy = await Pharmacy.findById(pharmacyId);
+      }
+    }
+    
+    if (!pharmacy) {
+      console.log('❌ Pharmacy not found:', pharmacyId);
+      return res.status(404).json({
+        success: false,
+        message: 'Pharmacy not found'
+      });
+    }
+
+    console.log('✅ Found pharmacy:', pharmacy.pharmacyName, 'MongoDB ID:', pharmacy._id);
+    
+    // Find ratings by pharmacy MongoDB ID
+    const ratings = await Rating.find({ pharmacyId: pharmacy._id });
+    
+    console.log(`✅ Found ${ratings.length} ratings for pharmacy ${pharmacy.pharmacyName}`);
     
     if (ratings.length === 0) {
       return res.json({

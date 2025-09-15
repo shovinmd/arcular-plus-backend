@@ -1055,11 +1055,11 @@ const getOrderStats = async (req, res) => {
       status: 'Delivered' 
     });
     
-    // Calculate revenue from delivered orders (robust against type issues)
+    // Calculate revenue from completed orders (Delivered, Confirmed, Shipped)
     let totalRevenueValue = 0;
     try {
       const agg = await Order.aggregate([
-        { $match: { pharmacyId: actualPharmacyId, status: 'Delivered' } },
+        { $match: { pharmacyId: actualPharmacyId, status: { $in: ['Delivered', 'Confirmed', 'Shipped'] } } },
         { $group: { _id: null, total: { $sum: '$totalAmount' } } }
       ]);
       totalRevenueValue = Number(agg?.[0]?.total || 0);
@@ -1067,16 +1067,16 @@ const getOrderStats = async (req, res) => {
     } catch (e) {
       console.log('⚠️ Aggregate failed, using fallback:', e.message);
       // Fallback using find + reduce
-      const deliveredDocs = await Order.find({
+      const completedDocs = await Order.find({
         pharmacyId: actualPharmacyId,
-        status: 'Delivered'
-      }).select('totalAmount');
-      totalRevenueValue = deliveredDocs.reduce(
+        status: { $in: ['Delivered', 'Confirmed', 'Shipped'] }
+      }).select('totalAmount status');
+      totalRevenueValue = completedDocs.reduce(
         (sum, o) => sum + Number(o.totalAmount || 0),
         0
       );
-      console.log(`💰 Revenue calculation (fallback): ${totalRevenueValue} from ${deliveredDocs.length} delivered orders`);
-      console.log('📊 Sample delivered orders:', deliveredDocs.slice(0, 3).map(o => ({ totalAmount: o.totalAmount })));
+      console.log(`💰 Revenue calculation (fallback): ${totalRevenueValue} from ${completedDocs.length} completed orders`);
+      console.log('📊 Sample completed orders:', completedDocs.slice(0, 3).map(o => ({ totalAmount: o.totalAmount, status: o.status })));
     }
     
     res.json({
