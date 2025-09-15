@@ -242,6 +242,15 @@ const submitProviderRating = async (req, res) => {
     const { appointmentId, providerType, providerId, rating, review } = req.body;
     const userId = req.user.uid;
 
+    console.log('📝 Submitting provider rating:', {
+      appointmentId,
+      providerType,
+      providerId,
+      rating,
+      review,
+      userId
+    });
+
     if (!['hospital', 'doctor'].includes(providerType)) {
       return res.status(400).json({ success: false, message: 'Invalid provider type' });
     }
