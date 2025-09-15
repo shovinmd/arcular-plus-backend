@@ -1120,11 +1120,22 @@ const completeAppointment = async (req, res) => {
       console.error('❌ Complete: email send failed (non-blocking):', mailErr);
     }
 
-    // Send rating request email (non-blocking)
+    // Send rating request emails for both doctor and hospital (non-blocking)
     try {
-      console.log('⭐ Sending rating request email...');
-      await sendRatingRequestEmail(appointment);
-      console.log('✅ Rating request email sent successfully');
+      console.log('⭐ Sending rating request emails...');
+      
+      // Send doctor rating email if doctor exists
+      if (appointment.doctorId && appointment.doctorName) {
+        await sendRatingRequestEmail(appointment, 'doctor');
+        console.log('✅ Doctor rating request email sent successfully');
+      }
+      
+      // Send hospital rating email if hospital exists
+      if (appointment.hospitalId && appointment.hospitalName) {
+        await sendRatingRequestEmail(appointment, 'hospital');
+        console.log('✅ Hospital rating request email sent successfully');
+      }
+      
     } catch (ratingMailErr) {
       console.error('❌ Rating request email failed (non-blocking):', ratingMailErr);
     }
@@ -1321,7 +1332,7 @@ const sendAppointmentCompletionEmail = async (appointment, billAmount) => {
 };
 
 // Send rating request email after appointment completion
-const sendRatingRequestEmail = async (appointment) => {
+const sendRatingRequestEmail = async (appointment, providerType = 'doctor') => {
   try {
     const transporter = nodemailer.createTransport({
       service: 'gmail',
@@ -1331,10 +1342,9 @@ const sendRatingRequestEmail = async (appointment) => {
       }
     });
 
-    // Determine provider type and name
-    const providerType = appointment.hospitalId ? 'hospital' : 'doctor';
-    const providerName = appointment.hospitalId ? appointment.hospitalName : appointment.doctorName;
-    const providerId = appointment.hospitalId || appointment.doctorId;
+    // Determine provider details based on type
+    const providerName = providerType === 'hospital' ? appointment.hospitalName : appointment.doctorName;
+    const providerId = providerType === 'hospital' ? appointment.hospitalId : appointment.doctorId;
 
     const mailOptions = {
       from: process.env.EMAIL_USER,

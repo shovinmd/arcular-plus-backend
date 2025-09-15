@@ -269,10 +269,14 @@ const submitProviderRating = async (req, res) => {
     if (Model) {
       const all = await ProviderRating.find({ providerType, providerId });
       const avg = all.reduce((s, r) => s + r.rating, 0) / all.length;
-      await Model.findOneAndUpdate(
+      const updateResult = await Model.findOneAndUpdate(
         { uid: providerId },
         { averageRating: Math.round(avg * 10) / 10, totalRatings: all.length }
       );
+      console.log(`📊 Updated ${providerType} ${providerId} rating: ${Math.round(avg * 10) / 10}/5 (${all.length} ratings)`);
+      if (!updateResult) {
+        console.log(`⚠️ ${providerType} with UID ${providerId} not found for rating update`);
+      }
     }
 
     res.json({ success: true, message: 'Provider rating submitted', data: pr });

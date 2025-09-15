@@ -72,6 +72,10 @@ const DoctorSchema = new mongoose.Schema({
   arcId: { type: String, unique: true },
   qrCode: String,
   
+  // Rating Fields
+  averageRating: { type: Number, default: 0 },
+  totalRatings: { type: Number, default: 0 },
+  
   // Timestamps
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
