@@ -1055,10 +1055,25 @@ const getOrderStats = async (req, res) => {
       status: 'Delivered' 
     });
     
-    const totalRevenue = await Order.aggregate([
-      { $match: { pharmacyId: actualPharmacyId, status: 'Delivered' } },
-      { $group: { _id: null, total: { $sum: '$totalAmount' } } }
-    ]);
+    // Calculate revenue from delivered orders (robust against type issues)
+    let totalRevenueValue = 0;
+    try {
+      const agg = await Order.aggregate([
+        { $match: { pharmacyId: actualPharmacyId, status: 'Delivered' } },
+        { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+      ]);
+      totalRevenueValue = Number(agg?.[0]?.total || 0);
+    } catch (e) {
+      // Fallback using find + reduce
+      const deliveredDocs = await Order.find({
+        pharmacyId: actualPharmacyId,
+        status: 'Delivered'
+      }).select('totalAmount');
+      totalRevenueValue = deliveredDocs.reduce(
+        (sum, o) => sum + Number(o.totalAmount || 0),
+        0
+      );
+    }
     
     res.json({
       success: true,
@@ -1068,7 +1083,7 @@ const getOrderStats = async (req, res) => {
         confirmedOrders,
         shippedOrders,
         deliveredOrders,
-        totalRevenue: totalRevenue[0]?.total || 0
+        totalRevenue: totalRevenueValue
       }
     });
     
