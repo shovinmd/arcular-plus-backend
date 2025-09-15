@@ -2,6 +2,9 @@ const Rating = require('../models/Rating');
 const Order = require('../models/Order');
 const User = require('../models/User');
 const Pharmacy = require('../models/Pharmacy');
+const ProviderRating = require('../models/ProviderRating');
+const Hospital = require('../models/Hospital');
+const Doctor = require('../models/Doctor');
 
 // Submit rating for an order
 const submitRating = async (req, res) => {
@@ -233,10 +236,87 @@ const getPharmacyRatingSummary = async (req, res) => {
   }
 };
 
+// Submit rating for hospital or doctor after appointment
+const submitProviderRating = async (req, res) => {
+  try {
+    const { appointmentId, providerType, providerId, rating, review } = req.body;
+    const userId = req.user.uid;
+
+    if (!['hospital', 'doctor'].includes(providerType)) {
+      return res.status(400).json({ success: false, message: 'Invalid provider type' });
+    }
+    if (!appointmentId || !providerId || !rating) {
+      return res.status(400).json({ success: false, message: 'Missing fields' });
+    }
+
+    const existing = await ProviderRating.findOne({ appointmentId });
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'Appointment already rated' });
+    }
+
+    const pr = new ProviderRating({
+      appointmentId,
+      userId,
+      providerType,
+      providerId,
+      rating,
+      review: review || ''
+    });
+    await pr.save();
+
+    // Update aggregate on provider doc if available
+    const Model = providerType === 'hospital' ? Hospital : Doctor;
+    if (Model) {
+      const all = await ProviderRating.find({ providerType, providerId });
+      const avg = all.reduce((s, r) => s + r.rating, 0) / all.length;
+      await Model.findOneAndUpdate(
+        { uid: providerId },
+        { averageRating: Math.round(avg * 10) / 10, totalRatings: all.length }
+      );
+    }
+
+    res.json({ success: true, message: 'Provider rating submitted', data: pr });
+  } catch (error) {
+    console.error('❌ Error submitting provider rating:', error);
+    res.status(500).json({ success: false, message: 'Failed to submit rating' });
+  }
+};
+
+// Get ratings for a provider
+const getProviderRatings = async (req, res) => {
+  try {
+    const { providerType, providerId } = req.params;
+    const ratings = await ProviderRating.find({ providerType, providerId })
+      .sort({ createdAt: -1 });
+    res.json({ success: true, data: ratings });
+  } catch (error) {
+    console.error('❌ Error fetching provider ratings:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch ratings' });
+  }
+};
+
+// Rating summary for a provider
+const getProviderRatingSummary = async (req, res) => {
+  try {
+    const { providerType, providerId } = req.params;
+    const ratings = await ProviderRating.find({ providerType, providerId });
+    const avg = ratings.length
+      ? Math.round((ratings.reduce((s, r) => s + r.rating, 0) / ratings.length) * 10) / 10
+      : 0;
+    res.json({ success: true, data: { averageRating: avg, totalRatings: ratings.length } });
+  } catch (error) {
+    console.error('❌ Error fetching provider rating summary:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch rating summary' });
+  }
+};
+
 module.exports = {
   submitRating,
   getPharmacyRatings,
   getUserRatings,
   getPharmacyRatingSummary,
-  updatePharmacyRating
+  updatePharmacyRating,
+  submitProviderRating,
+  getProviderRatings,
+  getProviderRatingSummary
 };
