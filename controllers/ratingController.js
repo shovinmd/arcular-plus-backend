@@ -166,6 +166,30 @@ const getUserRatings = async (req, res) => {
   }
 };
 
+// Get user's provider ratings
+const getUserProviderRatings = async (req, res) => {
+  try {
+    const userId = req.user.uid;
+    const { appointmentId, providerType, providerId } = req.query;
+
+    let query = { userId };
+    if (appointmentId) query.appointmentId = appointmentId;
+    if (providerType) query.providerType = providerType;
+    if (providerId) query.providerId = providerId;
+
+    const ratings = await ProviderRating.find(query)
+      .sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      data: ratings
+    });
+  } catch (error) {
+    console.error('❌ Error fetching user provider ratings:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch user provider ratings' });
+  }
+};
+
 // Update pharmacy average rating
 const updatePharmacyRating = async (pharmacyId) => {
   try {
@@ -264,17 +288,23 @@ const submitProviderRating = async (req, res) => {
     }
 
     console.log('🔍 Checking for existing rating...');
-    // Check if this specific provider type is already rated for this appointment
+    // Check if this specific provider type is already rated for this appointment by this user
     const existing = await ProviderRating.findOne({ 
       appointmentId, 
       providerType, 
-      providerId 
+      providerId,
+      userId
     });
     if (existing) {
-      console.log('❌ Rating already exists for this appointment and provider');
+      console.log('❌ Rating already exists for this appointment and provider by this user');
       return res.status(400).json({ 
         success: false, 
-        message: `${providerType.charAt(0).toUpperCase() + providerType.slice(1)} already rated for this appointment` 
+        message: `You have already rated this ${providerType} for this appointment`,
+        existingRating: {
+          rating: existing.rating,
+          review: existing.review,
+          createdAt: existing.createdAt
+        }
       });
     }
     console.log('✅ No existing rating found, proceeding...');
@@ -366,6 +396,7 @@ module.exports = {
   submitRating,
   getPharmacyRatings,
   getUserRatings,
+  getUserProviderRatings,
   getPharmacyRatingSummary,
   updatePharmacyRating,
   submitProviderRating,

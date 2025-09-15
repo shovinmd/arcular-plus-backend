@@ -17,6 +17,9 @@ router.get('/provider/:providerId/:providerType/summary', ratingController.getPr
 // Get user's ratings (requires authentication)
 router.get('/user', firebaseAuthMiddleware, ratingController.getUserRatings);
 
+// Get user's provider ratings (requires authentication)
+router.get('/user/provider', firebaseAuthMiddleware, ratingController.getUserProviderRatings);
+
 // Get pharmacy rating summary (public)
 router.get('/pharmacy/:pharmacyId/summary', ratingController.getPharmacyRatingSummary);
 
