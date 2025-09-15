@@ -41,7 +41,12 @@ const registerDoctor = async (req, res) => {
       currentHospital,
       workingHours,
       licenseDocumentUrl,
-      profileImageUrl
+      profileImageUrl,
+      medicalRegistrationDocumentUrl,
+      qualificationDocumentUrl,
+      experienceDocumentUrl,
+      identityDocumentUrl,
+      documents
     } = req.body;
 
     // Validate required fields
@@ -127,6 +132,10 @@ const registerDoctor = async (req, res) => {
       workingHours: workingHours || {},
       licenseDocumentUrl,
       profileImageUrl,
+      medicalRegistrationDocumentUrl,
+      qualificationDocumentUrl,
+      experienceDocumentUrl,
+      identityDocumentUrl,
       bloodGroup: userData.bloodGroup || null,
       // Temporarily set as approved for immediate access
       isApproved: true,
@@ -148,11 +157,89 @@ const registerDoctor = async (req, res) => {
     // Set the licenseNumber explicitly to ensure it's not null
     doctor.licenseNumber = licenseNumber;
     
-    // Handle licenseDocumentUrl - use from documents if not provided directly
+    // Handle all document URLs - use from documents object if not provided directly
+    console.log('📄 Processing document URLs...');
+    console.log('📄 Documents object:', req.body.documents);
+    
+    // License Document
     if (!licenseDocumentUrl && req.body.documents && req.body.documents.license_certificate) {
       doctor.licenseDocumentUrl = req.body.documents.license_certificate;
+      console.log('📄 Set licenseDocumentUrl from documents:', doctor.licenseDocumentUrl);
     } else if (licenseDocumentUrl) {
       doctor.licenseDocumentUrl = licenseDocumentUrl;
+      console.log('📄 Set licenseDocumentUrl from direct field:', doctor.licenseDocumentUrl);
+    }
+    
+    // Medical Registration Document
+    if (!medicalRegistrationDocumentUrl && req.body.documents && req.body.documents.medical_registration) {
+      doctor.medicalRegistrationDocumentUrl = req.body.documents.medical_registration;
+      console.log('📄 Set medicalRegistrationDocumentUrl:', doctor.medicalRegistrationDocumentUrl);
+    } else if (medicalRegistrationDocumentUrl) {
+      doctor.medicalRegistrationDocumentUrl = medicalRegistrationDocumentUrl;
+      console.log('📄 Set medicalRegistrationDocumentUrl from direct field:', doctor.medicalRegistrationDocumentUrl);
+    }
+    
+    // Qualification Document
+    if (!qualificationDocumentUrl && req.body.documents && req.body.documents.qualification_certificate) {
+      doctor.qualificationDocumentUrl = req.body.documents.qualification_certificate;
+      console.log('📄 Set qualificationDocumentUrl:', doctor.qualificationDocumentUrl);
+    } else if (qualificationDocumentUrl) {
+      doctor.qualificationDocumentUrl = qualificationDocumentUrl;
+      console.log('📄 Set qualificationDocumentUrl from direct field:', doctor.qualificationDocumentUrl);
+    }
+    
+    // Experience Document
+    if (!experienceDocumentUrl && req.body.documents && req.body.documents.experience_certificate) {
+      doctor.experienceDocumentUrl = req.body.documents.experience_certificate;
+      console.log('📄 Set experienceDocumentUrl:', doctor.experienceDocumentUrl);
+    } else if (experienceDocumentUrl) {
+      doctor.experienceDocumentUrl = experienceDocumentUrl;
+      console.log('📄 Set experienceDocumentUrl from direct field:', doctor.experienceDocumentUrl);
+    }
+    
+    // Identity Document
+    if (!identityDocumentUrl && req.body.documents && req.body.documents.identity_proof) {
+      doctor.identityDocumentUrl = req.body.documents.identity_proof;
+      console.log('📄 Set identityDocumentUrl:', doctor.identityDocumentUrl);
+    } else if (identityDocumentUrl) {
+      doctor.identityDocumentUrl = identityDocumentUrl;
+      console.log('📄 Set identityDocumentUrl from direct field:', doctor.identityDocumentUrl);
+    }
+    
+    // Profile Image
+    if (!profileImageUrl && req.body.documents && req.body.documents.profile_image) {
+      doctor.profileImageUrl = req.body.documents.profile_image;
+      console.log('📄 Set profileImageUrl:', doctor.profileImageUrl);
+    } else if (profileImageUrl) {
+      doctor.profileImageUrl = profileImageUrl;
+      console.log('📄 Set profileImageUrl from direct field:', doctor.profileImageUrl);
+    }
+    
+    // Handle additional documents
+    if (req.body.documents) {
+      const additionalDocs = [];
+      Object.keys(req.body.documents).forEach(docType => {
+        const docUrl = req.body.documents[docType];
+        if (docUrl && ![
+          'license_certificate', 
+          'medical_registration', 
+          'qualification_certificate', 
+          'experience_certificate', 
+          'identity_proof', 
+          'profile_image'
+        ].includes(docType)) {
+          additionalDocs.push({
+            documentType: docType,
+            documentUrl: docUrl,
+            documentName: docType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+          });
+        }
+      });
+      
+      if (additionalDocs.length > 0) {
+        doctor.additionalDocuments = additionalDocs;
+        console.log('📄 Set additionalDocuments:', additionalDocs.length, 'documents');
+      }
     }
     
     console.log('🔍 Final doctor licenseNumber before save:', doctor.licenseNumber);

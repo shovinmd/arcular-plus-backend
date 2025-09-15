@@ -49,6 +49,15 @@ const DoctorSchema = new mongoose.Schema({
   // Certificates and Documents
   licenseDocumentUrl: { type: String, required: true },
   profileImageUrl: String,
+  medicalRegistrationDocumentUrl: String,
+  qualificationDocumentUrl: String,
+  experienceDocumentUrl: String,
+  identityDocumentUrl: String,
+  additionalDocuments: [{
+    documentType: String,
+    documentUrl: String,
+    documentName: String
+  }],
   
   // Additional Personal Fields
   bloodGroup: {
