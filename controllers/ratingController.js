@@ -195,7 +195,7 @@ const updatePharmacyRating = async (pharmacyId) => {
 const getPharmacyRatingSummary = async (req, res) => {
   try {
     const { pharmacyId } = req.params;
-
+    
     const ratings = await Rating.find({ pharmacyId });
     
     if (ratings.length === 0) {
