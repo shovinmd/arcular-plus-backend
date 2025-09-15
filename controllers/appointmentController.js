@@ -560,14 +560,28 @@ const sendAppointmentConfirmationEmail = async (appointment) => {
             <p><strong>Reason:</strong> ${appointment.reason}</p>
           </div>
           
+          <div style="background-color: #e8f5e8; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #32CCBC;">
+            <h3 style="color: #32CCBC;">Hospital Information</h3>
+            <p><strong>Hospital Name:</strong> ${appointment.hospitalName}</p>
+            <p><strong>Address:</strong> ${appointment.hospitalAddress || 'Address not available'}</p>
+            <p><strong>Contact:</strong> ${appointment.doctorPhone || 'Contact information not available'}</p>
+            <p><strong>Doctor Email:</strong> ${appointment.doctorEmail || 'Email not available'}</p>
+          </div>
+          
           <div style="background-color: #e3f2fd; padding: 15px; border-radius: 8px; margin: 20px 0;">
             <h4>Important Notes:</h4>
             <ul>
               <li>Please arrive 15 minutes before your appointment time</li>
               <li>Bring a valid ID and any relevant medical documents</li>
               <li>Payment can be made at the hospital reception</li>
-              <li>Contact the hospital if you need to reschedule or cancel</li>
+              <li>Contact the hospital directly if you need to reschedule or cancel</li>
+              <li>Save this email for your records and easy reference</li>
             </ul>
+          </div>
+          
+          <div style="background-color: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107;">
+            <h4 style="color: #856404;">Emergency Contact</h4>
+            <p style="color: #856404; margin: 0;">If you have any urgent questions about your appointment, please contact the hospital directly using the information provided above.</p>
           </div>
           
           <p style="color: #666; font-size: 14px;">
@@ -1298,6 +1312,14 @@ const sendAppointmentCompletionEmail = async (appointment, billAmount) => {
           </div>
           
           <div style="background-color: #e8f5e8; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #27ae60;">
+            <h3 style="color: #27ae60;">Hospital Information</h3>
+            <p><strong>Hospital Name:</strong> ${appointment.hospitalName}</p>
+            <p><strong>Address:</strong> ${appointment.hospitalAddress || 'Address not available'}</p>
+            <p><strong>Contact:</strong> ${appointment.doctorPhone || 'Contact information not available'}</p>
+            <p><strong>Doctor Email:</strong> ${appointment.doctorEmail || 'Email not available'}</p>
+          </div>
+          
+          <div style="background-color: #e8f5e8; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #27ae60;">
             <h3 style="color: #27ae60;">Payment Information</h3>
             <p><strong>Bill Amount:</strong> ₹${billAmount || 0}</p>
             <p><strong>Payment Method:</strong> ${appointment.paymentMethod || 'Offline Payment'}</p>
@@ -1480,6 +1502,14 @@ const sendOfflineAppointmentConfirmationEmail = async (appointment, hospital, do
             <p><strong>Date & Time:</strong> ${new Date(appointment.appointmentDate).toLocaleDateString()} at ${appointment.appointmentTime}</p>
             <p><strong>Appointment Type:</strong> Walk-in (Offline)</p>
             <p><strong>Status:</strong> <span style="color: #27ae60; font-weight: bold;">CONFIRMED</span></p>
+          </div>
+          
+          <div style="background-color: #e8f5e8; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #27ae60;">
+            <h3 style="color: #27ae60;">Hospital Information</h3>
+            <p><strong>Hospital Name:</strong> ${hospital.hospitalName}</p>
+            <p><strong>Address:</strong> ${hospital.address || hospital.hospitalAddress || 'Address not available'}</p>
+            <p><strong>Contact:</strong> ${hospital.contactNumber || doctor.mobileNumber || 'Contact information not available'}</p>
+            <p><strong>Email:</strong> ${hospital.email || doctor.email || 'Email not available'}</p>
           </div>
           
           <div style="background-color: #e8f5e8; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #27ae60;">
