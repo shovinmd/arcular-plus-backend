@@ -4,7 +4,6 @@ const providerRatingSchema = new mongoose.Schema({
   appointmentId: {
     type: String,
     required: true,
-    index: true,
   },
   userId: {
     type: String,
