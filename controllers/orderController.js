@@ -158,6 +158,40 @@ const placeOrder = async (req, res) => {
     try {
       await order.save();
       console.log('✅ Order created successfully:', order.orderId);
+
+      // Update pharmacy inventory stock for each ordered item
+      try {
+        const Medicine = require('../models/Medicine');
+        for (const item of processedItems) {
+          const medicine = await Medicine.findOne({
+            _id: item.medicineId,
+            pharmacyId: pharmacy._id
+          });
+
+          if (!medicine) {
+            console.warn('⚠️ Medicine not found for stock decrement:', item.medicineId);
+            continue;
+          }
+
+          const newStock = Math.max(0, (medicine.stock || 0) - item.quantity);
+          const newStockQuantity = Math.max(0, (medicine.stockQuantity || medicine.stock || 0) - item.quantity);
+          let newStatus = 'In Stock';
+          if (newStock <= 0) newStatus = 'Out of Stock';
+          else if (newStock <= (medicine.minStock || 10)) newStatus = 'Low Stock';
+
+          await Medicine.updateOne(
+            { _id: medicine._id },
+            {
+              $set: { stock: newStock, stockQuantity: newStockQuantity, status: newStatus, lastUpdated: new Date().toISOString().split('T')[0] }
+            }
+          );
+
+          console.log(`📉 Stock updated for ${medicine.name}: ${medicine.stock} -> ${newStock}`);
+        }
+      } catch (stockError) {
+        console.error('❌ Error updating stock after order placement:', stockError);
+        // Continue without failing the order
+      }
     } catch (saveError) {
       console.error('❌ Error saving order:', saveError);
       return res.status(500).json({
@@ -525,8 +559,34 @@ const updateOrderStatus = async (req, res) => {
     
     // Update status
     await order.updateStatus(status, updatedBy, note);
-    
+ 
     // Send email notifications based on status
+    // If order is cancelled, restore stock quantities
+    if (status === 'Cancelled') {
+      try {
+        const Medicine = require('../models/Medicine');
+        for (const item of order.items) {
+          const medicine = await Medicine.findOne({
+            _id: item.medicineId,
+            pharmacyId: order.pharmacyId
+          });
+          if (!medicine) continue;
+          const restoredStock = (medicine.stock || 0) + (item.quantity || 0);
+          const restoredStockQuantity = (medicine.stockQuantity || medicine.stock || 0) + (item.quantity || 0);
+          let newStatus = 'In Stock';
+          if (restoredStock <= 0) newStatus = 'Out of Stock';
+          else if (restoredStock <= (medicine.minStock || 10)) newStatus = 'Low Stock';
+          await Medicine.updateOne(
+            { _id: medicine._id },
+            { $set: { stock: restoredStock, stockQuantity: restoredStockQuantity, status: newStatus, lastUpdated: new Date().toISOString().split('T')[0] } }
+          );
+        }
+        console.log('↩️ Stock restored after cancellation for order:', order.orderId);
+      } catch (restoreErr) {
+        console.error('❌ Error restoring stock on cancellation:', restoreErr);
+      }
+    }
+
     if (status === 'Confirmed') {
       const userEmailHtml = `
         <!DOCTYPE html>
