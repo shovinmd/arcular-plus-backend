@@ -40,6 +40,12 @@ const nurseSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  // Primary/optional specialization (e.g., ICU, ER, NICU)
+  specialization: {
+    type: String,
+    required: false,
+    trim: true
+  },
   experienceYears: {
     type: Number,
     required: true,
