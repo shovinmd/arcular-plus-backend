@@ -293,24 +293,47 @@ router.get('/qr/:identifier', async (req, res) => {
       });
     }
 
-    // Return limited doctor info for QR scanning
+    // Return complete doctor info for QR scanning
     res.json({
       success: true,
       type: 'doctor',
-      data: {
-        uid: doctor.uid,
-        arcId: doctor.arcId,
-        fullName: doctor.fullName,
-        email: doctor.email,
-        mobileNumber: doctor.mobileNumber,
-        specialization: doctor.specialization,
-        experienceYears: doctor.experienceYears || 0,
-        consultationFee: doctor.consultationFee || 0,
-        hospitalAffiliation: doctor.currentHospital,
-        profileImageUrl: doctor.profileImageUrl,
-        isApproved: doctor.isApproved,
-        approvalStatus: doctor.approvalStatus,
-      }
+      uid: doctor.uid,
+      arcId: doctor.arcId,
+      healthQrId: doctor.healthQrId,
+      fullName: doctor.fullName,
+      email: doctor.email,
+      mobileNumber: doctor.mobileNumber,
+      altPhoneNumber: doctor.altPhoneNumber,
+      gender: doctor.gender,
+      dateOfBirth: doctor.dateOfBirth,
+      bloodGroup: doctor.bloodGroup,
+      address: doctor.address,
+      city: doctor.city,
+      state: doctor.state,
+      pincode: doctor.pincode,
+      specialization: doctor.specialization,
+      specializations: doctor.specializations,
+      qualifications: doctor.qualifications,
+      education: doctor.education,
+      medicalRegistrationNumber: doctor.medicalRegistrationNumber,
+      licenseNumber: doctor.licenseNumber,
+      experienceYears: doctor.experienceYears || 0,
+      consultationFee: doctor.consultationFee || 0,
+      qualification: doctor.qualification,
+      bio: doctor.bio,
+      currentHospital: doctor.currentHospital,
+      hospitalAffiliation: doctor.currentHospital,
+      affiliatedHospitals: doctor.affiliatedHospitals,
+      profileImageUrl: doctor.profileImageUrl,
+      medicalRegistrationDocumentUrl: doctor.medicalRegistrationDocumentUrl,
+      qualificationDocumentUrl: doctor.qualificationDocumentUrl,
+      experienceDocumentUrl: doctor.experienceDocumentUrl,
+      identityDocumentUrl: doctor.identityDocumentUrl,
+      additionalDocuments: doctor.additionalDocuments,
+      isApproved: doctor.isApproved,
+      approvalStatus: doctor.approvalStatus,
+      createdAt: doctor.createdAt,
+      updatedAt: doctor.updatedAt,
     });
   } catch (error) {
     console.error('Error fetching doctor by QR:', error);
