@@ -72,22 +72,34 @@ router.get('/qr/:identifier', async (req, res) => {
       });
     }
 
-    // Return limited nurse info for QR scanning
+    // Return comprehensive nurse info for QR scanning
     res.json({
       success: true,
       type: 'nurse',
       data: {
         uid: nurse.uid,
         arcId: nurse.arcId,
+        healthQrId: nurse.healthQrId || nurse.arcId,
         fullName: nurse.fullName,
         email: nurse.email,
         mobileNumber: nurse.mobileNumber,
+        gender: nurse.gender,
+        dateOfBirth: nurse.dateOfBirth,
         qualification: nurse.qualification,
         experienceYears: nurse.experienceYears || 0,
+        licenseNumber: nurse.licenseNumber,
+        registrationNumber: nurse.registrationNumber,
+        specialization: nurse.specialization,
+        address: nurse.address,
+        city: nurse.city,
+        state: nurse.state,
+        pincode: nurse.pincode,
         hospitalAffiliation: nurse.currentHospital,
+        role: nurse.role || 'Nurse',
         profileImageUrl: nurse.profileImageUrl,
         isApproved: nurse.isApproved,
         approvalStatus: nurse.approvalStatus,
+        registrationDate: nurse.createdAt,
       }
     });
   } catch (error) {
@@ -111,22 +123,34 @@ router.get('/qr/uid/:uid', async (req, res) => {
       });
     }
 
-    // Return limited nurse info for QR scanning
+    // Return comprehensive nurse info for QR scanning
     res.json({
       success: true,
       type: 'nurse',
       data: {
         uid: nurse.uid,
         arcId: nurse.arcId,
+        healthQrId: nurse.healthQrId || nurse.arcId,
         fullName: nurse.fullName,
         email: nurse.email,
         mobileNumber: nurse.mobileNumber,
+        gender: nurse.gender,
+        dateOfBirth: nurse.dateOfBirth,
         qualification: nurse.qualification,
         experienceYears: nurse.experienceYears || 0,
+        licenseNumber: nurse.licenseNumber,
+        registrationNumber: nurse.registrationNumber,
+        specialization: nurse.specialization,
+        address: nurse.address,
+        city: nurse.city,
+        state: nurse.state,
+        pincode: nurse.pincode,
         hospitalAffiliation: nurse.currentHospital,
+        role: nurse.role || 'Nurse',
         profileImageUrl: nurse.profileImageUrl,
         isApproved: nurse.isApproved,
         approvalStatus: nurse.approvalStatus,
+        registrationDate: nurse.createdAt,
       }
     });
   } catch (error) {
