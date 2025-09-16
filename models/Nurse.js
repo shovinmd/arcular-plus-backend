@@ -24,6 +24,11 @@ const nurseSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  altPhoneNumber: {
+    type: String,
+    required: false,
+    trim: true
+  },
   gender: {
     type: String,
     enum: ['Male', 'Female', 'Other'],

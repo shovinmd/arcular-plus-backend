@@ -181,6 +181,44 @@ const getAllNurses = async (req, res) => {
   }
 };
 
+// Update nurse profile by UID
+const updateNurseProfile = async (req, res) => {
+  try {
+    const { uid } = req.params;
+    const updates = req.body;
+
+    console.log(`👩‍⚕️ Updating nurse profile for UID: ${uid}`);
+    console.log('📋 Updates:', JSON.stringify(updates, null, 2));
+
+    const nurse = await Nurse.findOneAndUpdate(
+      { uid },
+      { ...updates, updatedAt: new Date() },
+      { new: true }
+    );
+
+    if (!nurse) {
+      return res.status(404).json({
+        success: false,
+        error: 'Nurse not found'
+      });
+    }
+
+    console.log('✅ Nurse profile updated successfully');
+    res.json({
+      success: true,
+      message: 'Nurse profile updated successfully',
+      data: nurse
+    });
+  } catch (error) {
+    console.error('❌ Error updating nurse profile:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error updating nurse profile',
+      message: error.message
+    });
+  }
+};
+
 // Update nurse
 const updateNurse = async (req, res) => {
   try {
@@ -672,6 +710,7 @@ module.exports = {
   getNurseByUID,
   getNurseByEmail,
   getAllNurses,
+  updateNurseProfile,
   updateNurse,
   deleteNurse,
   getNursesByHospital,

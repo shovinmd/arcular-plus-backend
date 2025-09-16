@@ -38,8 +38,11 @@ router.get('/login-email/:email', nurseController.getNurseByEmail);
 // Get nurse by ID (generic route - must come last)
 router.get('/:id', firebaseAuthMiddleware, nurseController.getNurseById);
 
-// Update nurse
-router.put('/:id', firebaseAuthMiddleware, nurseController.updateNurse);
+// Update nurse by UID
+router.put('/:uid', firebaseAuthMiddleware, nurseController.updateNurseProfile);
+
+// Update nurse by ID
+router.put('/id/:id', firebaseAuthMiddleware, nurseController.updateNurse);
 
 // Delete nurse
 router.delete('/:id', firebaseAuthMiddleware, nurseController.deleteNurse);
