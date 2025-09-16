@@ -152,6 +152,9 @@ router.get('/specialties-legacy', firebaseAuthMiddleware, async (req, res) => {
 // Get doctor by UID
 router.get('/uid/:uid', firebaseAuthMiddleware, doctorController.getDoctorByUID);
 
+// Update doctor profile
+router.put('/:uid', firebaseAuthMiddleware, doctorController.updateDoctorProfile);
+
 // Get doctors affiliated to a hospital (by Mongo _id)
 router.get('/affiliated/:hospitalId', firebaseAuthMiddleware, doctorController.getDoctorsByAffiliation);
 

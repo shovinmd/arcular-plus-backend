@@ -980,6 +980,51 @@ const getDoctorsBySpecialtyAndHospital = async (req, res) => {
   }
 };
 
+// Update doctor profile
+const updateDoctorProfile = async (req, res) => {
+  try {
+    const { uid } = req.params;
+    const updates = req.body;
+    
+    console.log('👨‍⚕️ Doctor profile update request for UID:', uid);
+    console.log('👨‍⚕️ Updates payload:', updates);
+    
+    // Find doctor by UID
+    const doctor = await Doctor.findOne({ uid });
+    
+    if (!doctor) {
+      return res.status(404).json({
+        success: false,
+        error: 'Doctor not found'
+      });
+    }
+    
+    // Update doctor fields
+    Object.keys(updates).forEach(key => {
+      if (updates[key] !== undefined && updates[key] !== null) {
+        doctor[key] = updates[key];
+      }
+    });
+    
+    // Save updated doctor
+    await doctor.save();
+    
+    console.log('✅ Doctor profile updated successfully');
+    
+    res.json({
+      success: true,
+      message: 'Doctor profile updated successfully',
+      data: doctor
+    });
+  } catch (error) {
+    console.error('❌ Error updating doctor profile:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update doctor profile'
+    });
+  }
+};
+
 module.exports = {
   registerDoctor,
   getAllDoctors,
@@ -987,6 +1032,7 @@ module.exports = {
   getDoctorByUID,
   getDoctorByEmail,
   updateDoctor,
+  updateDoctorProfile,
   deleteDoctor,
   getDoctorsByHospital,
   getDoctorsBySpecialization,
