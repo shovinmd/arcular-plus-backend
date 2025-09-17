@@ -74,24 +74,36 @@ router.get('/qr/:identifier', async (req, res) => {
       });
     }
 
-    // Return limited lab info for QR scanning
+    // Return comprehensive lab info for QR scanning
     res.json({
       success: true,
       type: 'lab',
       data: {
         uid: lab.uid,
         arcId: lab.arcId,
+        healthQrId: lab.arcId, // For compatibility
         labName: lab.labName,
+        fullName: lab.labName, // For compatibility
         email: lab.email,
         mobileNumber: lab.mobileNumber,
+        alternateMobile: lab.alternateMobile,
         address: lab.address,
         city: lab.city,
         state: lab.state,
         pincode: lab.pincode,
-        services: lab.services,
+        labType: lab.labType,
+        registrationNumber: lab.registrationNumber,
+        licenseNumber: lab.licenseNumber,
+        ownerName: lab.ownerName,
+        homeSampleCollection: lab.homeSampleCollection,
+        labCapacity: lab.labCapacity,
+        operatingHours: lab.operatingHours,
+        servicesProvided: lab.servicesProvided,
+        associatedHospital: lab.associatedHospital,
         profileImageUrl: lab.profileImageUrl,
         isApproved: lab.isApproved,
         approvalStatus: lab.approvalStatus,
+        registrationDate: lab.createdAt,
       }
     });
   } catch (error) {
@@ -115,24 +127,36 @@ router.get('/qr/uid/:uid', async (req, res) => {
       });
     }
 
-    // Return limited lab info for QR scanning
+    // Return comprehensive lab info for QR scanning
     res.json({
       success: true,
       type: 'lab',
       data: {
         uid: lab.uid,
         arcId: lab.arcId,
+        healthQrId: lab.arcId, // For compatibility
         labName: lab.labName,
+        fullName: lab.labName, // For compatibility
         email: lab.email,
         mobileNumber: lab.mobileNumber,
+        alternateMobile: lab.alternateMobile,
         address: lab.address,
         city: lab.city,
         state: lab.state,
         pincode: lab.pincode,
-        services: lab.services,
+        labType: lab.labType,
+        registrationNumber: lab.registrationNumber,
+        licenseNumber: lab.licenseNumber,
+        ownerName: lab.ownerName,
+        homeSampleCollection: lab.homeSampleCollection,
+        labCapacity: lab.labCapacity,
+        operatingHours: lab.operatingHours,
+        servicesProvided: lab.servicesProvided,
+        associatedHospital: lab.associatedHospital,
         profileImageUrl: lab.profileImageUrl,
         isApproved: lab.isApproved,
         approvalStatus: lab.approvalStatus,
+        registrationDate: lab.createdAt,
       }
     });
   } catch (error) {
