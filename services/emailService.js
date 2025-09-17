@@ -214,5 +214,58 @@ module.exports = {
   sendRegistrationConfirmation,
   sendApprovalEmail,
   sendDocumentReviewNotification,
-  sendWelcomeEmail
+  sendWelcomeEmail,
+  sendSessionEmail,
 };
+
+// Session activity email with inline brand logo (CID)
+async function sendSessionEmail({ to, subject, action, device, ip, location, timestamp, brandCid = 'brandlogo', attachments = [] }) {
+  const dt = new Date(timestamp || Date.now());
+  const pretty = dt.toLocaleString();
+  const loc = location && location.lat && location.lng ? `${location.lat}, ${location.lng}` : 'Not available';
+  const html = `
+  <div style="background:#f7f8fa;padding:24px;font-family:Segoe UI,Roboto,Arial,sans-serif;color:#111">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden">
+      <tr>
+        <td style="background:linear-gradient(90deg,#7c3aed,#a78bfa);padding:16px 20px;color:#fff;display:flex;align-items:center">
+          <img src="cid:${brandCid}" width="32" height="32" alt="Logo" style="display:inline-block;border-radius:6px;margin-right:10px"/>
+          <div style="font-size:16px;font-weight:700">Arcular+ Account Activity</div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:24px">
+          <div style="font-size:18px;font-weight:700;margin-bottom:8px">${action === 'logout' ? 'Logout' : 'Login'} detected</div>
+          <div style="font-size:14px;color:#374151;margin-bottom:16px">If this was you, no action is needed. If not, please review your account activity.</div>
+
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="font-size:14px;color:#111">
+            <tr><td style="padding:8px 0;width:140px;color:#6b7280">Date & Time</td><td>${pretty}</td></tr>
+            <tr><td style="padding:8px 0;color:#6b7280">Action</td><td style="text-transform:capitalize">${action}</td></tr>
+            <tr><td style="padding:8px 0;color:#6b7280">Device</td><td>${device || 'Unknown'}</td></tr>
+            <tr><td style="padding:8px 0;color:#6b7280">IP</td><td>${ip || 'Unknown'}</td></tr>
+            <tr><td style="padding:8px 0;color:#6b7280">Location</td><td>${loc}</td></tr>
+          </table>
+
+          <div style="margin-top:20px">
+            <a href="#" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:10px 14px;border-radius:8px;font-weight:600">Review activity</a>
+          </div>
+
+          <div style="margin-top:18px;font-size:12px;color:#6b7280">If the button doesn’t work, please open the Arcular+ app and check your profile activity.</div>
+        </td>
+      </tr>
+      <tr>
+        <td style="background:#f3f4f6;height:1px"></td>
+      </tr>
+      <tr>
+        <td style="padding:14px 20px;font-size:12px;color:#6b7280">© ${new Date().getFullYear()} Arcular+. All rights reserved.</td>
+      </tr>
+    </table>
+  </div>`;
+
+  await transporter.sendMail({
+    from: process.env.EMAIL_USER || 'your-email@gmail.com',
+    to,
+    subject: subject || 'Arcular+ Session Activity',
+    html,
+    attachments,
+  });
+}

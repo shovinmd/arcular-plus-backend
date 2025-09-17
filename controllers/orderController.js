@@ -56,12 +56,12 @@ const placeOrder = async (req, res) => {
     // Get user information by Firebase UID
     const user = await User.findOne({ uid: userId });
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        error: 'User not found'
+      return res.status(404).json({ 
+        success: false, 
+        error: 'User not found' 
       });
     }
-    
+
     console.log('👤 User found:', {
       uid: user.uid,
       fullName: user.fullName,
@@ -74,8 +74,8 @@ const placeOrder = async (req, res) => {
     
     // Validate required user fields
     if (!userName || userName === 'Unknown User') {
-      return res.status(400).json({
-        success: false,
+        return res.status(400).json({
+          success: false,
         error: 'User name is required. Please complete your profile with full name.'
       });
     }
@@ -121,7 +121,7 @@ const placeOrder = async (req, res) => {
     
     console.log('🆔 Generated orderId:', orderId);
     console.log('👤 User name for order:', userName);
-    
+
     // Create order
     const order = new Order({
       orderId: orderId,
@@ -156,7 +156,7 @@ const placeOrder = async (req, res) => {
     });
     
     try {
-      await order.save();
+    await order.save();
       console.log('✅ Order created successfully:', order.orderId);
 
       // Update pharmacy inventory stock for each ordered item
@@ -445,7 +445,7 @@ const placeOrder = async (req, res) => {
       orderId: order.orderId,
       data: order
     });
-    
+
   } catch (error) {
     console.error('❌ Error placing order:', error);
     res.status(500).json({
@@ -465,12 +465,12 @@ const getOrdersByUser = async (req, res) => {
       .sort({ orderDate: -1 });
     
     console.log(`✅ Found ${orders.length} orders for user ${userId}`);
-    
+
     res.json({
       success: true,
       data: orders
     });
-    
+
   } catch (error) {
     console.error('❌ Error fetching user orders:', error);
     res.status(500).json({
@@ -498,7 +498,7 @@ const getOrdersByPharmacy = async (req, res) => {
     
     if (!pharmacy) {
       return res.status(404).json({
-        success: false,
+        success: false, 
         error: 'Pharmacy not found'
       });
     }
@@ -514,12 +514,12 @@ const getOrdersByPharmacy = async (req, res) => {
       .sort({ orderDate: -1 });
     
     console.log(`✅ Found ${orders.length} orders for pharmacy ${pharmacy.pharmacyName}`);
-    
+
     res.json({
       success: true,
       data: orders
     });
-    
+
   } catch (error) {
     console.error('❌ Error fetching pharmacy orders:', error);
     res.status(500).json({
@@ -539,7 +539,7 @@ const updateOrderStatus = async (req, res) => {
     if (trackingInfo) {
       console.log('📦 Tracking info:', trackingInfo);
     }
-    
+
     const order = await Order.findOne({ orderId: orderId });
     if (!order) {
       return res.status(404).json({
@@ -547,7 +547,7 @@ const updateOrderStatus = async (req, res) => {
         error: 'Order not found'
       });
     }
-    
+
     // Update status with tracking info if provided
     if (trackingInfo && status === 'Shipped') {
       order.trackingNumber = trackingInfo.trackingId || trackingInfo.trackingID || trackingInfo.tracking_no;
@@ -978,13 +978,13 @@ const updateOrderStatus = async (req, res) => {
     }
     
     console.log(`✅ Order ${orderId} status updated to ${status}`);
-    
+
     res.json({
       success: true,
       message: 'Order status updated successfully',
       data: order
     });
-    
+
   } catch (error) {
     console.error('❌ Error updating order status:', error);
     res.status(500).json({
@@ -1006,12 +1006,12 @@ const getOrderById = async (req, res) => {
         error: 'Order not found'
       });
     }
-    
+
     res.json({
       success: true,
       data: order
     });
-    
+
   } catch (error) {
     console.error('❌ Error fetching order:', error);
     res.status(500).json({
