@@ -1202,11 +1202,61 @@ const getHospitalByUid = async (req, res) => {
   }
 };
 
+// Get all approved hospitals for appointment booking
+const getAllApprovedHospitals = async (req, res) => {
+  try {
+    console.log('🏥 Fetching all approved hospitals for appointment booking...');
+    
+    const hospitals = await Hospital.find({ 
+      isApproved: true,
+      status: 'active'
+    }).select(
+      'uid hospitalName hospitalType address city state pincode numberOfBeds departments specialFacilities hasPharmacy hasLab averageRating totalRatings'
+    ).lean();
+
+    console.log(`✅ Found ${hospitals.length} approved hospitals`);
+
+    // Transform data for frontend
+    const transformedHospitals = hospitals.map(hospital => ({
+      uid: hospital.uid,
+      fullName: hospital.hospitalName,
+      hospitalName: hospital.hospitalName,
+      hospitalType: hospital.hospitalType,
+      address: hospital.address,
+      city: hospital.city,
+      state: hospital.state,
+      pincode: hospital.pincode,
+      numberOfBeds: hospital.numberOfBeds,
+      departments: hospital.departments || [],
+      specialFacilities: hospital.specialFacilities || [],
+      hasPharmacy: hospital.hasPharmacy || false,
+      hasLab: hospital.hasLab || false,
+      averageRating: hospital.averageRating || 0,
+      totalRatings: hospital.totalRatings || 0,
+      // Add location info for easy access
+      location: `${hospital.address}, ${hospital.city}, ${hospital.state} - ${hospital.pincode}`
+    }));
+
+    res.json({
+      success: true,
+      data: transformedHospitals,
+      count: transformedHospitals.length
+    });
+  } catch (error) {
+    console.error('❌ Error fetching approved hospitals:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch hospitals',
+      error: error.message
+    });
+  }
+};
 
 module.exports = {
   registerHospital,
   getPendingHospitals,
   getAllHospitals,
+  getAllApprovedHospitals,
   approveHospital,
   rejectHospital,
   updateApprovalStatus,

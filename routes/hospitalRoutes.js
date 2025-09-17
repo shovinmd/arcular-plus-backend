@@ -4,6 +4,9 @@ const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
 const hospitalController = require('../controllers/hospitalController');
 const router = express.Router();
 
+// Public route to get all approved hospitals (for appointment booking)
+router.get('/', firebaseAuthMiddleware, hospitalController.getAllApprovedHospitals);
+
 // Hospital approval routes (Admin only)
 router.get('/admin/pending', authenticateToken, hospitalController.getPendingHospitals);
 router.get('/admin/all', authenticateToken, hospitalController.getAllHospitals);
