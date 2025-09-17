@@ -1,188 +1,199 @@
 const mongoose = require('mongoose');
 
-const prescriptionSchema = new mongoose.Schema({
-  userId: {
+const medicationSchema = new mongoose.Schema({
+  name: {
     type: String,
     required: true,
+    trim: true
+  },
+  dose: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  frequency: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  duration: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  instructions: {
+    type: String,
+    trim: true
+  }
+});
+
+const prescriptionSchema = new mongoose.Schema({
+  // Patient Information
+  patientArcId: {
+    type: String,
+    required: true,
+    trim: true,
     index: true
   },
   patientName: {
     type: String,
-    required: true
+    trim: true
   },
-  patientMobile: String,
-  patientEmail: String,
-  doctorId: {
+  
+  // Hospital Information
+  hospitalId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Hospital',
+    required: true,
+    index: true
+  },
+  hospitalName: {
     type: String,
-    required: true
+    trim: true
+  },
+  
+  // Doctor Information
+  doctorId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+    index: true
   },
   doctorName: {
     type: String,
-    required: true
-  },
-  doctorSpecialty: {
-    type: String,
-    required: true
-  },
-  prescriptionDate: {
-    type: Date,
     required: true,
-    default: Date.now
+    trim: true
   },
+  
+  // Prescription Details
   diagnosis: {
     type: String,
-    required: true
+    required: true,
+    trim: true
   },
-  medications: [{
-    name: {
-      type: String,
-      required: true
-    },
-    dose: {
-      type: String,
-      required: true
-    },
-    frequency: {
-      type: String,
-      required: true
-    },
-    duration: {
-      type: String,
-      required: true
-    },
-    // Optional exact reminder times (e.g., ["09:00","21:00"]) – optional to avoid breaking existing data
-    times: [String],
-    instructions: String,
-    beforeMeal: {
-      type: Boolean,
-      default: false
-    },
-    afterMeal: {
-      type: Boolean,
-      default: false
-    }
-  }],
+  medications: [medicationSchema],
   instructions: {
     type: String,
-    required: true
+    trim: true
   },
   followUpDate: {
     type: Date
   },
+  notes: {
+    type: String,
+    trim: true
+  },
+  
+  // Status and Dates
   status: {
     type: String,
     enum: ['Active', 'Completed', 'Discontinued', 'Archived'],
-    default: 'Active'
+    default: 'Active',
+    index: true
   },
-  notes: String,
-  // Service provider fields
-  pharmacyId: String,
-  pharmacyName: String,
-  dispensedAt: Date,
-  dispensedBy: String,
-  refillRequested: { type: Boolean, default: false },
-  refillRequestDate: Date,
-  refillApproved: { type: Boolean, default: false },
-  refillApprovedDate: Date,
-  refillApprovedBy: String,
-  attachments: [{
-    fileName: String,
-    fileUrl: String,
-    fileType: String,
-    uploadedAt: {
-      type: Date,
-      default: Date.now
-    }
-  }],
-  createdAt: {
+  prescriptionDate: {
     type: Date,
-    default: Date.now
+    default: Date.now,
+    index: true
   },
-  updatedAt: {
-    type: Date,
-    default: Date.now
+  completionDate: {
+    type: Date
+  },
+  archiveDate: {
+    type: Date
+  },
+  
+  // Additional Information
+  completionNotes: {
+    type: String,
+    trim: true
+  },
+  archiveReason: {
+    type: String,
+    trim: true
+  },
+  
+  // System Fields
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  updatedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
   }
+}, {
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
 });
 
-// Update timestamp on save
+// Indexes for better query performance
+prescriptionSchema.index({ patientArcId: 1, status: 1 });
+prescriptionSchema.index({ doctorId: 1, status: 1 });
+prescriptionSchema.index({ hospitalId: 1, status: 1 });
+prescriptionSchema.index({ prescriptionDate: -1 });
+
+// Virtual for prescription ID
+prescriptionSchema.virtual('id').get(function() {
+  return this._id.toHexString();
+});
+
+// Pre-save middleware to update updatedBy
 prescriptionSchema.pre('save', function(next) {
-  this.updatedAt = new Date();
+  if (this.isModified() && !this.isNew) {
+    this.updatedBy = this.createdBy; // For now, using createdBy as updatedBy
+  }
   next();
 });
 
-// Static methods
-prescriptionSchema.statics.findByUser = function(userId) {
-  return this.find({ userId }).sort({ prescriptionDate: -1 });
+// Static method to get prescriptions by patient ARC ID
+prescriptionSchema.statics.getByPatientArcId = function(patientArcId, status = null) {
+  const query = { patientArcId };
+  if (status) query.status = status;
+  
+  return this.find(query)
+    .populate('hospitalId', 'fullName')
+    .populate('doctorId', 'fullName')
+    .sort({ prescriptionDate: -1 });
 };
 
-prescriptionSchema.statics.findByDoctor = function(doctorId) {
-  return this.find({ doctorId }).sort({ prescriptionDate: -1 });
+// Static method to get prescriptions by doctor
+prescriptionSchema.statics.getByDoctor = function(doctorId, status = null) {
+  const query = { doctorId };
+  if (status) query.status = status;
+  
+  return this.find(query)
+    .populate('hospitalId', 'fullName')
+    .populate('doctorId', 'fullName')
+    .sort({ prescriptionDate: -1 });
 };
 
-prescriptionSchema.statics.findActive = function(userId) {
-  return this.find({ userId, status: 'Active' }).sort({ prescriptionDate: -1 });
+// Static method to get prescriptions by hospital
+prescriptionSchema.statics.getByHospital = function(hospitalId, status = null) {
+  const query = { hospitalId };
+  if (status) query.status = status;
+  
+  return this.find(query)
+    .populate('hospitalId', 'fullName')
+    .populate('doctorId', 'fullName')
+    .sort({ prescriptionDate: -1 });
 };
 
-prescriptionSchema.statics.findByStatus = function(userId, status) {
-  return this.find({ userId, status }).sort({ prescriptionDate: -1 });
-};
-
-prescriptionSchema.statics.findByDoctor = function(doctorId) {
-  return this.find({ doctorId }).sort({ prescriptionDate: -1 });
-};
-
-prescriptionSchema.statics.findByPharmacy = function(pharmacyId) {
-  return this.find({ pharmacyId }).sort({ prescriptionDate: -1 });
-};
-
-prescriptionSchema.statics.findPendingRefills = function(doctorId) {
-  return this.find({ doctorId, refillRequested: true, refillApproved: false }).sort({ refillRequestDate: -1 });
-};
-
-prescriptionSchema.statics.findDispensed = function(pharmacyId) {
-  return this.find({ pharmacyId, dispensedAt: { $exists: true } }).sort({ dispensedAt: -1 });
-};
-
-// Instance methods
-prescriptionSchema.methods.updateStatus = function(newStatus) {
-  this.status = newStatus;
-  this.updatedAt = new Date();
+// Instance method to mark as completed
+prescriptionSchema.methods.markCompleted = function(completionNotes = '') {
+  this.status = 'Completed';
+  this.completionDate = new Date();
+  this.completionNotes = completionNotes;
   return this.save();
 };
 
-prescriptionSchema.methods.addMedication = function(medication) {
-  this.medications.push(medication);
-  this.updatedAt = new Date();
-  return this.save();
-};
-
-prescriptionSchema.methods.addAttachment = function(attachment) {
-  this.attachments.push(attachment);
-  this.updatedAt = new Date();
-  return this.save();
-};
-
-prescriptionSchema.methods.requestRefill = function() {
-  this.refillRequested = true;
-  this.refillRequestDate = new Date();
-  this.updatedAt = new Date();
-  return this.save();
-};
-
-prescriptionSchema.methods.approveRefill = function(approvedBy) {
-  this.refillApproved = true;
-  this.refillApprovedDate = new Date();
-  this.refillApprovedBy = approvedBy;
-  this.updatedAt = new Date();
-  return this.save();
-};
-
-prescriptionSchema.methods.dispenseMedication = function(pharmacyId, pharmacyName, dispensedBy) {
-  this.pharmacyId = pharmacyId;
-  this.pharmacyName = pharmacyName;
-  this.dispensedAt = new Date();
-  this.dispensedBy = dispensedBy;
-  this.updatedAt = new Date();
+// Instance method to archive
+prescriptionSchema.methods.archive = function(archiveReason = '') {
+  this.status = 'Archived';
+  this.archiveDate = new Date();
+  this.archiveReason = archiveReason;
   return this.save();
 };
 
