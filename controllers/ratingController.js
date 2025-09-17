@@ -342,11 +342,29 @@ const submitProviderRating = async (req, res) => {
     }
 
     console.log('🔍 Checking for existing rating...');
+    
+    // Convert Firebase UID to appropriate format for lookup
+    let lookupProviderId = providerId;
+    
+    if (providerType === 'hospital') {
+      const Hospital = require('../models/Hospital');
+      const hospital = await Hospital.findOne({ uid: providerId });
+      if (hospital) {
+        lookupProviderId = hospital._id.toString();
+      }
+    } else if (providerType === 'doctor') {
+      const User = require('../models/User');
+      const doctor = await User.findOne({ uid: providerId });
+      if (doctor) {
+        lookupProviderId = doctor._id.toString();
+      }
+    }
+    
     // Check if this specific provider type is already rated for this appointment by this user
     const existing = await ProviderRating.findOne({ 
       appointmentId, 
       providerType, 
-      providerId,
+      providerId: lookupProviderId,
       userId
     });
     if (existing) {
@@ -363,12 +381,31 @@ const submitProviderRating = async (req, res) => {
     }
     console.log('✅ No existing rating found, proceeding...');
 
+    // Convert Firebase UID to appropriate format for storage
+    let storageProviderId = providerId;
+    
+    if (providerType === 'hospital') {
+      const Hospital = require('../models/Hospital');
+      const hospital = await Hospital.findOne({ uid: providerId });
+      if (hospital) {
+        storageProviderId = hospital._id.toString();
+        console.log('🏥 Converted hospital UID to MongoDB _id:', storageProviderId);
+      }
+    } else if (providerType === 'doctor') {
+      const User = require('../models/User');
+      const doctor = await User.findOne({ uid: providerId });
+      if (doctor) {
+        storageProviderId = doctor._id.toString();
+        console.log('👨‍⚕️ Converted doctor UID to MongoDB _id:', storageProviderId);
+      }
+    }
+
     console.log('💾 Creating ProviderRating document...');
     const pr = new ProviderRating({
       appointmentId,
       userId,
       providerType,
-      providerId,
+      providerId: storageProviderId, // Use converted ID for storage
       rating,
       review: review || ''
     });
@@ -381,7 +418,7 @@ const submitProviderRating = async (req, res) => {
     const Model = providerType === 'hospital' ? Hospital : Doctor;
     if (Model) {
       try {
-        const all = await ProviderRating.find({ providerType, providerId });
+        const all = await ProviderRating.find({ providerType, providerId: storageProviderId });
         const avg = all.reduce((s, r) => s + r.rating, 0) / all.length;
         
         console.log(`🔍 Looking for ${providerType} with UID: ${providerId}`);
@@ -435,10 +472,46 @@ const getProviderRatings = async (req, res) => {
 const getProviderRatingSummary = async (req, res) => {
   try {
     const { providerType, providerId } = req.params;
-    const ratings = await ProviderRating.find({ providerType, providerId });
+    
+    console.log('🔍 Fetching rating summary for:', { providerType, providerId });
+    
+    // Try to find ratings by providerId directly first
+    let ratings = await ProviderRating.find({ providerType, providerId });
+    
+    // If no ratings found and this is a hospital, try to find by UID
+    if (ratings.length === 0 && providerType === 'hospital') {
+      console.log('🔍 No ratings found by providerId, checking if this is a Firebase UID...');
+      
+      // Check if this providerId is a Firebase UID by looking up the hospital
+      const Hospital = require('../models/Hospital');
+      const hospital = await Hospital.findOne({ uid: providerId });
+      
+      if (hospital) {
+        console.log('✅ Found hospital by UID, looking for ratings by MongoDB _id:', hospital._id);
+        ratings = await ProviderRating.find({ providerType, providerId: hospital._id.toString() });
+      }
+    }
+    
+    // If no ratings found and this is a doctor, try to find by UID
+    if (ratings.length === 0 && providerType === 'doctor') {
+      console.log('🔍 No ratings found by providerId, checking if this is a Firebase UID...');
+      
+      // Check if this providerId is a Firebase UID by looking up the doctor
+      const User = require('../models/User');
+      const doctor = await User.findOne({ uid: providerId });
+      
+      if (doctor) {
+        console.log('✅ Found doctor by UID, looking for ratings by MongoDB _id:', doctor._id);
+        ratings = await ProviderRating.find({ providerType, providerId: doctor._id.toString() });
+      }
+    }
+    
     const avg = ratings.length
       ? Math.round((ratings.reduce((s, r) => s + r.rating, 0) / ratings.length) * 10) / 10
       : 0;
+    
+    console.log(`📊 Rating summary for ${providerType} ${providerId}: ${avg}/5 (${ratings.length} ratings)`);
+    
     res.json({ success: true, data: { averageRating: avg, totalRatings: ratings.length } });
   } catch (error) {
     console.error('❌ Error fetching provider rating summary:', error);
