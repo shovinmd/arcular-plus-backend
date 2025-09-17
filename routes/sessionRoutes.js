@@ -44,6 +44,44 @@ router.post('/event', async (req, res) => {
   }
 });
 
+// Test endpoint to force-send a sample session email
+router.post('/test', async (req, res) => {
+  try {
+    const { to } = req.body || {};
+    const { sendSessionEmail } = require('../services/emailService');
+    const address = to || process.env.EMAIL_USER;
+    if (!address) {
+      return res.status(400).json({ success: false, error: 'No recipient configured' });
+    }
+
+    const attachments = [];
+    try {
+      const path = require('path');
+      const fs = require('fs');
+      const logoPath = path.join(__dirname, '..', 'assets', 'brand-logo.png');
+      if (fs.existsSync(logoPath)) {
+        attachments.push({ filename: 'brand-logo.png', path: logoPath, cid: 'brandlogo' });
+      }
+    } catch (_) {}
+
+    await sendSessionEmail({
+      to: address,
+      subject: 'Arcular+ Test Session Email',
+      action: 'login',
+      device: 'Test Device',
+      ip: '127.0.0.1',
+      location: { lat: 12.9716, lng: 77.5946 },
+      timestamp: new Date().toISOString(),
+      attachments,
+    });
+
+    return res.status(200).json({ success: true });
+  } catch (e) {
+    console.error('Session test email error:', e);
+    return res.status(500).json({ success: false });
+  }
+});
+
 module.exports = router;
 
 
