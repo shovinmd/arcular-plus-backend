@@ -9,6 +9,7 @@ const HospitalSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   mobileNumber: { type: String, required: true },
   altPhoneNumber: String,
+  gender: { type: String, enum: ['Male', 'Female', 'Other'], required: false },
   
   // Hospital Details
   hospitalName: { type: String, required: true },
