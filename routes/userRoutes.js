@@ -25,6 +25,41 @@ router.post('/register', firebaseAuthMiddleware, require('../controllers/userCon
 // Add public endpoint to get user by ARC ID
 router.get('/arc/:arcId', getUserByArcId);
 
+// Search users by name or ARC ID
+router.get('/search', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    const { q } = req.query;
+    
+    if (!q || q.length < 2) {
+      return res.status(400).json({
+        success: false,
+        error: 'Query must be at least 2 characters long'
+      });
+    }
+
+    // Search by name or ARC ID
+    const users = await User.find({
+      $or: [
+        { fullName: { $regex: q, $options: 'i' } },
+        { arcId: { $regex: q, $options: 'i' } },
+        { email: { $regex: q, $options: 'i' } }
+      ],
+      type: 'patient' // Only search for patients
+    }).select('uid fullName arcId email mobileNumber').limit(10);
+
+    res.json({
+      success: true,
+      data: users
+    });
+  } catch (error) {
+    console.error('Error searching users:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to search users'
+    });
+  }
+});
+
 // Debug endpoint to list all users (for testing)
 router.get('/debug/users', async (req, res) => {
   try {

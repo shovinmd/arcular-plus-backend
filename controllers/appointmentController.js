@@ -327,6 +327,54 @@ const getDoctorAppointments = async (req, res) => {
   }
 };
 
+// Get doctor appointments by doctor ID
+const getDoctorAppointmentsById = async (req, res) => {
+  try {
+    const { doctorId } = req.params;
+    const { status, date, page = 1, limit = 10 } = req.query;
+    
+    // Build query for doctor appointments
+    const query = { doctorId: doctorId };
+
+    if (status) {
+      query.appointmentStatus = status;
+    }
+
+    if (date) {
+      const startDate = new Date(date);
+      const endDate = new Date(date);
+      endDate.setDate(endDate.getDate() + 1);
+      query.appointmentDate = {
+        $gte: startDate,
+        $lt: endDate
+      };
+    }
+
+    const appointments = await Appointment.find(query)
+      .sort({ appointmentDate: -1, appointmentTime: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit)
+      .populate('userId', 'fullName email mobileNumber')
+      .populate('hospitalId', 'hospitalName address');
+
+    const total = await Appointment.countDocuments(query);
+
+    res.json({
+      success: true,
+      data: appointments,
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit)
+    });
+  } catch (error) {
+    console.error('Error getting doctor appointments by ID:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to get doctor appointments' 
+    });
+  }
+};
+
 // Get hospital appointments
 const getHospitalAppointments = async (req, res) => {
   try {
@@ -1547,6 +1595,7 @@ module.exports = {
   getUserAppointments,
   getUserAppointmentsById,
   getDoctorAppointments,
+  getDoctorAppointmentsById,
   getHospitalAppointments,
   updateAppointmentStatus,
   cancelAppointment,
