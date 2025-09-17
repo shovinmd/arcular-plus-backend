@@ -40,7 +40,7 @@ router.post('/create', auth, async (req, res) => {
     }
 
     // Verify hospital exists
-    const hospital = await Hospital.findById(hospitalId);
+    const hospital = await Hospital.findOne({ uid: hospitalId });
     if (!hospital) {
       return res.status(400).json({
         success: false,
@@ -69,7 +69,7 @@ router.post('/create', auth, async (req, res) => {
       patientArcId,
       patientName,
       patientId,
-      hospitalId,
+      hospitalId: hospital._id, // Use MongoDB ObjectId for reference
       hospitalName: hospital.fullName,
       assignedDoctorId,
       assignedDoctorName,

@@ -39,7 +39,7 @@ router.post('/create', auth, async (req, res) => {
     }
 
     // Verify hospital exists
-    const hospital = await Hospital.findById(hospitalId);
+    const hospital = await Hospital.findOne({ uid: hospitalId });
     if (!hospital) {
       return res.status(404).json({
         success: false,
@@ -61,9 +61,9 @@ router.post('/create', auth, async (req, res) => {
       patientArcId,
       patientId: patient.uid,
       patientName: patient.fullName,
-      hospitalId,
+      hospitalId: hospital._id, // Use MongoDB ObjectId for reference
       hospitalName: hospital.fullName,
-      doctorId,
+      doctorId: doctor._id, // Use MongoDB ObjectId for reference
       doctorName: doctor.fullName,
       doctorSpecialization: doctor.specialization,
       diagnosis,
@@ -131,8 +131,17 @@ router.get('/doctor/:doctorId', auth, async (req, res) => {
     const { doctorId } = req.params;
     const { status } = req.query;
 
+    // Convert Firebase UID to MongoDB ObjectId
+    const doctor = await User.findOne({ uid: doctorId });
+    if (!doctor) {
+      return res.status(404).json({
+        success: false,
+        message: 'Doctor not found'
+      });
+    }
+
     // Build query
-    const query = { doctorId };
+    const query = { doctorId: doctor._id };
     if (status) {
       query.status = status;
     }
