@@ -47,6 +47,11 @@ const labSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  gender: { 
+    type: String, 
+    enum: ['Male', 'Female', 'Other'], 
+    required: false 
+  },
   
   // Additional Lab Fields
   homeSampleCollection: {
