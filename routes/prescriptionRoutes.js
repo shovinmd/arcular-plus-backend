@@ -3,6 +3,232 @@ const router = express.Router();
 const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
 const Prescription = require('../models/Prescription');
 const prescriptionController = require('../controllers/prescriptionController');
+const User = require('../models/User');
+const Hospital = require('../models/Hospital');
+const { authenticateToken: auth } = require('../middleware/auth');
+
+// Create new prescription
+router.post('/create', auth, async (req, res) => {
+  try {
+    const {
+      patientArcId,
+      hospitalId,
+      doctorId,
+      diagnosis,
+      medications,
+      instructions,
+      followUpDate,
+      notes
+    } = req.body;
+
+    // Validate required fields
+    if (!patientArcId || !hospitalId || !doctorId || !diagnosis) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields: patientArcId, hospitalId, doctorId, diagnosis'
+      });
+    }
+
+    // Verify doctor exists and is associated with hospital
+    const doctor = await User.findOne({ uid: doctorId });
+    if (!doctor) {
+      return res.status(404).json({
+        success: false,
+        message: 'Doctor not found'
+      });
+    }
+
+    // Verify hospital exists
+    const hospital = await Hospital.findById(hospitalId);
+    if (!hospital) {
+      return res.status(404).json({
+        success: false,
+        message: 'Hospital not found'
+      });
+    }
+
+    // Verify patient exists
+    const patient = await User.findOne({ healthQrId: patientArcId });
+    if (!patient) {
+      return res.status(404).json({
+        success: false,
+        message: 'Patient not found'
+      });
+    }
+
+    // Create prescription
+    const newPrescription = new Prescription({
+      patientArcId,
+      patientId: patient.uid,
+      patientName: patient.fullName,
+      hospitalId,
+      hospitalName: hospital.fullName,
+      doctorId,
+      doctorName: doctor.fullName,
+      doctorSpecialization: doctor.specialization,
+      diagnosis,
+      medications: medications || [],
+      instructions,
+      followUpDate: followUpDate ? new Date(followUpDate) : null,
+      notes,
+      status: 'Active',
+      createdBy: req.user.uid,
+      updatedBy: req.user.uid,
+    });
+
+    await newPrescription.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Prescription created successfully',
+      data: newPrescription
+    });
+  } catch (error) {
+    console.error('Error creating prescription:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error creating prescription',
+      error: error.message
+    });
+  }
+});
+
+// Get prescriptions by patient ARC ID
+router.get('/patient/:patientArcId', auth, async (req, res) => {
+  try {
+    const { patientArcId } = req.params;
+    const { status } = req.query;
+
+    // Build query
+    const query = { patientArcId };
+    if (status) {
+      query.status = status;
+    }
+
+    const prescriptions = await Prescription.find(query)
+      .sort({ createdAt: -1 })
+      .populate('hospitalId', 'fullName')
+      .lean();
+
+    res.json({
+      success: true,
+      data: prescriptions,
+      count: prescriptions.length
+    });
+  } catch (error) {
+    console.error('Error fetching prescriptions by patient:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching prescriptions',
+      error: error.message
+    });
+  }
+});
+
+// Get prescriptions by doctor
+router.get('/doctor/:doctorId', auth, async (req, res) => {
+  try {
+    const { doctorId } = req.params;
+    const { status } = req.query;
+
+    // Build query
+    const query = { doctorId };
+    if (status) {
+      query.status = status;
+    }
+
+    const prescriptions = await Prescription.find(query)
+      .sort({ createdAt: -1 })
+      .populate('hospitalId', 'fullName')
+      .lean();
+
+    res.json({
+      success: true,
+      data: prescriptions,
+      count: prescriptions.length
+    });
+  } catch (error) {
+    console.error('Error fetching prescriptions by doctor:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching prescriptions',
+      error: error.message
+    });
+  }
+});
+
+// Update prescription
+router.put('/:prescriptionId', auth, async (req, res) => {
+  try {
+    const { prescriptionId } = req.params;
+    const updates = req.body;
+
+    const prescription = await Prescription.findByIdAndUpdate(
+      prescriptionId,
+      { ...updates, updatedBy: req.user.uid },
+      { new: true, runValidators: true }
+    );
+
+    if (!prescription) {
+      return res.status(404).json({
+        success: false,
+        message: 'Prescription not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Prescription updated successfully',
+      data: prescription
+    });
+  } catch (error) {
+    console.error('Error updating prescription:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating prescription',
+      error: error.message
+    });
+  }
+});
+
+// Mark prescription as completed
+router.put('/:prescriptionId/complete', auth, async (req, res) => {
+  try {
+    const { prescriptionId } = req.params;
+    const { completionNotes } = req.body;
+
+    const prescription = await Prescription.findByIdAndUpdate(
+      prescriptionId,
+      {
+        status: 'Completed',
+        completedAt: new Date(),
+        completionNotes,
+        updatedBy: req.user.uid
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!prescription) {
+      return res.status(404).json({
+        success: false,
+        message: 'Prescription not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Prescription completed successfully',
+      data: prescription
+    });
+  } catch (error) {
+    console.error('Error completing prescription:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error completing prescription',
+      error: error.message
+    });
+  }
+});
 
 // Get all prescriptions for a user
 router.get('/user/:userId', firebaseAuthMiddleware, async (req, res) => {

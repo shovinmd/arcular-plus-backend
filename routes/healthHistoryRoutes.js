@@ -7,6 +7,8 @@ const Medication = require('../models/Medication');
 const LabReport = require('../models/LabReport');
 const MenstrualCycle = require('../models/MenstrualCycle');
 const Prescription = require('../models/Prescription');
+const PatientRecord = require('../models/PatientRecord');
+const HealthRecord = require('../models/HealthRecord');
 
 // Get comprehensive health history for a user
 router.get('/:userId', firebaseAuthMiddleware, async (req, res) => {
@@ -34,7 +36,9 @@ router.get('/:userId', firebaseAuthMiddleware, async (req, res) => {
       appointments: [],
       medications: [],
       reports: [],
-      prescriptions: []
+      prescriptions: [],
+      patientRecords: [],
+      healthRecords: []
     };
 
     // Add menstrual data only for female users
@@ -99,8 +103,8 @@ router.get('/:userId', firebaseAuthMiddleware, async (req, res) => {
       notes: report.notes
     }));
 
-    // Get prescriptions
-    const prescriptions = await Prescription.find({ userId })
+    // Get prescriptions (new system using patientArcId)
+    const prescriptions = await Prescription.find({ patientArcId: user.healthQrId })
       .sort({ prescriptionDate: -1 })
       .limit(parseInt(limit));
 
@@ -112,10 +116,55 @@ router.get('/:userId', firebaseAuthMiddleware, async (req, res) => {
       date: prescription.prescriptionDate,
       status: prescription.status,
       doctor: prescription.doctorName,
-      specialty: prescription.doctorSpecialty,
+      hospital: prescription.hospitalName,
       diagnosis: prescription.diagnosis,
       medications: prescription.medications,
-      instructions: prescription.instructions
+      instructions: prescription.instructions,
+      followUpDate: prescription.followUpDate,
+      notes: prescription.notes
+    }));
+
+    // Get patient records (hospital records)
+    const patientRecords = await PatientRecord.find({ patientArcId: user.healthQrId })
+      .sort({ admissionDate: -1 })
+      .limit(parseInt(limit));
+
+    healthHistory.patientRecords = patientRecords.map(record => ({
+      id: record._id,
+      type: 'patient_record',
+      title: `Hospital Record - ${record.hospitalName}`,
+      description: record.admissionReason,
+      date: record.admissionDate,
+      status: record.status,
+      hospital: record.hospitalName,
+      doctor: record.assignedDoctorName,
+      diagnosis: record.diagnosis,
+      treatmentPlan: record.treatmentPlan,
+      prescriptions: record.prescriptions,
+      appointments: record.appointments,
+      labReports: record.labReports,
+      billingHistory: record.billingHistory
+    }));
+
+    // Get health records (old system)
+    const healthRecords = await HealthRecord.find({ patientId: userId })
+      .sort({ visitDate: -1 })
+      .limit(parseInt(limit));
+
+    healthHistory.healthRecords = healthRecords.map(record => ({
+      id: record._id,
+      type: 'health_record',
+      title: `Visit to ${record.hospitalName}`,
+      description: record.diagnosis || record.visitType,
+      date: record.visitDate,
+      status: record.status,
+      hospital: record.hospitalName,
+      doctor: record.doctorName,
+      diagnosis: record.diagnosis,
+      treatment: record.treatment,
+      visitType: record.visitType,
+      consultationFee: record.consultationFee,
+      notes: record.notes
     }));
 
     // Create timeline by combining all events
@@ -123,7 +172,9 @@ router.get('/:userId', firebaseAuthMiddleware, async (req, res) => {
       ...healthHistory.appointments,
       ...healthHistory.medications,
       ...healthHistory.reports,
-      ...healthHistory.prescriptions
+      ...healthHistory.prescriptions,
+      ...healthHistory.patientRecords,
+      ...healthHistory.healthRecords
     ].sort((a, b) => new Date(b.date) - new Date(a.date));
 
     // Filter by type if specified
@@ -365,11 +416,22 @@ router.get('/:userId/stats', firebaseAuthMiddleware, async (req, res) => {
   try {
     const { userId } = req.params;
 
-    const [appointments, medications, reports, prescriptions] = await Promise.all([
+    // Get user to access healthQrId for new system queries
+    const user = await User.findOne({ uid: userId });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    const [appointments, medications, reports, prescriptions, patientRecords, healthRecords] = await Promise.all([
       Appointment.countDocuments({ userId }),
       Medication.countDocuments({ userId }),
       LabReport.countDocuments({ userId }),
-      Prescription.countDocuments({ userId })
+      Prescription.countDocuments({ patientArcId: user.healthQrId }),
+      PatientRecord.countDocuments({ patientArcId: user.healthQrId }),
+      HealthRecord.countDocuments({ patientId: userId })
     ]);
 
     const stats = {
@@ -377,7 +439,9 @@ router.get('/:userId/stats', firebaseAuthMiddleware, async (req, res) => {
       medications,
       reports,
       prescriptions,
-      total: appointments + medications + reports + prescriptions
+      patientRecords,
+      healthRecords,
+      total: appointments + medications + reports + prescriptions + patientRecords + healthRecords
     };
 
     res.json({
