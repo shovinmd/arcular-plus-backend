@@ -12,16 +12,7 @@ router.post('/event', async (req, res) => {
     // Prepare email
     const { sendSessionEmail } = require('../services/emailService');
     const to = email || null; // require explicit recipient from payload
-    const attachments = [];
-    // Attach brand logo from server assets if available
-    try {
-      const path = require('path');
-      const fs = require('fs');
-      const logoPath = path.join(__dirname, '..', 'assets', 'brand-logo.png');
-      if (fs.existsSync(logoPath)) {
-        attachments.push({ filename: 'brand-logo.png', path: logoPath, cid: 'brandlogo' });
-      }
-    } catch (_) {}
+    const attachments = []; // Image removed per requirement
 
     if (!to) {
       return res.status(400).json({ success: false, error: 'recipient email is required' });
