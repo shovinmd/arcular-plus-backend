@@ -11,7 +11,7 @@ router.post('/event', async (req, res) => {
 
     // Prepare email
     const { sendSessionEmail } = require('../services/emailService');
-    const to = email || process.env.FALLBACK_SESSION_EMAIL || null;
+    const to = email || null; // require explicit recipient from payload
     const attachments = [];
     // Attach brand logo from server assets if available
     try {
@@ -23,18 +23,20 @@ router.post('/event', async (req, res) => {
       }
     } catch (_) {}
 
-    if (to) {
-      await sendSessionEmail({
-        to,
-        subject: `Arcular+ ${type === 'logout' ? 'Logout' : 'Login'} Activity`,
-        action: type,
-        device: platform,
-        ip: req.headers['x-forwarded-for'] || req.socket.remoteAddress,
-        location,
-        timestamp,
-        attachments,
-      });
+    if (!to) {
+      return res.status(400).json({ success: false, error: 'recipient email is required' });
     }
+
+    await sendSessionEmail({
+      to,
+      subject: `Arcular+ ${type === 'logout' ? 'Logout' : 'Login'} Activity`,
+      action: type,
+      device: platform,
+      ip: req.headers['x-forwarded-for'] || req.socket.remoteAddress,
+      location,
+      timestamp,
+      attachments,
+    });
 
     // Optionally persist minimal log (skipped to avoid DB writes per request)
     return res.status(204).send();
