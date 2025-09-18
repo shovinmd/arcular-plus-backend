@@ -7,6 +7,20 @@ const User = require('../models/User');
 const Hospital = require('../models/Hospital');
 const { authenticateToken: auth } = require('../middleware/auth');
 
+// Debug: log router mount and requests
+console.log('🩺 Prescription routes loaded');
+router.use((req, res, next) => {
+  try {
+    console.log(`🩺 [prescriptions] ${req.method} ${req.path}`);
+  } catch (_) {}
+  next();
+});
+
+// Quick health probe for router
+router.get('/health', (req, res) => {
+  res.json({ ok: true, route: 'prescriptions', timestamp: Date.now() });
+});
+
 // Helper to process create with UID-based payload or legacy
 async function handleCreateWithUidOrLegacy(req, res) {
   const body = req.body || {};
