@@ -211,9 +211,124 @@ const sendReportCompletionNotification = async (report) => {
   }
 };
 
+// Create lab report (upload)
+const createLabReport = async (req, res) => {
+  try {
+    console.log('🔬 Creating lab report:', req.body);
+    
+    const {
+      patientArcId,
+      patientName,
+      labId,
+      labName,
+      testType,
+      reportUrl,
+      fileName,
+      notes,
+      uploadDate,
+      status
+    } = req.body;
+
+    // Validate required fields
+    if (!patientArcId || !testType || !reportUrl) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields: patientArcId, testType, reportUrl'
+      });
+    }
+
+    // Find patient by ARC ID
+    let patient = await User.findOne({ healthQrId: patientArcId });
+    if (!patient) {
+      return res.status(404).json({
+        success: false,
+        message: 'Patient not found with ARC ID: ' + patientArcId
+      });
+    }
+
+    const labReport = new LabReport({
+      patientId: patient._id,
+      patientArcId: patientArcId,
+      patientName: patientName || patient.fullName,
+      labId: labId,
+      labName: labName,
+      testName: testType,
+      reportUrl: reportUrl,
+      fileName: fileName,
+      notes: notes,
+      uploadDate: uploadDate ? new Date(uploadDate) : new Date(),
+      status: status || 'uploaded',
+      createdAt: new Date()
+    });
+
+    await labReport.save();
+
+    console.log('✅ Lab report created successfully:', labReport._id);
+
+    res.status(201).json({
+      success: true,
+      message: 'Lab report uploaded successfully',
+      data: labReport
+    });
+  } catch (error) {
+    console.error('❌ Error creating lab report:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create lab report',
+      error: error.message
+    });
+  }
+};
+
+// Get lab reports by patient ARC ID
+const getLabReportsByPatientArcId = async (req, res) => {
+  try {
+    console.log('🔬 Fetching lab reports for patient ARC ID:', req.params.arcId);
+    
+    const { arcId } = req.params;
+    
+    // Find patient by ARC ID first
+    const patient = await User.findOne({ healthQrId: arcId });
+    if (!patient) {
+      return res.status(404).json({
+        success: false,
+        message: 'Patient not found with ARC ID: ' + arcId
+      });
+    }
+
+    // Get lab reports for this patient
+    const reports = await LabReport.find({ 
+      $or: [
+        { patientArcId: arcId },
+        { patientId: patient._id }
+      ]
+    })
+      .sort({ uploadDate: -1, createdAt: -1 })
+      .populate('labId', 'fullName labName')
+      .lean();
+
+    console.log('✅ Found lab reports:', reports.length);
+
+    res.json({
+      success: true,
+      data: reports,
+      count: reports.length
+    });
+  } catch (error) {
+    console.error('❌ Error fetching lab reports by patient ARC ID:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch lab reports',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getLabReportsByHospital,
+  getLabReportsByPatientArcId,
   createLabTestRequest,
+  createLabReport,
   updateLabReportStatus,
   sendTestRequestNotification,
   sendReportCompletionNotification
