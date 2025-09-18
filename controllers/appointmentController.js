@@ -37,12 +37,22 @@ const createOfflineAppointment = async (req, res) => {
 
     // Doctor is optional. If doctorId provided, try to resolve; else use doctorName only
     let resolvedDoctorName = doctorName || '';
+    let resolvedDoctorEmail = '';
+    let resolvedDoctorPhone = '';
+    let resolvedDoctorSpec = '';
+    let resolvedDoctorFee = 0;
     if (doctorId) {
       const Doctor = require('../models/Doctor');
       const docOr = [{ uid: doctorId }, { arcId: doctorId }];
       if (mongoose.Types.ObjectId.isValid(doctorId)) docOr.push({ _id: doctorId });
       const doctor = await Doctor.findOne({ $or: docOr });
-      if (doctor) resolvedDoctorName = doctor.fullName;
+      if (doctor) {
+        resolvedDoctorName = doctor.fullName;
+        resolvedDoctorEmail = doctor.email || '';
+        resolvedDoctorPhone = doctor.mobileNumber || '';
+        resolvedDoctorSpec = doctor.specialization || '';
+        resolvedDoctorFee = Number(doctor.consultationFee || 0);
+      }
     }
 
     // Generate appointment id
@@ -52,19 +62,28 @@ const createOfflineAppointment = async (req, res) => {
     const appointment = new (require('../models/Appointment'))({
       appointmentId: aptId,
       userId: req.user?.uid || 'offline',
+      userEmail: patientEmail || 'offline@hospital.local',
+      userName: patientName,
+      userPhone: patientPhone || '',
       patientId: req.user?.uid || 'offline',
       patientName,
       patientPhone,
       patientEmail,
-      doctorId: doctorId || '',
-      doctorName: resolvedDoctorName,
+      doctorId: doctorId || 'offline',
+      doctorName: resolvedDoctorName || 'Doctor',
+      doctorEmail: resolvedDoctorEmail || 'no-reply@hospital.local',
+      doctorPhone: resolvedDoctorPhone || '',
+      doctorSpecialization: resolvedDoctorSpec || 'General Medicine',
+      doctorConsultationFee: resolvedDoctorFee || 0,
       department,
       hospitalId: hospital._id,
       hospitalName: hospital.hospitalName,
+      hospitalAddress: hospital.address || hospital.hospitalAddress || '',
       appointmentDate: new Date(appointmentDate),
       appointmentTime,
-      reason: notes,
+      reason: notes || 'Offline booking',
       appointmentStatus: 'confirmed',
+      consultationFee: resolvedDoctorFee || 0,
       source: 'offline',
     });
 
