@@ -377,22 +377,53 @@ router.get('/:id', firebaseAuthMiddleware, async (req, res) => {
 // Create new prescription
 router.post('/', firebaseAuthMiddleware, async (req, res) => {
   try {
-    const {
-      userId,
-      patientName,
-      patientMobile,
-      patientEmail,
-      doctorId,
-      doctorName,
-      doctorSpecialty,
-      diagnosis,
-      medications,
-      instructions,
-      followUpDate,
-      notes
-    } = req.body;
+    // Support two payload shapes: legacy and doctor-form
+    const body = req.body || {};
 
-    const prescription = new Prescription({
+    // If payload contains patientArcId + doctorId + hospitalId (UIDs), resolve to model-friendly fields
+    if (body.patientArcId && body.doctorId && body.hospitalId) {
+      const { patientArcId, doctorId: doctorUid, hospitalId: hospitalUid, diagnosis, medications, instructions, followUpDate, notes } = body;
+
+      // Resolve doctor and hospital by Firebase UID
+      const doctor = await User.findOne({ uid: doctorUid });
+      const hospital = await Hospital.findOne({ uid: hospitalUid });
+      if (!doctor) {
+        return res.status(404).json({ success: false, message: 'Doctor not found' });
+      }
+      if (!hospital) {
+        return res.status(404).json({ success: false, message: 'Hospital not found' });
+      }
+
+      // Patient optional: resolve for name if exists
+      const patient = await User.findOne({ healthQrId: patientArcId });
+
+      const newRx = new Prescription({
+        patientArcId,
+        patientId: patient?.uid,
+        patientName: patient?.fullName,
+        hospitalId: hospital._id,
+        hospitalName: hospital.fullName,
+        doctorId: doctor._id,
+        doctorName: doctor.fullName,
+        doctorSpecialization: doctor.specialization,
+        diagnosis,
+        medications: medications || [],
+        instructions,
+        followUpDate: followUpDate ? new Date(followUpDate) : null,
+        notes,
+        status: 'Active',
+        createdBy: req.user.uid,
+        updatedBy: req.user.uid,
+      });
+
+      await newRx.save();
+      return res.status(201).json({ success: true, message: 'Prescription created successfully', data: newRx });
+    }
+
+    // Legacy payload path (maintain compatibility)
+    const { userId, patientName, patientMobile, patientEmail, doctorId, doctorName, doctorSpecialty, diagnosis, medications, instructions, followUpDate, notes } = body;
+
+    const legacyRx = new Prescription({
       userId,
       patientName,
       patientMobile,
@@ -407,19 +438,12 @@ router.post('/', firebaseAuthMiddleware, async (req, res) => {
       notes
     });
 
-    await prescription.save();
+    await legacyRx.save();
 
-    res.status(201).json({
-      success: true,
-      data: prescription,
-      message: 'Prescription created successfully'
-    });
+    res.status(201).json({ success: true, data: legacyRx, message: 'Prescription created successfully' });
   } catch (error) {
     console.error('Error creating prescription:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to create prescription'
-    });
+    res.status(500).json({ success: false, error: 'Failed to create prescription' });
   }
 });
 
