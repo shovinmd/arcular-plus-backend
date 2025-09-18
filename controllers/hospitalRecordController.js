@@ -7,6 +7,7 @@ const createHospitalRecord = async (req, res) => {
   try {
     const {
       patientArcId,
+      patientId, // Firebase UID (optional fallback)
       visitType,
       chiefComplaint,
       diagnosis,
@@ -16,20 +17,35 @@ const createHospitalRecord = async (req, res) => {
       doctorId,
       notes,
       followUpRequired,
-      followUpDate
+      followUpDate,
+      appointmentId, // optional
+      visitDate // optional
     } = req.body;
 
-    const hospitalId = req.body.hospitalId || req.user?.hospitalId;
+    // Resolve hospital: accept UID string or existing Mongo _id (from middleware)
+    let hospitalObjectId = req.user?.hospitalId || null;
+    if (!hospitalObjectId && req.body.hospitalId) {
+      // Try as Mongo _id first; if invalid, resolve from UID
+      const maybeId = req.body.hospitalId;
+      let hospitalDoc = null;
+      try {
+        hospitalDoc = await Hospital.findById(maybeId);
+      } catch (_) {}
+      if (!hospitalDoc) {
+        hospitalDoc = await Hospital.findOne({ uid: maybeId });
+      }
+      if (!hospitalDoc) {
+        return res.status(404).json({ success: false, message: 'Hospital not found' });
+      }
+      hospitalObjectId = hospitalDoc._id;
+    }
 
-    if (!hospitalId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Hospital ID is required'
-      });
+    if (!hospitalObjectId) {
+      return res.status(400).json({ success: false, message: 'Hospital ID is required' });
     }
 
     // Get hospital details
-    const hospital = await Hospital.findById(hospitalId);
+    const hospital = await Hospital.findById(hospitalObjectId);
     if (!hospital) {
       return res.status(404).json({
         success: false,
@@ -47,9 +63,9 @@ const createHospitalRecord = async (req, res) => {
     }
     
     // If not found by ARC ID, try to find by patient ID
-    if (!patient && req.body.patientId) {
+    if (!patient && patientId) {
       patient = await UserModel.findOne({ 
-        uid: req.body.patientId,
+        uid: patientId,
         userType: 'patient'
       });
     }
@@ -57,7 +73,7 @@ const createHospitalRecord = async (req, res) => {
     if (!patient) {
       return res.status(404).json({
         success: false,
-        message: 'Patient not found with the provided ARC ID'
+        message: 'Patient not found with the provided identifiers'
       });
     }
 
@@ -72,7 +88,7 @@ const createHospitalRecord = async (req, res) => {
 
     // Create hospital record
     const hospitalRecord = new HospitalRecord({
-      hospitalId,
+      hospitalId: hospitalObjectId,
       hospitalName: hospital.fullName,
       patientId: patient.uid,
       patientArcId: patient.healthQrId,
@@ -81,8 +97,8 @@ const createHospitalRecord = async (req, res) => {
       patientPhone: patient.mobileNumber,
       patientDateOfBirth: patient.dateOfBirth,
       patientGender: patient.gender,
-      visitType,
-      chiefComplaint,
+      visitType: visitType || 'appointment',
+      chiefComplaint: chiefComplaint || diagnosis || notes || 'Consultation',
       diagnosis,
       treatment,
       prescription: prescription || [],
@@ -92,7 +108,9 @@ const createHospitalRecord = async (req, res) => {
       doctorSpecialization: doctor?.specialization,
       notes,
       followUpRequired: followUpRequired || false,
-      followUpDate: followUpDate ? new Date(followUpDate) : null
+      followUpDate: followUpDate ? new Date(followUpDate) : null,
+      visitDate: visitDate ? new Date(visitDate) : undefined,
+      appointmentId
     });
 
     await hospitalRecord.save();
@@ -116,7 +134,15 @@ const createHospitalRecord = async (req, res) => {
 // Get all hospital records for a hospital
 const getHospitalRecords = async (req, res) => {
   try {
-    const hospitalId = req.user.hospitalId;
+    // Accept hospital UID via query (for screens that only have UID)
+    let hospitalId = req.user.hospitalId;
+    if (req.query.hospitalUid) {
+      const h = await Hospital.findOne({ uid: req.query.hospitalUid });
+      if (!h) {
+        return res.status(404).json({ success: false, message: 'Hospital not found' });
+      }
+      hospitalId = h._id;
+    }
     const { page = 1, limit = 10, search = '', status = 'all' } = req.query;
 
     const query = { hospitalId };

@@ -47,6 +47,11 @@ const hospitalRecordSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
+  appointmentId: {
+    type: String,
+    required: false,
+    index: true
+  },
   visitType: {
     type: String,
     enum: ['appointment', 'emergency', 'walk-in', 'follow-up'],
