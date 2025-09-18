@@ -4,6 +4,7 @@ const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
 const Prescription = require('../models/Prescription');
 const prescriptionController = require('../controllers/prescriptionController');
 const User = require('../models/User');
+const Doctor = require('../models/Doctor');
 const Hospital = require('../models/Hospital');
 const { authenticateToken: auth } = require('../middleware/auth');
 
@@ -31,7 +32,19 @@ async function handleCreateWithUidOrLegacy(req, res) {
     console.log('🩺 using UID-based create');
     const { patientArcId, doctorId: doctorUid, hospitalId: hospitalUid, diagnosis, medications, instructions, followUpDate, notes } = body;
     console.log('🩺 resolving doctor by uid:', doctorUid);
-    const doctor = await User.findOne({ uid: doctorUid });
+    let doctorUser = await User.findOne({ uid: doctorUid });
+    let doctor = doctorUser;
+    if (!doctorUser) {
+      // Fallback to Doctor model
+      const doctorModel = await Doctor.findOne({ uid: doctorUid });
+      if (doctorModel) {
+        doctor = {
+          _id: doctorModel._id,
+          fullName: doctorModel.fullName,
+          specialization: doctorModel.specialization,
+        };
+      }
+    }
     console.log('🩺 doctor resolved?', !!doctor);
     console.log('🩺 resolving hospital by uid:', hospitalUid);
     const hospital = await Hospital.findOne({ uid: hospitalUid });
