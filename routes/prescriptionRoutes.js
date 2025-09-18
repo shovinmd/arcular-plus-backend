@@ -184,7 +184,10 @@ router.put('/:prescriptionId', firebaseAuthMiddleware, async (req, res) => {
     }
 
     // Resolve doctorId/hospitalId when UIDs are provided
-    if (typeof updates.doctorId === 'string' && updates.doctorId.length && updates.doctorId.length < 24) {
+    const mongoose = require('mongoose');
+    const isValidObjectId = (v) => mongoose.Types.ObjectId.isValid(v?.toString());
+
+    if (typeof updates.doctorId === 'string' && updates.doctorId.length && !isValidObjectId(updates.doctorId)) {
       const docUser = await User.findOne({ uid: updates.doctorId });
       if (docUser) updates.doctorId = docUser._id;
       else {
@@ -193,7 +196,7 @@ router.put('/:prescriptionId', firebaseAuthMiddleware, async (req, res) => {
         if (d) updates.doctorId = d._id;
       }
     }
-    if (typeof updates.hospitalId === 'string' && updates.hospitalId.length && updates.hospitalId.length < 24) {
+    if (typeof updates.hospitalId === 'string' && updates.hospitalId.length && !isValidObjectId(updates.hospitalId)) {
       const hosp = await Hospital.findOne({ uid: updates.hospitalId });
       if (hosp) updates.hospitalId = hosp._id;
     }
