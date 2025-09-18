@@ -336,9 +336,9 @@ const submitProviderRating = async (req, res) => {
     }
     
     console.log('🔍 Validating required fields...');
-    if (!appointmentId || !providerId || !rating) {
-      console.log('❌ Missing fields:', { appointmentId, providerId, rating });
-      return res.status(400).json({ success: false, message: 'Missing fields' });
+    if (!appointmentId || !providerId || !rating || rating < 1 || rating > 5) {
+      console.log('❌ Missing or invalid fields:', { appointmentId, providerId, rating });
+      return res.status(400).json({ success: false, message: 'Missing or invalid fields' });
     }
 
     console.log('🔍 Checking for existing rating...');
@@ -451,7 +451,13 @@ const submitProviderRating = async (req, res) => {
     res.json({ success: true, message: 'Provider rating submitted', data: pr });
   } catch (error) {
     console.error('❌ Error submitting provider rating:', error);
-    res.status(500).json({ success: false, message: 'Failed to submit rating' });
+    console.error('❌ Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to submit rating',
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 };
 
