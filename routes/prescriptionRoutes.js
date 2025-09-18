@@ -301,6 +301,7 @@ router.get('/:id/transform-to-medicines', firebaseAuthMiddleware, prescriptionCo
 // Get prescriptions for hospitals
 router.get('/hospital/:hospitalId', firebaseAuthMiddleware, async (req, res) => {
   try {
+    console.log('🩺 Hospital prescriptions request:', req.params.hospitalId);
     const { hospitalId } = req.params;
     const { status } = req.query;
 
@@ -322,19 +323,40 @@ router.get('/hospital/:hospitalId', firebaseAuthMiddleware, async (req, res) => 
           error: 'Hospital not found'
         });
       }
+    } else {
+      console.log('🩺 Using hospitalId as MongoDB ObjectId:', hospitalId);
     }
 
     let prescriptions;
-    if (status) {
-      prescriptions = await Prescription.find({ hospitalId: hospitalMongoId, status })
-        .populate('patientId', 'fullName email mobileNumber healthQrId')
-        .populate('doctorId', 'fullName specialization')
-        .sort({ prescriptionDate: -1 });
-    } else {
-      prescriptions = await Prescription.find({ hospitalId: hospitalMongoId })
-        .populate('patientId', 'fullName email mobileNumber healthQrId')
-        .populate('doctorId', 'fullName specialization')
-        .sort({ prescriptionDate: -1 });
+    try {
+      console.log('🩺 Querying prescriptions for hospital:', hospitalMongoId, 'status:', status);
+      
+      if (status) {
+        prescriptions = await Prescription.find({ hospitalId: hospitalMongoId, status })
+          .populate('patientId', 'fullName email mobileNumber healthQrId')
+          .populate('doctorId', 'fullName specialization')
+          .populate('hospitalId', 'hospitalName address')
+          .sort({ prescriptionDate: -1 });
+      } else {
+        prescriptions = await Prescription.find({ hospitalId: hospitalMongoId })
+          .populate('patientId', 'fullName email mobileNumber healthQrId')
+          .populate('doctorId', 'fullName specialization')
+          .populate('hospitalId', 'hospitalName address')
+          .sort({ prescriptionDate: -1 });
+      }
+      
+      console.log('🩺 Found prescriptions:', prescriptions.length);
+    } catch (populateError) {
+      console.log('🩺 Populate error, trying without populate:', populateError.message);
+      // Fallback without populate if there are field issues
+      if (status) {
+        prescriptions = await Prescription.find({ hospitalId: hospitalMongoId, status })
+          .sort({ prescriptionDate: -1 });
+      } else {
+        prescriptions = await Prescription.find({ hospitalId: hospitalMongoId })
+          .sort({ prescriptionDate: -1 });
+      }
+      console.log('🩺 Found prescriptions (no populate):', prescriptions.length);
     }
 
     res.json({
