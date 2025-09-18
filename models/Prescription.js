@@ -197,4 +197,12 @@ prescriptionSchema.methods.archive = function(archiveReason = '') {
   return this.save();
 };
 
+// Static method to find prescriptions by doctor
+prescriptionSchema.statics.findByDoctor = function(doctorId) {
+  return this.find({ doctorId })
+    .populate('patientId', 'fullName email mobileNumber')
+    .populate('hospitalId', 'hospitalName')
+    .sort({ prescriptionDate: -1 });
+};
+
 module.exports = mongoose.model('Prescription', prescriptionSchema);

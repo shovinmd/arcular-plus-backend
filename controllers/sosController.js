@@ -168,26 +168,44 @@ const getHospitalSOSRequests = async (req, res) => {
     const { hospitalId } = req.params;
     const { status } = req.query;
 
+    console.log('🏥 Fetching SOS requests for hospital:', hospitalId);
+    console.log('📊 Status filter:', status);
+
+    if (!hospitalId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Hospital ID is required'
+      });
+    }
+
     let query = { hospitalId };
     if (status) {
       query.hospitalStatus = status;
     }
 
+    console.log('🔍 Query:', query);
+
     const hospitalSOSRequests = await HospitalSOS.find(query)
       .populate('sosRequestId')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .limit(50); // Limit results to prevent timeout
+
+    console.log(`✅ Found ${hospitalSOSRequests.length} SOS requests for hospital ${hospitalId}`);
 
     res.json({
       success: true,
-      data: hospitalSOSRequests
+      data: hospitalSOSRequests,
+      count: hospitalSOSRequests.length
     });
 
   } catch (error) {
-    console.error('Error fetching hospital SOS requests:', error);
+    console.error('❌ Error fetching hospital SOS requests:', error);
+    console.error('❌ Error stack:', error.stack);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch SOS requests',
-      error: error.message
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 };

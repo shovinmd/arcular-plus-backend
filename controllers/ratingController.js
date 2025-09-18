@@ -379,6 +379,31 @@ const submitProviderRating = async (req, res) => {
         }
       });
     }
+
+    // Check if appointment exists and is completed
+    const Appointment = require('../models/Appointment');
+    const appointment = await Appointment.findOne({ 
+      $or: [
+        { _id: appointmentId },
+        { appointmentId: appointmentId }
+      ]
+    });
+    
+    if (!appointment) {
+      console.log('❌ Appointment not found:', appointmentId);
+      return res.status(404).json({
+        success: false,
+        message: 'Appointment not found'
+      });
+    }
+
+    if (appointment.appointmentStatus !== 'completed') {
+      console.log('❌ Appointment not completed:', appointment.appointmentStatus);
+      return res.status(400).json({
+        success: false,
+        message: 'Can only rate completed appointments'
+      });
+    }
     console.log('✅ No existing rating found, proceeding...');
 
     // Convert Firebase UID to appropriate format for storage
