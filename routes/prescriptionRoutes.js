@@ -132,37 +132,34 @@ router.get('/patient/:patientArcId', auth, async (req, res) => {
   }
 });
 
-// Get prescriptions by doctor
-router.get('/doctor/:doctorId', auth, async (req, res) => {
+// Get prescriptions by doctor (accept Firebase UID)
+router.get('/doctor/:doctorId', firebaseAuthMiddleware, async (req, res) => {
   try {
     const { doctorId } = req.params;
     const { status } = req.query;
 
-    // Convert Firebase UID to MongoDB ObjectId
-    const doctor = await User.findOne({ uid: doctorId });
+    // Resolve doctor by UID from User or Doctor model
+    let doctor = await User.findOne({ uid: doctorId });
     if (!doctor) {
-      return res.status(404).json({
-        success: false,
-        message: 'Doctor not found'
-      });
+      const doctorModel = await Doctor.findOne({ uid: doctorId });
+      if (doctorModel) {
+        doctor = { _id: doctorModel._id };
+      }
+    }
+    if (!doctor) {
+      return res.status(404).json({ success: false, message: 'Doctor not found' });
     }
 
-    // Build query
+    // Build query by Mongo ObjectId
     const query = { doctorId: doctor._id };
-    if (status) {
-      query.status = status;
-    }
+    if (status) query.status = status;
 
     const prescriptions = await Prescription.find(query)
       .sort({ createdAt: -1 })
       .populate('hospitalId', 'fullName')
       .lean();
 
-    res.json({
-      success: true,
-      data: prescriptions,
-      count: prescriptions.length
-    });
+    res.json({ success: true, data: prescriptions, count: prescriptions.length });
   } catch (error) {
     console.error('Error fetching prescriptions by doctor:', error);
     res.status(500).json({
