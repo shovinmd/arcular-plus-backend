@@ -5,6 +5,96 @@ const nodemailer = require('nodemailer');
 const fcmService = require('../services/fcmService');
 const mongoose = require('mongoose');
 
+// Create offline appointment (hospital-initiated)
+const createOfflineAppointment = async (req, res) => {
+  try {
+    const {
+      patientName,
+      patientPhone,
+      patientEmail,
+      hospitalId,
+      doctorId,
+      doctorName,
+      department,
+      appointmentDate,
+      appointmentTime,
+      notes,
+      sendEmail,
+      notifyDoctor
+    } = req.body;
+
+    // Resolve hospital by uid or _id
+    const Hospital = require('../models/Hospital');
+    let hospital = null;
+    if (hospitalId) {
+      const orQuery = [{ uid: hospitalId }];
+      if (mongoose.Types.ObjectId.isValid(hospitalId)) orQuery.push({ _id: hospitalId });
+      hospital = await Hospital.findOne({ $or: orQuery });
+    }
+    if (!hospital) {
+      return res.status(400).json({ success: false, message: 'Hospital not found' });
+    }
+
+    // Doctor is optional. If doctorId provided, try to resolve; else use doctorName only
+    let resolvedDoctorName = doctorName || '';
+    if (doctorId) {
+      const Doctor = require('../models/Doctor');
+      const docOr = [{ uid: doctorId }, { arcId: doctorId }];
+      if (mongoose.Types.ObjectId.isValid(doctorId)) docOr.push({ _id: doctorId });
+      const doctor = await Doctor.findOne({ $or: docOr });
+      if (doctor) resolvedDoctorName = doctor.fullName;
+    }
+
+    // Generate appointment id
+    const aptId = `APT-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+
+    // Create appointment document
+    const appointment = new (require('../models/Appointment'))({
+      appointmentId: aptId,
+      userId: req.user?.uid || 'offline',
+      patientId: req.user?.uid || 'offline',
+      patientName,
+      patientPhone,
+      patientEmail,
+      doctorId: doctorId || '',
+      doctorName: resolvedDoctorName,
+      department,
+      hospitalId: hospital._id,
+      hospitalName: hospital.hospitalName,
+      appointmentDate: new Date(appointmentDate),
+      appointmentTime,
+      reason: notes,
+      appointmentStatus: 'confirmed',
+      source: 'offline',
+    });
+
+    await appointment.save();
+
+    // Email patient if requested
+    if (sendEmail && patientEmail) {
+      try {
+        await sendAppointmentConfirmationEmail(appointment);
+      } catch (_) {}
+    }
+
+    // Notify doctor if requested
+    if (notifyDoctor && doctorId) {
+      try {
+        await fcmService.sendToUser(doctorId, {
+          title: 'New Offline Appointment',
+          body: `${patientName} scheduled on ${appointmentDate} at ${appointmentTime}`,
+          data: { type: 'offline_appointment', appointmentId: aptId },
+        });
+      } catch (_) {}
+    }
+
+    return res.json({ success: true, data: appointment });
+  } catch (error) {
+    console.error('❌ Error creating offline appointment:', error);
+    return res.status(500).json({ success: false, message: 'Failed to create offline appointment' });
+  }
+};
+
 // Create appointment
 const createAppointment = async (req, res) => {
   try {
@@ -1231,8 +1321,8 @@ const completeAppointment = async (req, res) => {
   }
 };
 
-// Create offline appointment (for walk-in patients)
-const createOfflineAppointment = async (req, res) => {
+// Duplicate definition removed (merged into single createOfflineAppointment above)
+/* const createOfflineAppointment = async (req, res) => {
   try {
     const {
       patientName,
@@ -1327,7 +1417,7 @@ const createOfflineAppointment = async (req, res) => {
       error: error.message
     });
   }
-};
+}; */
 
 // Send appointment completion email with payment details
 const sendAppointmentCompletionEmail = async (appointment, billAmount) => {
