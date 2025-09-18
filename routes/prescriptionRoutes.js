@@ -114,8 +114,7 @@ router.get('/patient/:patientArcId', auth, async (req, res) => {
 
     const prescriptions = await Prescription.find(query)
       .sort({ createdAt: -1 })
-      .populate('hospitalId', 'fullName')
-      .lean();
+      .populate('hospitalId', 'fullName');
 
     res.json({
       success: true,
