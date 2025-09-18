@@ -7,8 +7,8 @@ const User = require('../models/User');
 const Hospital = require('../models/Hospital');
 const { authenticateToken: auth } = require('../middleware/auth');
 
-// Create new prescription
-router.post('/create', auth, async (req, res) => {
+// Create new prescription (Firebase auth)
+router.post('/create', firebaseAuthMiddleware, async (req, res) => {
   try {
     const {
       patientArcId,
