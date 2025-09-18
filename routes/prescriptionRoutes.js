@@ -297,63 +297,6 @@ router.get('/user/:userId/by-status', firebaseAuthMiddleware, prescriptionContro
 // Transform a prescription to medicine payloads for client import
 router.get('/:id/transform-to-medicines', firebaseAuthMiddleware, prescriptionController.transformToMedicines);
 
-// Get prescriptions for doctors
-router.get('/doctor/:doctorId', firebaseAuthMiddleware, async (req, res) => {
-  try {
-    const { doctorId } = req.params;
-    const { status } = req.query;
-
-    // Resolve Firebase UID to MongoDB ObjectId
-    let doctorMongoId = doctorId;
-    
-    // Check if doctorId is a Firebase UID (not a MongoDB ObjectId)
-    if (!doctorId.match(/^[0-9a-fA-F]{24}$/)) {
-      console.log('🩺 Resolving doctor UID to MongoDB ObjectId:', doctorId);
-      
-      // Try to find in User collection first
-      let doctorUser = await User.findOne({ uid: doctorId });
-      if (doctorUser) {
-        doctorMongoId = doctorUser._id;
-        console.log('🩺 Found doctor in User collection:', doctorMongoId);
-      } else {
-        // Fallback to Doctor collection
-        const doctorModel = await Doctor.findOne({ uid: doctorId });
-        if (doctorModel) {
-          doctorMongoId = doctorModel._id;
-          console.log('🩺 Found doctor in Doctor collection:', doctorMongoId);
-        } else {
-          console.log('🩺 Doctor not found with UID:', doctorId);
-          return res.status(404).json({
-            success: false,
-            error: 'Doctor not found'
-          });
-        }
-      }
-    }
-
-    let prescriptions;
-    if (status) {
-      prescriptions = await Prescription.find({ doctorId: doctorMongoId, status })
-        .populate('patientId', 'fullName email mobileNumber healthQrId')
-        .populate('hospitalId', 'hospitalName address')
-        .sort({ prescriptionDate: -1 });
-    } else {
-      prescriptions = await Prescription.findByDoctor(doctorMongoId);
-    }
-
-    res.json({
-      success: true,
-      data: prescriptions,
-      count: prescriptions.length
-    });
-  } catch (error) {
-    console.error('Error fetching doctor prescriptions:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch doctor prescriptions'
-    });
-  }
-});
 
 // Get prescriptions for hospitals
 router.get('/hospital/:hospitalId', firebaseAuthMiddleware, async (req, res) => {
