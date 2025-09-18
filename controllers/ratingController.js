@@ -322,6 +322,7 @@ const submitProviderRating = async (req, res) => {
 
     console.log('📝 Submitting provider rating:', {
       appointmentId,
+      appointmentIdType: typeof appointmentId,
       providerType,
       providerId,
       rating,
@@ -382,12 +383,19 @@ const submitProviderRating = async (req, res) => {
 
     // Check if appointment exists and is completed
     const Appointment = require('../models/Appointment');
-    const appointment = await Appointment.findOne({ 
-      $or: [
-        { _id: appointmentId },
-        { appointmentId: appointmentId }
-      ]
-    });
+    const mongoose = require('mongoose');
+    
+    // Try to find appointment by appointmentId first (string), then by _id (ObjectId)
+    let appointment;
+    if (mongoose.Types.ObjectId.isValid(appointmentId)) {
+      // If it's a valid ObjectId, search by _id
+      console.log('🔍 Searching appointment by _id (ObjectId):', appointmentId);
+      appointment = await Appointment.findOne({ _id: appointmentId });
+    } else {
+      // If it's not a valid ObjectId, search by appointmentId field
+      console.log('🔍 Searching appointment by appointmentId (string):', appointmentId);
+      appointment = await Appointment.findOne({ appointmentId: appointmentId });
+    }
     
     if (!appointment) {
       console.log('❌ Appointment not found:', appointmentId);

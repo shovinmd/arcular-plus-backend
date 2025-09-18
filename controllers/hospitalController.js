@@ -1252,6 +1252,44 @@ const getAllApprovedHospitals = async (req, res) => {
   }
 };
 
+// Search hospitals by name
+const searchHospitalsByName = async (req, res) => {
+  try {
+    const { name } = req.query;
+    
+    if (!name || name.length < 2) {
+      return res.status(400).json({
+        success: false,
+        message: 'Hospital name must be at least 2 characters long'
+      });
+    }
+
+    console.log('🔍 Searching hospitals by name:', name);
+
+    const hospitals = await Hospital.find({
+      hospitalName: { $regex: name, $options: 'i' },
+      isApproved: true,
+      status: 'active'
+    }).select('uid hospitalName address city state pincode email mobileNumber')
+      .limit(10);
+
+    console.log(`✅ Found ${hospitals.length} hospitals matching "${name}"`);
+
+    res.json({
+      success: true,
+      data: hospitals,
+      count: hospitals.length
+    });
+  } catch (error) {
+    console.error('❌ Error searching hospitals by name:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to search hospitals',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   registerHospital,
   getPendingHospitals,
@@ -1270,6 +1308,7 @@ module.exports = {
   getNearbyHospitals,
   getApprovedHospitalsForAffiliation,
   searchHospitalsForAffiliation,
+  searchHospitalsByName,
   // Placeholder functions
   getDoctors,
   addDoctor,

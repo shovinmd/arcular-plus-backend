@@ -115,6 +115,9 @@ router.get('/affiliation/approved', hospitalController.getApprovedHospitalsForAf
 // Search hospitals for affiliation (public - for registration)
 router.get('/affiliation/search', hospitalController.searchHospitalsForAffiliation);
 
+// Search hospitals by name
+router.get('/search', firebaseAuthMiddleware, hospitalController.searchHospitalsByName);
+
 // Get nearby hospitals for SOS
 router.get('/nearby', firebaseAuthMiddleware, hospitalController.getNearbyHospitals);
 
