@@ -442,6 +442,8 @@ const getDoctorAppointmentsById = async (req, res) => {
     const { doctorId } = req.params;
     const { status, date, page = 1, limit = 10 } = req.query;
     
+    console.log('🩺 Doctor appointments request:', { doctorId, status, date });
+    
     // Build query for doctor appointments
     const query = { doctorId: doctorId };
 
@@ -459,6 +461,8 @@ const getDoctorAppointmentsById = async (req, res) => {
       };
     }
 
+    console.log('🩺 Query:', query);
+
     // Note: Appointment schema stores Firebase UIDs (strings) for userId/doctorId/hospitalId.
     // Avoid populate on ObjectId refs to prevent cast errors.
     const appointments = await Appointment.find(query)
@@ -467,6 +471,11 @@ const getDoctorAppointmentsById = async (req, res) => {
       .skip((page - 1) * limit);
 
     const total = await Appointment.countDocuments(query);
+
+    console.log('🩺 Found appointments:', appointments.length, 'total:', total);
+    if (appointments.length > 0) {
+      console.log('🩺 Sample appointment statuses:', appointments.map(a => a.appointmentStatus));
+    }
 
     res.json({
       success: true,
