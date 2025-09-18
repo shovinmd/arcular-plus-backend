@@ -101,8 +101,9 @@ router.post('/create', firebaseAuthMiddleware, async (req, res) => {
 });
 
 // Get prescriptions by patient ARC ID
-router.get('/patient/:patientArcId', auth, async (req, res) => {
+router.get('/patient/:patientArcId', firebaseAuthMiddleware, async (req, res) => {
   try {
+    console.log('🩺 Patient prescriptions request:', req.params.patientArcId);
     const { patientArcId } = req.params;
     const { status } = req.query;
 
@@ -112,9 +113,15 @@ router.get('/patient/:patientArcId', auth, async (req, res) => {
       query.status = status;
     }
 
+    console.log('🩺 Querying prescriptions for patient:', patientArcId, 'status:', status);
+
     const prescriptions = await Prescription.find(query)
-      .sort({ createdAt: -1 })
-      .populate('hospitalId', 'fullName');
+      .populate('patientId', 'fullName email mobileNumber healthQrId')
+      .populate('doctorId', 'fullName specialization')
+      .populate('hospitalId', 'hospitalName address')
+      .sort({ createdAt: -1 });
+
+    console.log('🩺 Found prescriptions for patient:', prescriptions.length);
 
     res.json({
       success: true,
@@ -267,15 +274,45 @@ router.put('/:prescriptionId/complete', firebaseAuthMiddleware, async (req, res)
 // Get all prescriptions for a user
 router.get('/user/:userId', firebaseAuthMiddleware, async (req, res) => {
   try {
+    console.log('🩺 User prescriptions request:', req.params.userId);
     const { userId } = req.params;
     const { status } = req.query;
 
-    let prescriptions;
-    if (status) {
-      prescriptions = await Prescription.findByStatus(userId, status);
-    } else {
-      prescriptions = await Prescription.findByUser(userId);
+    // Resolve Firebase UID to MongoDB ObjectId for patientId
+    let patientMongoId = userId;
+    
+    // Check if userId is a Firebase UID (not a MongoDB ObjectId)
+    if (!userId.match(/^[0-9a-fA-F]{24}$/)) {
+      console.log('🩺 Resolving user UID to MongoDB ObjectId:', userId);
+      
+      const user = await User.findOne({ uid: userId });
+      if (user) {
+        patientMongoId = user._id;
+        console.log('🩺 Found user:', patientMongoId);
+      } else {
+        console.log('🩺 User not found with UID:', userId);
+        return res.status(404).json({
+          success: false,
+          error: 'User not found'
+        });
+      }
     }
+
+    // Build query
+    const query = { patientId: patientMongoId };
+    if (status) {
+      query.status = status;
+    }
+
+    console.log('🩺 Querying prescriptions for user:', patientMongoId, 'status:', status);
+
+    const prescriptions = await Prescription.find(query)
+      .populate('patientId', 'fullName email mobileNumber healthQrId')
+      .populate('doctorId', 'fullName specialization')
+      .populate('hospitalId', 'hospitalName address')
+      .sort({ createdAt: -1 });
+
+    console.log('🩺 Found prescriptions for user:', prescriptions.length);
 
     res.json({
       success: true,
