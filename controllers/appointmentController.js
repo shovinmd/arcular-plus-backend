@@ -350,12 +350,12 @@ const getDoctorAppointmentsById = async (req, res) => {
       };
     }
 
+    // Note: Appointment schema stores Firebase UIDs (strings) for userId/doctorId/hospitalId.
+    // Avoid populate on ObjectId refs to prevent cast errors.
     const appointments = await Appointment.find(query)
       .sort({ appointmentDate: -1, appointmentTime: -1 })
       .limit(limit * 1)
-      .skip((page - 1) * limit)
-      .populate('userId', 'fullName email mobileNumber')
-      .populate('hospitalId', 'hospitalName address');
+      .skip((page - 1) * limit);
 
     const total = await Appointment.countDocuments(query);
 
