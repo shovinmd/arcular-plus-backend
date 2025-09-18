@@ -138,9 +138,11 @@ router.get('/hospital/:hospitalId', auth, async (req, res) => {
       const hospitalRecords = await HospitalRecord.find(hrQuery)
         .sort({ visitDate: -1 })
         .lean();
+      res.set('Cache-Control', 'no-store');
       return res.json({ success: true, data: hospitalRecords });
     }
 
+    res.set('Cache-Control', 'no-store');
     return res.json({ success: true, data: patientRecords });
 
   } catch (error) {
