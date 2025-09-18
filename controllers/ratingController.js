@@ -433,19 +433,87 @@ const submitProviderRating = async (req, res) => {
       }
     }
 
-    console.log('💾 Creating ProviderRating document...');
-    const pr = new ProviderRating({
-      appointmentId,
-      userId,
-      providerType,
-      providerId: storageProviderId, // Use converted ID for storage
-      rating,
-      review: review || ''
-    });
-    
-    console.log('💾 Saving ProviderRating to database...');
-    await pr.save();
-    console.log('✅ ProviderRating saved successfully');
+    console.log('💾 Upserting ProviderRating (compound unique by appointmentId+providerType+providerId+userId)...');
+    let pr;
+    try {
+      // Ensure the correct compound unique index exists
+      try {
+        await ProviderRating.collection.createIndex(
+          { appointmentId: 1, providerType: 1, providerId: 1, userId: 1 },
+          { unique: true, name: 'appointment_provider_user_unique' }
+        );
+      } catch (_) {
+        // ignore if already exists
+      }
+
+      // Perform upsert to either create or update user's rating for this provider on this appointment
+      pr = await ProviderRating.findOneAndUpdate(
+        {
+          appointmentId,
+          providerType,
+          providerId: storageProviderId,
+          userId,
+        },
+        {
+          $set: {
+            rating,
+            review: review || '',
+            updatedAt: new Date(),
+          },
+          $setOnInsert: {
+            createdAt: new Date(),
+          },
+        },
+        { new: true, upsert: true }
+      );
+      console.log('✅ ProviderRating upserted successfully');
+    } catch (dbErr) {
+      // Handle legacy single-field unique index on appointmentId
+      if (dbErr && dbErr.code === 11000 && dbErr.keyPattern && dbErr.keyPattern.appointmentId === 1) {
+        console.warn('⚠️ Legacy unique index on appointmentId detected. Fixing index and retrying...');
+        try {
+          // Drop the old single-field index if present
+          const indexes = await ProviderRating.collection.indexes();
+          const hasOld = indexes.some((idx) => idx.name === 'appointmentId_1');
+          if (hasOld) {
+            await ProviderRating.collection.dropIndex('appointmentId_1');
+            console.log('🧹 Dropped legacy index appointmentId_1');
+          }
+          // Re-create the correct compound unique index
+          await ProviderRating.collection.createIndex(
+            { appointmentId: 1, providerType: 1, providerId: 1, userId: 1 },
+            { unique: true, name: 'appointment_provider_user_unique' }
+          );
+          console.log('🔧 Ensured compound unique index appointment_provider_user_unique');
+
+          // Retry upsert once
+          pr = await ProviderRating.findOneAndUpdate(
+            {
+              appointmentId,
+              providerType,
+              providerId: storageProviderId,
+              userId,
+            },
+            {
+              $set: {
+                rating,
+                review: review || '',
+                updatedAt: new Date(),
+              },
+              $setOnInsert: { createdAt: new Date() },
+            },
+            { new: true, upsert: true }
+          );
+          console.log('✅ ProviderRating upserted successfully after index fix');
+        } catch (retryErr) {
+          console.error('❌ Failed to fix index or upsert after fix:', retryErr);
+          throw retryErr;
+        }
+      } else {
+        console.error('❌ Error upserting provider rating:', dbErr);
+        throw dbErr;
+      }
+    }
 
     // Update aggregate on provider doc if available
     const Model = providerType === 'hospital' ? Hospital : Doctor;
