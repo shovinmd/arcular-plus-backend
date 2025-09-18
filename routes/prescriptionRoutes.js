@@ -169,7 +169,7 @@ router.get('/doctor/:doctorId', firebaseAuthMiddleware, async (req, res) => {
   }
 });
 
-// Update prescription (Firebase auth)
+// Update prescription (Firebase auth) - accepts UID updates for doctorId/hospitalId
 router.put('/:prescriptionId', firebaseAuthMiddleware, async (req, res) => {
   try {
     const { prescriptionId } = req.params;
@@ -181,6 +181,21 @@ router.put('/:prescriptionId', firebaseAuthMiddleware, async (req, res) => {
         success: false,
         message: 'Prescription not found'
       });
+    }
+
+    // Resolve doctorId/hospitalId when UIDs are provided
+    if (typeof updates.doctorId === 'string' && updates.doctorId.length && updates.doctorId.length < 24) {
+      const docUser = await User.findOne({ uid: updates.doctorId });
+      if (docUser) updates.doctorId = docUser._id;
+      else {
+        const DoctorModel = require('../models/Doctor');
+        const d = await DoctorModel.findOne({ uid: updates.doctorId });
+        if (d) updates.doctorId = d._id;
+      }
+    }
+    if (typeof updates.hospitalId === 'string' && updates.hospitalId.length && updates.hospitalId.length < 24) {
+      const hosp = await Hospital.findOne({ uid: updates.hospitalId });
+      if (hosp) updates.hospitalId = hosp._id;
     }
 
     Object.keys(updates).forEach((k) => {
