@@ -303,11 +303,42 @@ router.get('/doctor/:doctorId', firebaseAuthMiddleware, async (req, res) => {
     const { doctorId } = req.params;
     const { status } = req.query;
 
+    // Resolve Firebase UID to MongoDB ObjectId
+    let doctorMongoId = doctorId;
+    
+    // Check if doctorId is a Firebase UID (not a MongoDB ObjectId)
+    if (!doctorId.match(/^[0-9a-fA-F]{24}$/)) {
+      console.log('🩺 Resolving doctor UID to MongoDB ObjectId:', doctorId);
+      
+      // Try to find in User collection first
+      let doctorUser = await User.findOne({ uid: doctorId });
+      if (doctorUser) {
+        doctorMongoId = doctorUser._id;
+        console.log('🩺 Found doctor in User collection:', doctorMongoId);
+      } else {
+        // Fallback to Doctor collection
+        const doctorModel = await Doctor.findOne({ uid: doctorId });
+        if (doctorModel) {
+          doctorMongoId = doctorModel._id;
+          console.log('🩺 Found doctor in Doctor collection:', doctorMongoId);
+        } else {
+          console.log('🩺 Doctor not found with UID:', doctorId);
+          return res.status(404).json({
+            success: false,
+            error: 'Doctor not found'
+          });
+        }
+      }
+    }
+
     let prescriptions;
     if (status) {
-      prescriptions = await Prescription.find({ doctorId, status }).sort({ prescriptionDate: -1 });
+      prescriptions = await Prescription.find({ doctorId: doctorMongoId, status })
+        .populate('patientId', 'fullName email mobileNumber healthQrId')
+        .populate('hospitalId', 'hospitalName address')
+        .sort({ prescriptionDate: -1 });
     } else {
-      prescriptions = await Prescription.findByDoctor(doctorId);
+      prescriptions = await Prescription.findByDoctor(doctorMongoId);
     }
 
     res.json({
@@ -320,6 +351,59 @@ router.get('/doctor/:doctorId', firebaseAuthMiddleware, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch doctor prescriptions'
+    });
+  }
+});
+
+// Get prescriptions for hospitals
+router.get('/hospital/:hospitalId', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    const { hospitalId } = req.params;
+    const { status } = req.query;
+
+    // Resolve Firebase UID to MongoDB ObjectId
+    let hospitalMongoId = hospitalId;
+    
+    // Check if hospitalId is a Firebase UID (not a MongoDB ObjectId)
+    if (!hospitalId.match(/^[0-9a-fA-F]{24}$/)) {
+      console.log('🩺 Resolving hospital UID to MongoDB ObjectId:', hospitalId);
+      
+      const hospital = await Hospital.findOne({ uid: hospitalId });
+      if (hospital) {
+        hospitalMongoId = hospital._id;
+        console.log('🩺 Found hospital:', hospitalMongoId);
+      } else {
+        console.log('🩺 Hospital not found with UID:', hospitalId);
+        return res.status(404).json({
+          success: false,
+          error: 'Hospital not found'
+        });
+      }
+    }
+
+    let prescriptions;
+    if (status) {
+      prescriptions = await Prescription.find({ hospitalId: hospitalMongoId, status })
+        .populate('patientId', 'fullName email mobileNumber healthQrId')
+        .populate('doctorId', 'fullName specialization')
+        .sort({ prescriptionDate: -1 });
+    } else {
+      prescriptions = await Prescription.find({ hospitalId: hospitalMongoId })
+        .populate('patientId', 'fullName email mobileNumber healthQrId')
+        .populate('doctorId', 'fullName specialization')
+        .sort({ prescriptionDate: -1 });
+    }
+
+    res.json({
+      success: true,
+      data: prescriptions,
+      count: prescriptions.length
+    });
+  } catch (error) {
+    console.error('Error fetching hospital prescriptions:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch hospital prescriptions'
     });
   }
 });
