@@ -23,9 +23,12 @@ router.get('/health', (req, res) => {
 
 // Helper to process create with UID-based payload or legacy
 async function handleCreateWithUidOrLegacy(req, res) {
+  console.log('🩺 handleCreateWithUidOrLegacy invoked');
   const body = req.body || {};
+  console.log('🩺 payload keys:', Object.keys(body || {}));
   // UID-based branch
   if (body.patientArcId && body.doctorId && body.hospitalId) {
+    console.log('🩺 using UID-based create');
     const { patientArcId, doctorId: doctorUid, hospitalId: hospitalUid, diagnosis, medications, instructions, followUpDate, notes } = body;
     const doctor = await User.findOne({ uid: doctorUid });
     const hospital = await Hospital.findOne({ uid: hospitalUid });
@@ -51,13 +54,18 @@ async function handleCreateWithUidOrLegacy(req, res) {
       updatedBy: doctor._id,
     });
     await newRx.save();
-    return res.status(201).json({ success: true, message: 'Prescription created successfully', data: newRx });
+    const out = res.status(201).json({ success: true, message: 'Prescription created successfully', data: newRx });
+    console.log('🩺 prescription created with UID branch');
+    return out;
   }
   // Legacy path
+  console.log('🩺 using legacy create');
   const { userId, patientName, patientMobile, patientEmail, doctorId, doctorName, doctorSpecialty, diagnosis, medications, instructions, followUpDate, notes } = body;
   const legacyRx = new Prescription({ userId, patientName, patientMobile, patientEmail, doctorId, doctorName, doctorSpecialty, diagnosis, medications, instructions, followUpDate, notes });
   await legacyRx.save();
-  return res.status(201).json({ success: true, data: legacyRx, message: 'Prescription created successfully' });
+  const out = res.status(201).json({ success: true, data: legacyRx, message: 'Prescription created successfully' });
+  console.log('🩺 prescription created with legacy branch');
+  return out;
 }
 
 // Create new prescription (Firebase auth)
