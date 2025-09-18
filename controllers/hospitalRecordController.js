@@ -71,10 +71,17 @@ const createHospitalRecord = async (req, res) => {
     }
 
     if (!patient) {
-      return res.status(404).json({
-        success: false,
-        message: 'Patient not found with the provided identifiers'
-      });
+      // Fallback: proceed with minimal patient information from request
+      console.warn('⚠️ Patient not found by ARC ID or UID. Proceeding with request fields.');
+      patient = {
+        uid: patientId || undefined,
+        fullName: req.body.patientName || 'Unknown Patient',
+        email: req.body.patientEmail || '',
+        mobileNumber: req.body.patientPhone || '',
+        dateOfBirth: req.body.patientDateOfBirth || null,
+        gender: req.body.patientGender || '',
+        healthQrId: patientArcId || undefined,
+      };
     }
 
     // Get doctor details if provided
