@@ -30,11 +30,16 @@ async function handleCreateWithUidOrLegacy(req, res) {
   if (body.patientArcId && body.doctorId && body.hospitalId) {
     console.log('🩺 using UID-based create');
     const { patientArcId, doctorId: doctorUid, hospitalId: hospitalUid, diagnosis, medications, instructions, followUpDate, notes } = body;
+    console.log('🩺 resolving doctor by uid:', doctorUid);
     const doctor = await User.findOne({ uid: doctorUid });
+    console.log('🩺 doctor resolved?', !!doctor);
+    console.log('🩺 resolving hospital by uid:', hospitalUid);
     const hospital = await Hospital.findOne({ uid: hospitalUid });
+    console.log('🩺 hospital resolved?', !!hospital);
     if (!doctor) return res.status(404).json({ success: false, message: 'Doctor not found' });
     if (!hospital) return res.status(404).json({ success: false, message: 'Hospital not found' });
     const patient = await User.findOne({ healthQrId: patientArcId });
+    console.log('🩺 patient resolved?', !!patient, 'arcId:', patientArcId);
     const newRx = new Prescription({
       patientArcId,
       patientId: patient?.uid,
