@@ -397,7 +397,7 @@ router.post('/', firebaseAuthMiddleware, async (req, res) => {
       // Patient optional: resolve for name if exists
       const patient = await User.findOne({ healthQrId: patientArcId });
 
-      const newRx = new Prescription({
+    const newRx = new Prescription({
         patientArcId,
         patientId: patient?.uid,
         patientName: patient?.fullName,
@@ -412,8 +412,8 @@ router.post('/', firebaseAuthMiddleware, async (req, res) => {
         followUpDate: followUpDate ? new Date(followUpDate) : null,
         notes,
         status: 'Active',
-        createdBy: req.user.uid,
-        updatedBy: req.user.uid,
+        createdBy: doctor._id,
+        updatedBy: doctor._id,
       });
 
       await newRx.save();
