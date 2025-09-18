@@ -23,6 +23,9 @@ router.post('/:hospitalId/reject', firebaseAuthMiddleware, hospitalController.re
 router.get('/uid/:uid', firebaseAuthMiddleware, hospitalController.getHospitalProfile);
 router.put('/uid/:uid', firebaseAuthMiddleware, hospitalController.updateHospitalProfile);
 
+// Search hospitals by name MUST BE BEFORE GENERIC ":id" ROUTES
+router.get('/search', firebaseAuthMiddleware, hospitalController.searchHospitalsByName);
+
 // Get hospital by email (for login verification)
 router.get('/email/:email', firebaseAuthMiddleware, hospitalController.getHospitalByEmail);
 
@@ -114,9 +117,6 @@ router.get('/affiliation/approved', hospitalController.getApprovedHospitalsForAf
 
 // Search hospitals for affiliation (public - for registration)
 router.get('/affiliation/search', hospitalController.searchHospitalsForAffiliation);
-
-// Search hospitals by name
-router.get('/search', firebaseAuthMiddleware, hospitalController.searchHospitalsByName);
 
 // Get nearby hospitals for SOS
 router.get('/nearby', firebaseAuthMiddleware, hospitalController.getNearbyHospitals);
