@@ -1,9 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const PatientRecord = require('../models/PatientRecord');
+const HospitalRecord = require('../models/HospitalRecord');
 const Prescription = require('../models/Prescription');
 const User = require('../models/User');
 const Hospital = require('../models/Hospital');
+const mongoose = require('mongoose');
 const { authenticateToken: auth } = require('../middleware/auth');
 
 // Create new patient record
@@ -106,19 +108,40 @@ router.get('/hospital/:hospitalId', auth, async (req, res) => {
     const { hospitalId } = req.params;
     const { status } = req.query;
 
-    // Build query
-    let query = { hospitalId };
-    if (status) query.status = status;
+    // Resolve hospital Mongo _id from either UID or _id safely
+    let hospitalMongoId = null;
+    if (mongoose.Types.ObjectId.isValid(hospitalId)) {
+      const byId = await Hospital.findById(hospitalId).select('_id').lean();
+      if (byId) hospitalMongoId = byId._id;
+    }
+    if (!hospitalMongoId) {
+      const byUid = await Hospital.findOne({ uid: hospitalId }).select('_id').lean();
+      if (byUid) hospitalMongoId = byUid._id;
+    }
 
-    const patientRecords = await PatientRecord.find(query)
+    if (!hospitalMongoId) {
+      return res.status(404).json({ success: false, message: 'Hospital not found' });
+    }
+
+    // First attempt: PatientRecord collection (legacy)
+    const prQuery = { hospitalId: hospitalMongoId };
+    if (status) prQuery.status = status;
+    let patientRecords = await PatientRecord.find(prQuery)
       .populate('assignedDoctorId', 'fullName')
       .populate('prescriptions')
-      .sort({ admissionDate: -1 });
+      .sort({ admissionDate: -1 })
+      .lean();
 
-    res.json({
-      success: true,
-      data: patientRecords
-    });
+    // If none, fallback to HospitalRecord (current flow)
+    if (!patientRecords || patientRecords.length === 0) {
+      const hrQuery = { hospitalId: hospitalMongoId };
+      const hospitalRecords = await HospitalRecord.find(hrQuery)
+        .sort({ visitDate: -1 })
+        .lean();
+      return res.json({ success: true, data: hospitalRecords });
+    }
+
+    return res.json({ success: true, data: patientRecords });
 
   } catch (error) {
     console.error('❌ Error fetching hospital patient records:', error);
