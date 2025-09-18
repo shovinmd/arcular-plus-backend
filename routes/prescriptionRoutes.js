@@ -329,7 +329,13 @@ router.get('/user/:userId', firebaseAuthMiddleware, async (req, res) => {
 });
 
 // Optimized endpoint for app tabs (Active/Completed/Archived)
-router.get('/user/:userId/by-status', firebaseAuthMiddleware, prescriptionController.getByUserAndStatus);
+router.get('/user/:userId/by-status', firebaseAuthMiddleware, (req, res, next) => {
+  // Disable caching to prevent 304 responses
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  next();
+}, prescriptionController.getByUserAndStatus);
 
 // Transform a prescription to medicine payloads for client import
 router.get('/:id/transform-to-medicines', firebaseAuthMiddleware, prescriptionController.transformToMedicines);
