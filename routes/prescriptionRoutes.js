@@ -169,24 +169,32 @@ router.get('/doctor/:doctorId', firebaseAuthMiddleware, async (req, res) => {
   }
 });
 
-// Update prescription
-router.put('/:prescriptionId', auth, async (req, res) => {
+// Update prescription (Firebase auth)
+router.put('/:prescriptionId', firebaseAuthMiddleware, async (req, res) => {
   try {
     const { prescriptionId } = req.params;
-    const updates = req.body;
+    const updates = req.body || {};
 
-    const prescription = await Prescription.findByIdAndUpdate(
-      prescriptionId,
-      { ...updates, updatedBy: req.user.uid },
-      { new: true, runValidators: true }
-    );
-
+    const prescription = await Prescription.findById(prescriptionId);
     if (!prescription) {
       return res.status(404).json({
         success: false,
         message: 'Prescription not found'
       });
     }
+
+    Object.keys(updates).forEach((k) => {
+      if (updates[k] !== undefined) {
+        if (k === 'followUpDate') {
+          prescription[k] = updates[k] ? new Date(updates[k]) : null;
+        } else {
+          prescription[k] = updates[k];
+        }
+      }
+    });
+    // Ensure updatedBy is a valid ObjectId reference
+    prescription.updatedBy = prescription.doctorId;
+    await prescription.save();
 
     res.json({
       success: true,
@@ -203,29 +211,25 @@ router.put('/:prescriptionId', auth, async (req, res) => {
   }
 });
 
-// Mark prescription as completed
-router.put('/:prescriptionId/complete', auth, async (req, res) => {
+// Mark prescription as completed (Firebase auth)
+router.put('/:prescriptionId/complete', firebaseAuthMiddleware, async (req, res) => {
   try {
     const { prescriptionId } = req.params;
     const { completionNotes } = req.body;
 
-    const prescription = await Prescription.findByIdAndUpdate(
-      prescriptionId,
-      {
-        status: 'Completed',
-        completedAt: new Date(),
-        completionNotes,
-        updatedBy: req.user.uid
-      },
-      { new: true, runValidators: true }
-    );
-
+    const prescription = await Prescription.findById(prescriptionId);
     if (!prescription) {
       return res.status(404).json({
         success: false,
         message: 'Prescription not found'
       });
     }
+
+    prescription.status = 'Completed';
+    prescription.completionDate = new Date();
+    if (completionNotes) prescription.completionNotes = completionNotes;
+    prescription.updatedBy = prescription.doctorId; // set Mongo ObjectId
+    await prescription.save();
 
     res.json({
       success: true,
