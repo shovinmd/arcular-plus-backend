@@ -116,9 +116,21 @@ router.get('/patient/:patientArcId', firebaseAuthMiddleware, async (req, res) =>
     console.log('🩺 Querying prescriptions for patient:', patientArcId, 'status:', status);
 
     const prescriptions = await Prescription.find(query)
-      .populate('patientId', 'fullName email mobileNumber healthQrId')
-      .populate('doctorId', 'fullName specialization')
-      .populate('hospitalId', 'hospitalName address')
+      .populate({
+        path: 'patientId',
+        select: 'fullName email mobileNumber healthQrId',
+        options: { strictPopulate: false }
+      })
+      .populate({
+        path: 'doctorId',
+        select: 'fullName specialization',
+        options: { strictPopulate: false }
+      })
+      .populate({
+        path: 'hospitalId',
+        select: 'hospitalName address',
+        options: { strictPopulate: false }
+      })
       .sort({ createdAt: -1 });
 
     console.log('🩺 Found prescriptions for patient:', prescriptions.length);
