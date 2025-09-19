@@ -237,8 +237,16 @@ const createLabReport = async (req, res) => {
       });
     }
 
-    // Find patient by ARC ID
-    let patient = await User.findOne({ healthQrId: patientArcId });
+    // Find patient by ARC ID (search both arcId and healthQrId fields)
+    console.log('🔬 Searching for patient with ARC ID:', patientArcId);
+    let patient = await User.findOne({ 
+      $or: [
+        { arcId: patientArcId },
+        { healthQrId: patientArcId }
+      ]
+    });
+    
+    console.log('🔬 Patient found:', !!patient);
     if (!patient) {
       return res.status(404).json({
         success: false,
@@ -287,8 +295,13 @@ const getLabReportsByPatientArcId = async (req, res) => {
     
     const { arcId } = req.params;
     
-    // Find patient by ARC ID first
-    const patient = await User.findOne({ healthQrId: arcId });
+    // Find patient by ARC ID first (search both arcId and healthQrId fields)
+    const patient = await User.findOne({ 
+      $or: [
+        { arcId: arcId },
+        { healthQrId: arcId }
+      ]
+    });
     if (!patient) {
       return res.status(404).json({
         success: false,
