@@ -19,6 +19,9 @@ router.get('/:uid', firebaseAuthMiddleware, async (req, res) => {
 // Update user profile (use Firebase auth so mobile app tokens work)
 router.put('/:uid', firebaseAuthMiddleware, require('../controllers/userController').updateUser);
 
+// Update user profile by UID (alternative endpoint for mobile app compatibility)
+router.put('/uid/:uid', firebaseAuthMiddleware, require('../controllers/userController').updateUser);
+
 // Add user registration/sync endpoint
 router.post('/register', firebaseAuthMiddleware, require('../controllers/userController').registerOrSyncUser);
 
