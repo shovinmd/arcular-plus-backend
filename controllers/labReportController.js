@@ -307,12 +307,19 @@ const getLabReportsByPatientArcId = async (req, res) => {
     const { arcId } = req.params;
     
     // Find patient by ARC ID first (search both arcId and healthQrId fields)
+    console.log('🔬 Searching for patient with ARC ID:', arcId);
     const patient = await User.findOne({ 
       $or: [
         { arcId: arcId },
         { healthQrId: arcId }
       ]
     });
+    
+    console.log('🔬 Patient found:', !!patient);
+    if (patient) {
+      console.log('🔬 Patient ID:', patient._id);
+    }
+    
     if (!patient) {
       return res.status(404).json({
         success: false,
@@ -320,18 +327,36 @@ const getLabReportsByPatientArcId = async (req, res) => {
       });
     }
 
-    // Get lab reports for this patient
-    const reports = await LabReport.find({ 
-      $or: [
-        { patientArcId: arcId },
-        { patientId: patient._id }
-      ]
-    })
+    // Get lab reports for this patient - try multiple approaches
+    console.log('🔬 Searching for lab reports...');
+    
+    // First try: search by patientArcId
+    let reports = await LabReport.find({ patientArcId: arcId })
       .sort({ uploadDate: -1, createdAt: -1 })
-      .populate('labId', 'fullName labName')
       .lean();
+    
+    console.log('🔬 Reports found by patientArcId:', reports.length);
+    
+    // If no reports found by patientArcId, try by patientId
+    if (reports.length === 0) {
+      reports = await LabReport.find({ patientId: patient._id.toString() })
+        .sort({ uploadDate: -1, createdAt: -1 })
+        .lean();
+      console.log('🔬 Reports found by patientId:', reports.length);
+    }
+    
+    // If still no reports, try by patientId as ObjectId
+    if (reports.length === 0) {
+      reports = await LabReport.find({ patientId: patient._id })
+        .sort({ uploadDate: -1, createdAt: -1 })
+        .lean();
+      console.log('🔬 Reports found by patientId ObjectId:', reports.length);
+    }
 
-    console.log('✅ Found lab reports:', reports.length);
+    console.log('✅ Total lab reports found:', reports.length);
+    if (reports.length > 0) {
+      console.log('🔬 Sample report:', JSON.stringify(reports[0], null, 2));
+    }
 
     res.json({
       success: true,
@@ -340,6 +365,7 @@ const getLabReportsByPatientArcId = async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Error fetching lab reports by patient ARC ID:', error);
+    console.error('❌ Error stack:', error.stack);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch lab reports',
