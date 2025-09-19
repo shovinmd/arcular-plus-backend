@@ -332,6 +332,7 @@ const getLabReportsByPatientArcId = async (req, res) => {
     
     // First try: search by patientArcId
     let reports = await LabReport.find({ patientArcId: arcId })
+      .populate('labId', 'fullName labName')
       .sort({ uploadDate: -1, createdAt: -1 })
       .lean();
     
@@ -340,6 +341,7 @@ const getLabReportsByPatientArcId = async (req, res) => {
     // If no reports found by patientArcId, try by patientId
     if (reports.length === 0) {
       reports = await LabReport.find({ patientId: patient._id.toString() })
+        .populate('labId', 'fullName labName')
         .sort({ uploadDate: -1, createdAt: -1 })
         .lean();
       console.log('🔬 Reports found by patientId:', reports.length);
@@ -348,6 +350,7 @@ const getLabReportsByPatientArcId = async (req, res) => {
     // If still no reports, try by patientId as ObjectId
     if (reports.length === 0) {
       reports = await LabReport.find({ patientId: patient._id })
+        .populate('labId', 'fullName labName')
         .sort({ uploadDate: -1, createdAt: -1 })
         .lean();
       console.log('🔬 Reports found by patientId ObjectId:', reports.length);
