@@ -114,6 +114,14 @@ router.get('/patient/:patientArcId', firebaseAuthMiddleware, async (req, res) =>
     }
 
     console.log('🩺 Querying prescriptions for patient:', patientArcId, 'status:', status);
+    console.log('🩺 Query object:', JSON.stringify(query));
+
+    // First, let's see all prescriptions for this patient regardless of status
+    const allPrescriptions = await Prescription.find({ patientArcId });
+    console.log('🩺 All prescriptions for patient (any status):', allPrescriptions.length);
+    if (allPrescriptions.length > 0) {
+      console.log('🩺 Sample prescription statuses:', allPrescriptions.map(p => ({ id: p._id, status: p.status, patientArcId: p.patientArcId })));
+    }
 
     const prescriptions = await Prescription.find(query)
       .populate({
