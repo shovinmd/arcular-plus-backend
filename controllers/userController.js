@@ -238,13 +238,34 @@ const getUserProfile = async (req, res) => {
 const getUserByArcId = async (req, res) => {
   try {
     const { arcId } = req.params;
-    const user = await User.findOne({ arcId });
+    console.log('🔍 Searching for user with ARC ID:', arcId);
+    
+    // Search by both arcId and healthQrId fields to handle different formats
+    const user = await User.findOne({ 
+      $or: [
+        { arcId: arcId },
+        { healthQrId: arcId }
+      ]
+    });
+    
+    console.log('🔍 User found:', !!user);
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ 
+        success: false,
+        error: 'User not found with ARC ID: ' + arcId 
+      });
     }
-    res.json(user);
+    
+    res.json({
+      success: true,
+      data: user
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('❌ Error in getUserByArcId:', err);
+    res.status(500).json({ 
+      success: false,
+      error: err.message 
+    });
   }
 };
 
