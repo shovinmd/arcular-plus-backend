@@ -54,6 +54,19 @@ const labReportSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  // Fields for uploaded reports
+  reportUrl: {
+    type: String,
+    default: ''
+  },
+  fileName: {
+    type: String,
+    default: ''
+  },
+  uploadDate: {
+    type: Date,
+    default: Date.now
+  },
   status: {
     type: String,
     enum: ['pending', 'in_progress', 'completed', 'cancelled'],

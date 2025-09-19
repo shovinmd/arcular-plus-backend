@@ -229,6 +229,9 @@ const createLabReport = async (req, res) => {
       status
     } = req.body;
 
+    console.log('🔬 Report URL received:', reportUrl);
+    console.log('🔬 File name received:', fileName);
+
     // Validate required fields
     if (!patientArcId || !testType || !reportUrl) {
       return res.status(400).json({
@@ -278,6 +281,8 @@ const createLabReport = async (req, res) => {
     await labReport.save();
 
     console.log('✅ Lab report created successfully:', labReport._id);
+    console.log('✅ Report URL saved:', labReport.reportUrl);
+    console.log('✅ File name saved:', labReport.fileName);
 
     res.status(201).json({
       success: true,
