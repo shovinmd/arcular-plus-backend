@@ -265,7 +265,13 @@ const createLabReport = async (req, res) => {
       fileName: fileName,
       notes: notes,
       uploadDate: uploadDate ? new Date(uploadDate) : new Date(),
-      status: status || 'uploaded',
+      // Required fields for LabReport model
+      doctorId: 'system', // Default for uploaded reports
+      doctorName: 'System Generated', // Default for uploaded reports
+      hospitalId: 'system', // Default for uploaded reports
+      prescription: 'Direct Upload', // Default for uploaded reports
+      status: 'completed', // Valid enum value for uploaded reports
+      completedAt: new Date(), // Set completion date for uploaded reports
       createdAt: new Date()
     });
 
