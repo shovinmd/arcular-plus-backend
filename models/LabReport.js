@@ -15,6 +15,10 @@ const labReportSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  patientArcId: {
+    type: String,
+    required: false
+  },
   patientEmail: {
     type: String,
     default: ''
