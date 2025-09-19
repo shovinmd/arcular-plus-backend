@@ -257,11 +257,26 @@ const createLabReport = async (req, res) => {
       });
     }
 
+    // Resolve labId (Firebase UID) to MongoDB ObjectId if needed
+    let resolvedLabId = labId;
+    if (labId && labId !== 'system') {
+      try {
+        const labUser = await User.findOne({ uid: labId });
+        if (labUser) {
+          resolvedLabId = labUser._id.toString();
+          console.log('🔬 Resolved labId from Firebase UID to MongoDB ObjectId:', resolvedLabId);
+        }
+      } catch (resolveError) {
+        console.error('❌ Error resolving labId:', resolveError);
+        // Keep original labId if resolution fails
+      }
+    }
+
     const labReport = new LabReport({
       patientId: patient._id,
       patientArcId: patientArcId,
       patientName: patientName || patient.fullName,
-      labId: labId,
+      labId: resolvedLabId,
       labName: labName,
       testName: testType,
       reportUrl: reportUrl,
@@ -330,30 +345,58 @@ const getLabReportsByPatientArcId = async (req, res) => {
     // Get lab reports for this patient - try multiple approaches
     console.log('🔬 Searching for lab reports...');
     
-    // First try: search by patientArcId
-    let reports = await LabReport.find({ patientArcId: arcId })
-      .populate('labId', 'fullName labName')
-      .sort({ uploadDate: -1, createdAt: -1 })
-      .lean();
+    let reports = [];
     
-    console.log('🔬 Reports found by patientArcId:', reports.length);
-    
-    // If no reports found by patientArcId, try by patientId
-    if (reports.length === 0) {
-      reports = await LabReport.find({ patientId: patient._id.toString() })
-        .populate('labId', 'fullName labName')
+    try {
+      // First try: search by patientArcId
+      reports = await LabReport.find({ patientArcId: arcId })
+        .populate({
+          path: 'labId',
+          select: 'fullName',
+          options: { strictPopulate: false }
+        })
         .sort({ uploadDate: -1, createdAt: -1 })
         .lean();
-      console.log('🔬 Reports found by patientId:', reports.length);
-    }
-    
-    // If still no reports, try by patientId as ObjectId
-    if (reports.length === 0) {
-      reports = await LabReport.find({ patientId: patient._id })
-        .populate('labId', 'fullName labName')
-        .sort({ uploadDate: -1, createdAt: -1 })
-        .lean();
-      console.log('🔬 Reports found by patientId ObjectId:', reports.length);
+      
+      console.log('🔬 Reports found by patientArcId:', reports.length);
+      
+      // If no reports found by patientArcId, try by patientId
+      if (reports.length === 0) {
+        reports = await LabReport.find({ patientId: patient._id.toString() })
+          .populate({
+            path: 'labId',
+            select: 'fullName',
+            options: { strictPopulate: false }
+          })
+          .sort({ uploadDate: -1, createdAt: -1 })
+          .lean();
+        console.log('🔬 Reports found by patientId:', reports.length);
+      }
+      
+      // If still no reports, try by patientId as ObjectId
+      if (reports.length === 0) {
+        reports = await LabReport.find({ patientId: patient._id })
+          .populate({
+            path: 'labId',
+            select: 'fullName',
+            options: { strictPopulate: false }
+          })
+          .sort({ uploadDate: -1, createdAt: -1 })
+          .lean();
+        console.log('🔬 Reports found by patientId ObjectId:', reports.length);
+      }
+    } catch (populateError) {
+      console.error('❌ Error during populate:', populateError);
+      // Try without populate if populate fails
+      try {
+        reports = await LabReport.find({ patientArcId: arcId })
+          .sort({ uploadDate: -1, createdAt: -1 })
+          .lean();
+        console.log('🔬 Reports found without populate:', reports.length);
+      } catch (findError) {
+        console.error('❌ Error finding reports:', findError);
+        throw findError;
+      }
     }
 
     console.log('✅ Total lab reports found:', reports.length);
@@ -361,10 +404,23 @@ const getLabReportsByPatientArcId = async (req, res) => {
       console.log('🔬 Sample report:', JSON.stringify(reports[0], null, 2));
     }
 
+    // Transform reports to include lab name
+    const transformedReports = reports.map(report => ({
+      ...report,
+      labName: report.labId?.fullName || report.labName || 'Unknown Lab',
+      // Ensure labId is properly formatted
+      labId: report.labId || null
+    }));
+
+    console.log('✅ Returning transformed reports:', transformedReports.length);
+    if (transformedReports.length > 0) {
+      console.log('🔬 Sample transformed report:', JSON.stringify(transformedReports[0], null, 2));
+    }
+
     res.json({
       success: true,
-      data: reports,
-      count: reports.length
+      data: transformedReports,
+      count: transformedReports.length
     });
   } catch (error) {
     console.error('❌ Error fetching lab reports by patient ARC ID:', error);
