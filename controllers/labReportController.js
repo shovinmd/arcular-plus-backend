@@ -405,12 +405,25 @@ const getLabReportsByPatientArcId = async (req, res) => {
     }
 
     // Transform reports to include lab name
-    const transformedReports = reports.map(report => ({
-      ...report,
-      labName: report.labId?.fullName || report.labName || 'Unknown Lab',
-      // Ensure labId is properly formatted
-      labId: report.labId || null
-    }));
+    const transformedReports = reports.map(report => {
+      let labName = 'Lab';
+      
+      // Try multiple sources for lab name
+      if (report.labId?.fullName) {
+        labName = report.labId.fullName;
+      } else if (report.labName && report.labName !== 'Unknown Lab') {
+        labName = report.labName;
+      } else if (report.labId?.labName) {
+        labName = report.labId.labName;
+      }
+      
+      return {
+        ...report,
+        labName: labName,
+        // Ensure labId is properly formatted
+        labId: report.labId || null
+      };
+    });
 
     console.log('✅ Returning transformed reports:', transformedReports.length);
     if (transformedReports.length > 0) {
