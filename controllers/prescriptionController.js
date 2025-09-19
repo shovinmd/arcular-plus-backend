@@ -66,6 +66,8 @@ exports.transformToMedicines = async (req, res) => {
       duration: m.duration,
       times: m.times || [],
       instructions: m.instructions || null,
+      type: m.type || 'tablet', // Default to tablet if not specified
+      dose: m.dose, // Include dose field as required
     }));
     res.json({ success: true, data: medicines });
   } catch (e) {
