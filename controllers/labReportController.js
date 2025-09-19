@@ -231,6 +231,8 @@ const createLabReport = async (req, res) => {
 
     console.log('🔬 Report URL received:', reportUrl);
     console.log('🔬 File name received:', fileName);
+    console.log('🔬 Lab name received:', labName);
+    console.log('🔬 Lab ID received:', labId);
 
     // Validate required fields
     if (!patientArcId || !testType || !reportUrl) {
