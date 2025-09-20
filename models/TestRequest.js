@@ -113,6 +113,29 @@ const TestRequestSchema = new mongoose.Schema({
     type: String,
   },
   
+  // Billing information
+  billAmount: {
+    type: Number,
+    default: 0,
+  },
+  currency: {
+    type: String,
+    default: 'INR',
+  },
+  paymentOptions: [{
+    type: String,
+    enum: ['Cash', 'Card', 'Insurance', 'Online Payment', 'Bank Transfer', 'UPI', 'Wallet'],
+  }],
+  paymentStatus: {
+    type: String,
+    enum: ['Pending', 'Paid', 'Partial', 'Refunded'],
+    default: 'Pending',
+  },
+  paidAmount: {
+    type: Number,
+    default: 0,
+  },
+  
   // Completion details
   completedAt: {
     type: Date,
