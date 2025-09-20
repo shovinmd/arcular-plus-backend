@@ -243,7 +243,7 @@ const updateTestRequestStatus = async (req, res) => {
     }
 
     const { requestId } = req.params;
-    const { status, labNotes, scheduledDate, scheduledTime, appointmentSlot, preparationInstructions } = req.body;
+    const { status, labNotes, scheduledDate, scheduledTime, appointmentSlot, preparationInstructions, billAmount, paymentOptions } = req.body;
 
     const lab = await Lab.findOne({ uid: firebaseUser.uid });
     if (!lab) {
@@ -262,6 +262,8 @@ const updateTestRequestStatus = async (req, res) => {
     if (scheduledTime) updateData.scheduledTime = scheduledTime;
     if (appointmentSlot) updateData.appointmentSlot = appointmentSlot;
     if (preparationInstructions) updateData.preparationInstructions = preparationInstructions;
+    if (billAmount !== undefined) updateData.billAmount = billAmount;
+    if (paymentOptions) updateData.paymentOptions = paymentOptions;
     
     // Set completion date if status is 'Completed'
     if (status === 'Completed') {
@@ -287,6 +289,8 @@ const updateTestRequestStatus = async (req, res) => {
           scheduledDate: updatedRequest.scheduledDate ? updatedRequest.scheduledDate.toLocaleDateString() : 'TBD',
           scheduledTime: updatedRequest.scheduledTime || 'TBD',
           requestId: updatedRequest.requestId,
+          billAmount: updatedRequest.billAmount,
+          paymentOptions: updatedRequest.paymentOptions,
         });
         console.log('✅ Appointment email sent to patient:', updatedRequest.patientEmail);
       } catch (emailError) {

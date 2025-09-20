@@ -301,7 +301,7 @@ const sendTestAdmissionEmail = async (data) => {
 // Send appointment email to patient
 const sendAppointmentEmail = async (data) => {
   try {
-    const { patientEmail, patientName, labName, testName, scheduledDate, scheduledTime, appointmentSlot, preparationInstructions, requestId } = data;
+    const { patientEmail, patientName, labName, testName, scheduledDate, scheduledTime, appointmentSlot, preparationInstructions, requestId, billAmount, paymentOptions } = data;
     
     const subject = `Test Appointment Scheduled - ${testName}`;
     const html = `
@@ -323,6 +323,24 @@ const sendAppointmentEmail = async (data) => {
             <p><strong>Time:</strong> ${scheduledTime}</p>
             ${appointmentSlot ? `<p><strong>Slot:</strong> ${appointmentSlot}</p>` : ''}
           </div>
+          
+          ${billAmount && billAmount > 0 ? `
+          <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #28a745;">
+            <h3 style="color: #155724; margin-top: 0;">💰 Billing Information:</h3>
+            <p style="color: #155724; font-size: 18px; font-weight: bold; margin: 10px 0;">
+              Amount to Pay: ${billAmount.toFixed(2)}
+            </p>
+            ${paymentOptions && paymentOptions.length > 0 ? `
+            <p style="color: #155724; margin: 10px 0;"><strong>Payment Options Available:</strong></p>
+            <ul style="color: #155724; margin: 10px 0; padding-left: 20px;">
+              ${paymentOptions.map(option => `<li>${option}</li>`).join('')}
+            </ul>
+            ` : ''}
+            <p style="color: #155724; font-size: 14px; margin: 10px 0;">
+              Please bring the payment amount with you on the day of your appointment.
+            </p>
+          </div>
+          ` : ''}
           
           ${preparationInstructions ? `
           <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0;">
