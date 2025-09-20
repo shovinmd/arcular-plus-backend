@@ -450,6 +450,95 @@ const sendSessionEmail = async ({ to, subject, action, device, ip, location, tim
   });
 };
 
+// Send test completion email to patient
+const sendTestCompletionEmailToPatient = async (data) => {
+  try {
+    const { patientEmail, patientName, labName, testName, requestId } = data;
+    
+    const subject = `Your Test Report is Ready - ${testName}`;
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center;">
+          <h1>Arcular Plus</h1>
+          <h2>Test Report Ready</h2>
+        </div>
+        <div style="padding: 20px;">
+          <p>Dear ${patientName},</p>
+          <p>Great news! Your test report is ready and has been uploaded to your Arcular Plus report session.</p>
+          
+          <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="color: #333; margin-top: 0;">Test Details:</h3>
+            <p><strong>Request ID:</strong> ${requestId}</p>
+            <p><strong>Test:</strong> ${testName}</p>
+            <p><strong>Lab:</strong> ${labName}</p>
+            <p><strong>Status:</strong> Completed</p>
+          </div>
+          
+          <p>You can now view your report by logging into your Arcular Plus account and checking your lab reports section.</p>
+          <p>If you have any questions, please contact your healthcare provider.</p>
+          <p>Best regards,<br>Arcular Plus Team</p>
+        </div>
+      </div>
+    `;
+    
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER || 'shovinmicheldavid1285@gmail.com',
+      to: patientEmail,
+      subject: subject,
+      html: html
+    });
+    
+    console.log(`✅ Test completion email sent to patient: ${patientEmail}`);
+  } catch (error) {
+    console.error('❌ Error sending test completion email to patient:', error);
+  }
+};
+
+// Send test completion email to hospital
+const sendTestCompletionEmailToHospital = async (data) => {
+  try {
+    const { hospitalEmail, hospitalName, patientName, patientArcId, labName, testName, requestId } = data;
+    
+    const subject = `Test Completed - ${testName} for Patient ${patientArcId}`;
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center;">
+          <h1>Arcular Plus</h1>
+          <h2>Test Completed</h2>
+        </div>
+        <div style="padding: 20px;">
+          <p>Dear ${hospitalName},</p>
+          <p>Your requested patient test has been completed and uploaded. Please search for the patient ARC ID to get the report.</p>
+          
+          <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="color: #333; margin-top: 0;">Test Details:</h3>
+            <p><strong>Request ID:</strong> ${requestId}</p>
+            <p><strong>Patient:</strong> ${patientName}</p>
+            <p><strong>Patient ARC ID:</strong> ${patientArcId}</p>
+            <p><strong>Test:</strong> ${testName}</p>
+            <p><strong>Lab:</strong> ${labName}</p>
+            <p><strong>Status:</strong> Completed</p>
+          </div>
+          
+          <p>You can now access the test report by logging into your Arcular Plus dashboard and searching for the patient using their ARC ID: <strong>${patientArcId}</strong></p>
+          <p>Best regards,<br>Arcular Plus Team</p>
+        </div>
+      </div>
+    `;
+    
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER || 'shovinmicheldavid1285@gmail.com',
+      to: hospitalEmail,
+      subject: subject,
+      html: html
+    });
+    
+    console.log(`✅ Test completion email sent to hospital: ${hospitalEmail}`);
+  } catch (error) {
+    console.error('❌ Error sending test completion email to hospital:', error);
+  }
+};
+
 module.exports = {
   sendRegistrationConfirmation,
   sendApprovalEmail,
@@ -460,4 +549,6 @@ module.exports = {
   sendTestAdmissionEmail,
   sendAppointmentEmail,
   sendReportReadyEmail,
+  sendTestCompletionEmailToPatient,
+  sendTestCompletionEmailToHospital,
 };

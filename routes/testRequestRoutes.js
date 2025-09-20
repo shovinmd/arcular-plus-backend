@@ -262,6 +262,11 @@ const updateTestRequestStatus = async (req, res) => {
     if (scheduledTime) updateData.scheduledTime = scheduledTime;
     if (appointmentSlot) updateData.appointmentSlot = appointmentSlot;
     if (preparationInstructions) updateData.preparationInstructions = preparationInstructions;
+    
+    // Set completion date if status is 'Completed'
+    if (status === 'Completed') {
+      updateData.completedAt = new Date();
+    }
 
     const updatedRequest = await TestRequest.findByIdAndUpdate(
       testRequest._id,
@@ -286,6 +291,38 @@ const updateTestRequestStatus = async (req, res) => {
         console.log('✅ Appointment email sent to patient:', updatedRequest.patientEmail);
       } catch (emailError) {
         console.error('❌ Failed to send appointment email:', emailError);
+        // Don't fail the request if email fails
+      }
+    }
+
+    // Send email notifications if status is 'Completed'
+    if (status === 'Completed') {
+      try {
+        const emailService = require('../services/emailService');
+        
+        // Send email to patient
+        await emailService.sendTestCompletionEmailToPatient({
+          patientName: updatedRequest.patientName,
+          patientEmail: updatedRequest.patientEmail,
+          labName: updatedRequest.labName,
+          testName: updatedRequest.testName,
+          requestId: updatedRequest.requestId,
+        });
+        console.log('✅ Test completion email sent to patient:', updatedRequest.patientEmail);
+        
+        // Send email to hospital
+        await emailService.sendTestCompletionEmailToHospital({
+          hospitalEmail: updatedRequest.hospitalEmail || updatedRequest.hospitalId?.email,
+          hospitalName: updatedRequest.hospitalName,
+          patientName: updatedRequest.patientName,
+          patientArcId: updatedRequest.patientArcId,
+          labName: updatedRequest.labName,
+          testName: updatedRequest.testName,
+          requestId: updatedRequest.requestId,
+        });
+        console.log('✅ Test completion email sent to hospital:', updatedRequest.hospitalEmail || updatedRequest.hospitalId?.email);
+      } catch (emailError) {
+        console.error('❌ Failed to send test completion emails:', emailError);
         // Don't fail the request if email fails
       }
     }

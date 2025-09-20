@@ -157,7 +157,6 @@ const TestRequestSchema = new mongoose.Schema({
 TestRequestSchema.index({ hospitalId: 1, status: 1 });
 TestRequestSchema.index({ labId: 1, status: 1 });
 TestRequestSchema.index({ patientArcId: 1 });
-TestRequestSchema.index({ requestId: 1 });
 TestRequestSchema.index({ createdAt: -1 });
 
 // Pre-save middleware to update updatedAt
