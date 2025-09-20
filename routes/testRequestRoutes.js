@@ -270,6 +270,26 @@ const updateTestRequestStatus = async (req, res) => {
     ).populate('hospitalId', 'hospitalName fullName')
      .populate('patientId', 'fullName email mobileNumber');
 
+    // Send email notification if status is 'Admitted'
+    if (status === 'Admitted') {
+      try {
+        const emailService = require('../services/emailService');
+        await emailService.sendAppointmentEmail({
+          patientName: updatedRequest.patientName,
+          patientEmail: updatedRequest.patientEmail,
+          labName: updatedRequest.labName,
+          testName: updatedRequest.testName,
+          scheduledDate: updatedRequest.scheduledDate ? updatedRequest.scheduledDate.toLocaleDateString() : 'TBD',
+          scheduledTime: updatedRequest.scheduledTime || 'TBD',
+          requestId: updatedRequest.requestId,
+        });
+        console.log('✅ Appointment email sent to patient:', updatedRequest.patientEmail);
+      } catch (emailError) {
+        console.error('❌ Failed to send appointment email:', emailError);
+        // Don't fail the request if email fails
+      }
+    }
+
     res.json({
       success: true,
       message: 'Test request status updated successfully',
@@ -391,6 +411,7 @@ const getTestRequestStats = async (req, res) => {
     });
   }
 };
+
 
 // Routes
 router.post('/create', firebaseAuthMiddleware, createTestRequest);
