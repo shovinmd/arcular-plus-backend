@@ -619,6 +619,56 @@ const associateLabWithHospital = async (req, res) => {
   }
 };
 
+// Remove lab association from hospital
+const removeLabAssociation = async (req, res) => {
+  try {
+    const firebaseUser = req.user;
+    if (!firebaseUser || !firebaseUser.uid) {
+      return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+
+    const { labId } = req.params;
+    const Hospital = require('../models/Hospital');
+    const hospital = await Hospital.findOne({ uid: firebaseUser.uid });
+    if (!hospital) {
+      return res.status(404).json({ success: false, error: 'Hospital not found' });
+    }
+
+    let lab = await Lab.findOne({ uid: labId });
+    if (!lab) {
+      const mongoose = require('mongoose');
+      if (mongoose.isValidObjectId(labId)) {
+        lab = await Lab.findById(labId);
+      }
+    }
+
+    if (!lab) {
+      return res.status(404).json({ success: false, error: 'Lab not found' });
+    }
+
+    const hospitalIdString = String(hospital._id);
+    lab.affiliatedHospitals = lab.affiliatedHospitals || [];
+    const initialLength = lab.affiliatedHospitals.length;
+    
+    lab.affiliatedHospitals = lab.affiliatedHospitals.filter(
+      (a) => String(a.hospitalId) !== hospitalIdString
+    );
+
+    await lab.save();
+
+    const removed = initialLength > lab.affiliatedHospitals.length;
+    
+    return res.json({ 
+      success: true, 
+      message: removed ? 'Lab association removed successfully' : 'Lab was not associated with this hospital',
+      data: lab 
+    });
+  } catch (error) {
+    console.error('Error removing lab association:', error);
+    return res.status(500).json({ success: false, error: 'Failed to remove lab association' });
+  }
+};
+
 module.exports = {
   registerLab,
   getAllLabs,
@@ -638,4 +688,5 @@ module.exports = {
   rejectLabByStaff,
   getLabsByAffiliation,
   associateLabWithHospital,
+  removeLabAssociation,
 }; 

@@ -18,6 +18,9 @@ router.get('/affiliated/:hospitalId', firebaseAuthMiddleware, labController.getL
 // Associate lab with hospital
 router.post('/associate/:hospitalId', firebaseAuthMiddleware, labController.associateLabWithHospital);
 
+// Remove lab association from hospital
+router.delete('/remove-association/:labId', firebaseAuthMiddleware, labController.removeLabAssociation);
+
 // Approve a lab by staff
 router.post('/:labId/approve', firebaseAuthMiddleware, labController.approveLabByStaff);
 router.post('/:labId/reject', firebaseAuthMiddleware, labController.rejectLabByStaff);
