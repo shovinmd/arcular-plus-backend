@@ -354,7 +354,7 @@ const getLabReportsByPatientArcId = async (req, res) => {
       reports = await LabReport.find({ patientArcId: arcId })
         .populate({
           path: 'labId',
-          select: 'fullName',
+          select: 'fullName labName ownerName',
           options: { strictPopulate: false }
         })
         .sort({ uploadDate: -1, createdAt: -1 })
@@ -367,7 +367,7 @@ const getLabReportsByPatientArcId = async (req, res) => {
         reports = await LabReport.find({ patientId: patient._id.toString() })
           .populate({
             path: 'labId',
-            select: 'fullName',
+            select: 'fullName labName ownerName',
             options: { strictPopulate: false }
           })
           .sort({ uploadDate: -1, createdAt: -1 })
@@ -380,7 +380,7 @@ const getLabReportsByPatientArcId = async (req, res) => {
         reports = await LabReport.find({ patientId: patient._id })
           .populate({
             path: 'labId',
-            select: 'fullName',
+            select: 'fullName labName ownerName',
             options: { strictPopulate: false }
           })
           .sort({ uploadDate: -1, createdAt: -1 })
@@ -407,16 +407,43 @@ const getLabReportsByPatientArcId = async (req, res) => {
     }
 
     // Transform reports to include lab name
-    const transformedReports = reports.map(report => {
+    const transformedReports = await Promise.all(reports.map(async (report) => {
       let labName = 'Lab';
       
-      // Try multiple sources for lab name
-      if (report.labId?.fullName) {
+      // Try multiple sources for lab name with better fallback logic
+      if (report.labId?.fullName && report.labId.fullName.trim() !== '') {
         labName = report.labId.fullName;
-      } else if (report.labName && report.labName !== 'Unknown Lab') {
+        console.log('🔬 Using labId.fullName:', labName);
+      } else if (report.labName && report.labName.trim() !== '' && report.labName !== 'Unknown Lab') {
         labName = report.labName;
-      } else if (report.labId?.labName) {
+        console.log('🔬 Using report.labName:', labName);
+      } else if (report.labId?.labName && report.labId.labName.trim() !== '') {
         labName = report.labId.labName;
+        console.log('🔬 Using labId.labName:', labName);
+      } else if (report.labId?.ownerName && report.labId.ownerName.trim() !== '') {
+        labName = report.labId.ownerName;
+        console.log('🔬 Using labId.ownerName:', labName);
+      } else {
+        // Try to fetch lab name from User collection if we have labId
+        if (report.labId && report.labId._id) {
+          try {
+            const labUser = await User.findById(report.labId._id).select('fullName labName ownerName').lean();
+            if (labUser) {
+              if (labUser.labName && labUser.labName.trim() !== '') {
+                labName = labUser.labName;
+                console.log('🔬 Fetched labName from User collection:', labName);
+              } else if (labUser.fullName && labUser.fullName.trim() !== '') {
+                labName = labUser.fullName;
+                console.log('🔬 Fetched fullName from User collection:', labName);
+              } else if (labUser.ownerName && labUser.ownerName.trim() !== '') {
+                labName = labUser.ownerName;
+                console.log('🔬 Fetched ownerName from User collection:', labName);
+              }
+            }
+          } catch (fetchError) {
+            console.error('❌ Error fetching lab user details:', fetchError);
+          }
+        }
       }
       
       return {
@@ -425,7 +452,7 @@ const getLabReportsByPatientArcId = async (req, res) => {
         // Ensure labId is properly formatted
         labId: report.labId || null
       };
-    });
+    }));
 
     console.log('✅ Returning transformed reports:', transformedReports.length);
     if (transformedReports.length > 0) {
