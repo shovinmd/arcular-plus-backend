@@ -63,6 +63,7 @@ const createTestRequest = async (req, res) => {
 
     // Create test request
     const testRequest = new TestRequest({
+      requestId: `TR-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       hospitalId: hospital._id,
       hospitalName: hospital.hospitalName || hospital.fullName,
       hospitalUid: hospital.uid,
@@ -72,8 +73,8 @@ const createTestRequest = async (req, res) => {
       patientId: patient._id,
       patientArcId: patientArcId,
       patientName: patient.fullName,
-      patientEmail: patient.email,
-      patientMobile: patient.mobileNumber,
+      patientEmail: patient.email || '',
+      patientMobile: patient.mobileNumber || '',
       testName,
       testType,
       testDescription: testDescription || '',
@@ -93,6 +94,17 @@ const createTestRequest = async (req, res) => {
 
   } catch (error) {
     console.error('Error creating test request:', error);
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({
+        success: false,
+        error: 'Validation failed',
+        details: validationErrors
+      });
+    }
+    
     res.status(500).json({
       success: false,
       error: 'Failed to create test request',
