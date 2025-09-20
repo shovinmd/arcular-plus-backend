@@ -86,6 +86,27 @@ const createTestRequest = async (req, res) => {
 
     const savedRequest = await testRequest.save();
 
+    // Send email notification to lab
+    try {
+      const emailService = require('../services/emailService');
+      await emailService.sendTestRequestEmail({
+        labName: lab.labName || lab.fullName,
+        labEmail: lab.email,
+        hospitalName: hospital.hospitalName || hospital.fullName,
+        patientName: patient.fullName,
+        patientArcId: patientArcId,
+        testName: testName,
+        testType: testType,
+        urgency: urgency || 'Normal',
+        requestId: savedRequest.requestId,
+        requestedDate: new Date().toLocaleDateString(),
+      });
+      console.log('✅ Test request email sent to lab:', lab.email);
+    } catch (emailError) {
+      console.error('❌ Failed to send test request email:', emailError);
+      // Don't fail the request if email fails
+    }
+
     res.status(201).json({
       success: true,
       message: 'Test request created successfully',
