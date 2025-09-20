@@ -250,13 +250,21 @@ const updateNurse = async (req, res) => {
 // Delete nurse
 const deleteNurse = async (req, res) => {
   try {
-    const nurse = await Nurse.findByIdAndDelete(req.params.id);
+    // Try to find and delete by MongoDB _id first, then by uid if not found
+    let nurse = await Nurse.findByIdAndDelete(req.params.id);
+    
+    // If not found by _id, try to find and delete by uid
+    if (!nurse) {
+      nurse = await Nurse.findOneAndDelete({ uid: req.params.id });
+    }
+    
     if (!nurse) {
       return res.status(404).json({
         success: false,
         message: 'Nurse not found'
       });
     }
+    
     res.json({
       success: true,
       message: 'Nurse deleted successfully'
