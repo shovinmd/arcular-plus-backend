@@ -712,6 +712,67 @@ const updateNurseShift = async (req, res) => {
   }
 };
 
+// Remove nurse association from hospital
+const removeNurseAssociation = async (req, res) => {
+  try {
+    const firebaseUser = req.user;
+    if (!firebaseUser || !firebaseUser.uid) {
+      return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+
+    const { nurseId } = req.params;
+
+    const Hospital = require('../models/Hospital');
+
+    // Find current hospital by Firebase UID
+    const hospital = await Hospital.findOne({ uid: firebaseUser.uid });
+    if (!hospital) {
+      return res.status(404).json({ success: false, error: 'Hospital not found' });
+    }
+
+    // Find nurse by uid first, then by _id
+    let nurse = await Nurse.findOne({ uid: nurseId });
+    if (!nurse) {
+      const mongoose = require('mongoose');
+      if (mongoose.isValidObjectId(nurseId)) {
+        nurse = await Nurse.findById(nurseId);
+      }
+    }
+
+    if (!nurse) {
+      return res.status(404).json({ success: false, error: 'Nurse not found' });
+    }
+
+    // Remove affiliation from this hospital
+    const hospitalIdString = String(hospital._id);
+    nurse.affiliatedHospitals = nurse.affiliatedHospitals || [];
+    const initialLength = nurse.affiliatedHospitals.length;
+    
+    nurse.affiliatedHospitals = nurse.affiliatedHospitals.filter(
+      (a) => String(a.hospitalId) !== hospitalIdString
+    );
+
+    // Also remove any shifts for this hospital
+    nurse.shifts = nurse.shifts || [];
+    nurse.shifts = nurse.shifts.filter(
+      (s) => String(s.hospitalId) !== hospitalIdString
+    );
+
+    await nurse.save();
+
+    const removed = initialLength > nurse.affiliatedHospitals.length;
+    
+    return res.json({ 
+      success: true, 
+      message: removed ? 'Nurse association removed successfully' : 'Nurse was not associated with this hospital',
+      data: nurse 
+    });
+  } catch (error) {
+    console.error('Error removing nurse association:', error);
+    return res.status(500).json({ success: false, error: 'Failed to remove nurse association' });
+  }
+};
+
 module.exports = {
   registerNurse,
   getNurseById,
@@ -732,4 +793,5 @@ module.exports = {
   getNursesByAffiliation,
   associateNurseByArcId,
   updateNurseShift,
+  removeNurseAssociation,
 }; 

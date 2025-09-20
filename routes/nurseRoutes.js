@@ -23,6 +23,9 @@ router.get('/affiliated/:hospitalId', firebaseAuthMiddleware, nurseController.ge
 // Associate nurse to current hospital by ARC ID
 router.post('/associate/by-arcid', firebaseAuthMiddleware, nurseController.associateNurseByArcId);
 
+// Remove nurse association from hospital
+router.delete('/remove-association/:nurseId', firebaseAuthMiddleware, nurseController.removeNurseAssociation);
+
 // Get nurses by qualification
 router.get('/qualification/:qualification', firebaseAuthMiddleware, nurseController.getNursesByQualification);
 
