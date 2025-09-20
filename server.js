@@ -41,6 +41,7 @@ const doctorScheduleRoutes = require('./routes/doctorScheduleRoutes');
 const ratingRoutes = require('./routes/ratingRoutes');
 const patientRecordsRoutes = require('./routes/patientRecords');
 const patientAssignmentRoutes = require('./routes/patientAssignmentRoutes');
+const testRequestRoutes = require('./routes/testRequestRoutes');
 
 // Import web interface routes
 const adminWebRoutes = require('./routes/adminWebRoutes');
@@ -172,6 +173,7 @@ app.use('/api/doctor-schedule', doctorScheduleRoutes);
 app.use('/api/ratings', ratingRoutes);
 app.use('/api/patient-records', patientRecordsRoutes);
 app.use('/api/patient-assignments', patientAssignmentRoutes);
+app.use('/api/test-requests', testRequestRoutes);
 
 // Test endpoint to verify CORS
 app.get('/api/test-cors', (req, res) => {

@@ -210,16 +210,196 @@ const sendWelcomeEmail = async (userEmail, userName, userType) => {
   }
 };
 
-module.exports = {
-  sendRegistrationConfirmation,
-  sendApprovalEmail,
-  sendDocumentReviewNotification,
-  sendWelcomeEmail,
-  sendSessionEmail,
+// Send test request email to lab
+const sendTestRequestEmail = async (data) => {
+  try {
+    const { labEmail, labName, hospitalName, patientName, patientArcId, testName, testType, urgency, requestId, notes } = data;
+    
+    const subject = `New Test Request from ${hospitalName}`;
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center;">
+          <h1>Arcular Plus</h1>
+          <h2>New Test Request</h2>
+        </div>
+        <div style="padding: 20px;">
+          <p>Dear ${labName},</p>
+          <p>You have received a new test request from <strong>${hospitalName}</strong>.</p>
+          
+          <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="color: #333; margin-top: 0;">Request Details:</h3>
+            <p><strong>Request ID:</strong> ${requestId}</p>
+            <p><strong>Patient:</strong> ${patientName} (${patientArcId})</p>
+            <p><strong>Test:</strong> ${testName}</p>
+            <p><strong>Type:</strong> ${testType}</p>
+            <p><strong>Urgency:</strong> ${urgency}</p>
+            ${notes ? `<p><strong>Notes:</strong> ${notes}</p>` : ''}
+          </div>
+          
+          <p>Please log in to your Arcular Plus dashboard to review and respond to this request.</p>
+          <p>Best regards,<br>Arcular Plus Team</p>
+        </div>
+      </div>
+    `;
+    
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER || 'shovinmicheldavid1285@gmail.com',
+      to: labEmail,
+      subject: subject,
+      html: html
+    });
+    
+    console.log(`✅ Test request email sent to ${labEmail}`);
+  } catch (error) {
+    console.error('❌ Error sending test request email:', error);
+  }
+};
+
+// Send test admission email to patient
+const sendTestAdmissionEmail = async (data) => {
+  try {
+    const { patientEmail, patientName, labName, testName, requestId, labNotes } = data;
+    
+    const subject = `Test Request Admitted by ${labName}`;
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center;">
+          <h1>Arcular Plus</h1>
+          <h2>Test Request Admitted</h2>
+        </div>
+        <div style="padding: 20px;">
+          <p>Dear ${patientName},</p>
+          <p>Great news! Your test request has been admitted by <strong>${labName}</strong>.</p>
+          
+          <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="color: #333; margin-top: 0;">Request Details:</h3>
+            <p><strong>Request ID:</strong> ${requestId}</p>
+            <p><strong>Test:</strong> ${testName}</p>
+            <p><strong>Lab:</strong> ${labName}</p>
+            ${labNotes ? `<p><strong>Lab Notes:</strong> ${labNotes}</p>` : ''}
+          </div>
+          
+          <p>You will receive another email with your appointment schedule once it's confirmed.</p>
+          <p>Best regards,<br>Arcular Plus Team</p>
+        </div>
+      </div>
+    `;
+    
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER || 'shovinmicheldavid1285@gmail.com',
+      to: patientEmail,
+      subject: subject,
+      html: html
+    });
+    
+    console.log(`✅ Test admission email sent to ${patientEmail}`);
+  } catch (error) {
+    console.error('❌ Error sending test admission email:', error);
+  }
+};
+
+// Send appointment email to patient
+const sendAppointmentEmail = async (data) => {
+  try {
+    const { patientEmail, patientName, labName, testName, scheduledDate, scheduledTime, appointmentSlot, preparationInstructions, requestId } = data;
+    
+    const subject = `Test Appointment Scheduled - ${testName}`;
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center;">
+          <h1>Arcular Plus</h1>
+          <h2>Appointment Scheduled</h2>
+        </div>
+        <div style="padding: 20px;">
+          <p>Dear ${patientName},</p>
+          <p>Your test appointment has been scheduled at <strong>${labName}</strong>.</p>
+          
+          <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="color: #333; margin-top: 0;">Appointment Details:</h3>
+            <p><strong>Request ID:</strong> ${requestId}</p>
+            <p><strong>Test:</strong> ${testName}</p>
+            <p><strong>Lab:</strong> ${labName}</p>
+            <p><strong>Date:</strong> ${scheduledDate}</p>
+            <p><strong>Time:</strong> ${scheduledTime}</p>
+            ${appointmentSlot ? `<p><strong>Slot:</strong> ${appointmentSlot}</p>` : ''}
+          </div>
+          
+          ${preparationInstructions ? `
+          <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="color: #856404; margin-top: 0;">Preparation Instructions:</h3>
+            <p style="color: #856404;">${preparationInstructions}</p>
+          </div>
+          ` : ''}
+          
+          <p>Please arrive 15 minutes before your scheduled time.</p>
+          <p>Best regards,<br>Arcular Plus Team</p>
+        </div>
+      </div>
+    `;
+    
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER || 'shovinmicheldavid1285@gmail.com',
+      to: patientEmail,
+      subject: subject,
+      html: html
+    });
+    
+    console.log(`✅ Appointment email sent to ${patientEmail}`);
+  } catch (error) {
+    console.error('❌ Error sending appointment email:', error);
+  }
+};
+
+// Send report ready email to patient
+const sendReportReadyEmail = async (data) => {
+  try {
+    const { patientEmail, patientName, labName, testName, requestId, reportUrl } = data;
+    
+    const subject = `Test Report Ready - ${testName}`;
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center;">
+          <h1>Arcular Plus</h1>
+          <h2>Test Report Ready</h2>
+        </div>
+        <div style="padding: 20px;">
+          <p>Dear ${patientName},</p>
+          <p>Your test report is now ready!</p>
+          
+          <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="color: #333; margin-top: 0;">Report Details:</h3>
+            <p><strong>Request ID:</strong> ${requestId}</p>
+            <p><strong>Test:</strong> ${testName}</p>
+            <p><strong>Lab:</strong> ${labName}</p>
+          </div>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${reportUrl}" style="background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+              View Report
+            </a>
+          </div>
+          
+          <p>You can also access your report through the Arcular Plus app.</p>
+          <p>Best regards,<br>Arcular Plus Team</p>
+        </div>
+      </div>
+    `;
+    
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER || 'shovinmicheldavid1285@gmail.com',
+      to: patientEmail,
+      subject: subject,
+      html: html
+    });
+    
+    console.log(`✅ Report ready email sent to ${patientEmail}`);
+  } catch (error) {
+    console.error('❌ Error sending report ready email:', error);
+  }
 };
 
 // Session activity email with inline brand logo (CID)
-async function sendSessionEmail({ to, subject, action, device, ip, location, timestamp, brandCid = 'brandlogo', attachments = [] }) {
+const sendSessionEmail = async ({ to, subject, action, device, ip, location, timestamp, brandCid = 'brandlogo', attachments = [] }) => {
   const dt = new Date(timestamp || Date.now());
   const pretty = dt.toLocaleString();
   const loc = location && location.lat && location.lng ? `${location.lat}, ${location.lng}` : 'Not available';
@@ -268,4 +448,16 @@ async function sendSessionEmail({ to, subject, action, device, ip, location, tim
     html,
     attachments,
   });
-}
+};
+
+module.exports = {
+  sendRegistrationConfirmation,
+  sendApprovalEmail,
+  sendDocumentReviewNotification,
+  sendWelcomeEmail,
+  sendSessionEmail,
+  sendTestRequestEmail,
+  sendTestAdmissionEmail,
+  sendAppointmentEmail,
+  sendReportReadyEmail,
+};
