@@ -1132,7 +1132,12 @@ const placeHospitalOrder = async (req, res) => {
       userName: patientDetails?.fullName || patientDetails?.name || 'Patient',
       userEmail: patientDetails?.email || 'hospital@arcular.com',
       userPhone: patientDetails?.mobileNumber || patientDetails?.phone || 'Hospital Order',
-      userAddress: patientDetails?.address || 'Hospital Address',
+      userAddress: {
+        street: patientDetails?.address || 'Hospital Address',
+        city: patientDetails?.city || 'Hospital City',
+        state: patientDetails?.state || 'Hospital State',
+        pincode: patientDetails?.pincode || '000000'
+      },
       pharmacyId: pharmacy._id,
       pharmacyName: pharmacy.pharmacyName,
       pharmacyEmail: pharmacy.email,
@@ -1156,8 +1161,8 @@ const placeHospitalOrder = async (req, res) => {
       subtotal: 0,
       deliveryFee: 0,
       totalAmount: 0,
-      deliveryMethod: 'Hospital Delivery',
-      paymentMethod: 'Hospital Account',
+      deliveryMethod: 'Home Delivery',
+      paymentMethod: 'Cash on Delivery',
       userNotes: notes || 'Hospital order for patient',
       statusHistory: [{
         status: 'Pending',
