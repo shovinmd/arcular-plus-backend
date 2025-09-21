@@ -1100,8 +1100,186 @@ const getOrderStats = async (req, res) => {
   }
 };
 
+// Place hospital order to pharmacy
+const placeHospitalOrder = async (req, res) => {
+  try {
+    const { pharmacyId, patientArcId, medicineName, quantity, notes, pharmacyName, patientDetails } = req.body;
+    
+    console.log('🏥 Hospital order received:', {
+      pharmacyId,
+      patientArcId,
+      medicineName,
+      quantity,
+      pharmacyName
+    });
+    
+    // Get pharmacy information
+    const pharmacy = await Pharmacy.findOne({ uid: pharmacyId });
+    if (!pharmacy) {
+      return res.status(404).json({
+        success: false,
+        error: 'Pharmacy not found'
+      });
+    }
+    
+    // Generate unique order ID
+    const orderId = `HOSP-ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+    
+    // Create order data
+    const order = new Order({
+      orderId: orderId,
+      userId: patientArcId, // Use patient ARC ID as user ID
+      userName: patientDetails?.fullName || patientDetails?.name || 'Patient',
+      userEmail: patientDetails?.email || 'hospital@arcular.com',
+      userPhone: patientDetails?.mobileNumber || patientDetails?.phone || 'Hospital Order',
+      userAddress: patientDetails?.address || 'Hospital Address',
+      pharmacyId: pharmacy._id,
+      pharmacyName: pharmacy.pharmacyName,
+      pharmacyEmail: pharmacy.email,
+      pharmacyPhone: pharmacy.mobileNumber,
+      pharmacyAddress: {
+        street: pharmacy.address,
+        city: pharmacy.city,
+        state: pharmacy.state,
+        pincode: pharmacy.pincode
+      },
+      items: [{
+        medicineId: 'hospital-order',
+        medicineName: medicineName,
+        category: 'Prescription',
+        type: 'Tablet',
+        quantity: quantity,
+        unitPrice: 0,
+        sellingPrice: 0,
+        totalPrice: 0
+      }],
+      subtotal: 0,
+      deliveryFee: 0,
+      totalAmount: 0,
+      deliveryMethod: 'Hospital Delivery',
+      paymentMethod: 'Hospital Account',
+      userNotes: notes || 'Hospital order for patient',
+      statusHistory: [{
+        status: 'Pending',
+        timestamp: new Date(),
+        note: 'Hospital order placed',
+        updatedBy: 'hospital'
+      }]
+    });
+    
+    await order.save();
+    console.log('✅ Hospital order created successfully:', order.orderId);
+    
+    // Send email to pharmacy with patient details
+    const pharmacyEmailHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Hospital Order Received</title>
+        <style>
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5; }
+          .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+          .header { background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%); color: white; padding: 30px; text-align: center; }
+          .header h1 { margin: 0; font-size: 28px; font-weight: 600; }
+          .content { padding: 30px; }
+          .order-card { background-color: #f8f9fa; border-left: 4px solid #ff6b35; padding: 20px; margin: 20px 0; border-radius: 0 8px 8px 0; }
+          .order-id { font-size: 24px; font-weight: bold; color: #ff6b35; margin: 10px 0; }
+          .patient-info { background-color: #e3f2fd; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2196f3; }
+          .medicine-info { background-color: #f3e5f5; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #9c27b0; }
+          .delivery-info { background-color: #e8f5e8; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #4caf50; }
+          .cta-button { display: inline-block; background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 25px; font-weight: 600; margin: 20px 0; }
+          .footer { background-color: #f8f9fa; padding: 20px; text-align: center; color: #666; font-size: 14px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>🏥 Hospital Order Received</h1>
+            <p>You have received a medicine order from a hospital</p>
+          </div>
+          <div class="content">
+            <div class="order-card">
+              <div class="order-id">Order ID: ${order.orderId}</div>
+              <p><strong>Status:</strong> Pending Confirmation</p>
+              <p><strong>Order Time:</strong> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</p>
+              <p><strong>Order Type:</strong> Hospital Order</p>
+            </div>
+            
+            <div class="patient-info">
+              <h3 style="margin-top: 0; color: #1976d2;">👤 Patient Information</h3>
+              <p><strong>Patient Name:</strong> ${patientDetails?.fullName || patientDetails?.name || 'N/A'}</p>
+              <p><strong>Patient ARC ID:</strong> ${patientArcId}</p>
+              <p><strong>Contact:</strong> ${patientDetails?.mobileNumber || patientDetails?.phone || 'N/A'}</p>
+              <p><strong>Address:</strong> ${patientDetails?.address || 'Hospital Address'}</p>
+              <p><strong>Email:</strong> ${patientDetails?.email || 'N/A'}</p>
+            </div>
+            
+            <div class="medicine-info">
+              <h3 style="margin-top: 0; color: #7b1fa2;">💊 Medicine Details</h3>
+              <p><strong>Medicine:</strong> ${medicineName}</p>
+              <p><strong>Quantity:</strong> ${quantity}</p>
+              <p><strong>Notes:</strong> ${notes || 'No additional notes'}</p>
+            </div>
+            
+            <div class="delivery-info">
+              <h3 style="margin-top: 0; color: #2e7d32;">🚚 Delivery Information</h3>
+              <p><strong>Delivery Method:</strong> Hospital Delivery</p>
+              <p><strong>Payment Method:</strong> Hospital Account</p>
+              <p><strong>Priority:</strong> High (Hospital Order)</p>
+            </div>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="https://arcular-pluse-a-unified-healthcare-peach.vercel.app/" class="cta-button" target="_blank">View Order in Dashboard</a>
+            </div>
+            
+            <p style="background-color: #fff3cd; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107; margin: 20px 0;">
+              <strong>⚠️ Action Required:</strong> Please prepare and deliver this medicine to the patient as soon as possible. Contact the patient using the provided details for delivery coordination.
+            </p>
+          </div>
+          <div class="footer">
+            <p>This is an automated notification from Arcular Plus</p>
+            <p>Please do not reply to this email</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+    
+    // Send email to pharmacy
+    try {
+      if (pharmacy.email) {
+        console.log('📧 Sending hospital order email to pharmacy:', pharmacy.email);
+        await sendEmail(pharmacy.email, `Hospital Order: ${order.orderId}`, pharmacyEmailHtml);
+        console.log('✅ Hospital order email sent successfully to:', pharmacy.email);
+      } else {
+        console.warn('⚠️ Pharmacy email not found, skipping email send');
+      }
+    } catch (emailError) {
+      console.error('❌ Error sending hospital order email to pharmacy:', emailError);
+    }
+    
+    res.json({
+      success: true,
+      message: 'Hospital order placed successfully',
+      orderId: order.orderId,
+      data: order
+    });
+
+  } catch (error) {
+    console.error('❌ Error placing hospital order:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to place hospital order',
+      message: error.message
+    });
+  }
+};
+
 module.exports = {
   placeOrder,
+  placeHospitalOrder,
   getOrdersByUser,
   getOrdersByPharmacy,
   updateOrderStatus,

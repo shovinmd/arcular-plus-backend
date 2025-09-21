@@ -6,6 +6,9 @@ const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
 // Place a new order (requires authentication)
 router.post('/place', firebaseAuthMiddleware, orderController.placeOrder);
 
+// Place hospital order to pharmacy (requires authentication)
+router.post('/hospital-order', firebaseAuthMiddleware, orderController.placeHospitalOrder);
+
 // Get orders by user (requires authentication)
 router.get('/user/:userId', firebaseAuthMiddleware, orderController.getOrdersByUser);
 
