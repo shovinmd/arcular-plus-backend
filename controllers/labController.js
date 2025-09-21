@@ -565,28 +565,42 @@ const getLabsByAffiliation = async (req, res) => {
 // Associate lab with hospital
 const associateLabWithHospital = async (req, res) => {
   try {
+    console.log('🧪 Lab association request received');
+    console.log('📋 Request params:', req.params);
+    console.log('📋 Request body:', req.body);
+    
     const { labArcId } = req.body;
     const { hospitalId } = req.params;
     
     if (!labArcId) {
+      console.log('❌ Missing labArcId in request body');
       return res.status(400).json({
         success: false,
         error: 'Lab ARC ID is required'
       });
     }
 
+    console.log('🔍 Searching for lab with ARC ID:', labArcId);
     // Find lab by ARC ID
     const lab = await Lab.findOne({ arcId: labArcId });
     if (!lab) {
+      console.log('❌ Lab not found with ARC ID:', labArcId);
       return res.status(404).json({
         success: false,
         error: 'Lab not found with the provided ARC ID'
       });
     }
 
+    console.log('✅ Found lab:', lab.labName, 'ID:', lab._id);
+
+    // Initialize affiliatedHospitals if it doesn't exist
+    if (!lab.affiliatedHospitals) {
+      lab.affiliatedHospitals = [];
+    }
+
     // Check if lab is already affiliated with this hospital
     const isAlreadyAffiliated = lab.affiliatedHospitals.some(
-      (affiliation) => affiliation.hospitalId === hospitalId
+      (affiliation) => String(affiliation.hospitalId) === String(hospitalId)
     );
 
     if (isAlreadyAffiliated) {
@@ -596,14 +610,63 @@ const associateLabWithHospital = async (req, res) => {
       });
     }
 
-    // Add hospital to lab's affiliated hospitals
-    lab.affiliatedHospitals.push({
-      hospitalId: hospitalId,
-      associatedAt: new Date(),
-      status: 'active'
-    });
+    console.log('🏥 Getting hospital details for ID:', hospitalId);
+    // Get hospital name for the affiliation
+    const Hospital = require('../models/Hospital');
+    let hospitalName = 'Unknown Hospital';
+    
+    try {
+      const hospital = await Hospital.findById(hospitalId);
+      if (hospital) {
+        hospitalName = hospital.hospitalName || hospital.name || 'Unknown Hospital';
+        console.log('🏥 Hospital found:', hospitalName);
+      } else {
+        console.log('⚠️ Hospital not found with ID:', hospitalId);
+      }
+    } catch (hospitalError) {
+      console.error('❌ Error fetching hospital:', hospitalError);
+      // Continue with default name
+    }
 
-    await lab.save();
+    // Add hospital to lab's affiliated hospitals
+    const newAffiliation = {
+      hospitalId: hospitalId,
+      hospitalName: hospitalName,
+      role: 'Partner',
+      startDate: new Date(),
+      isActive: true
+    };
+    
+    console.log('📝 Adding affiliation:', newAffiliation);
+    lab.affiliatedHospitals.push(newAffiliation);
+
+    console.log('💾 Saving lab with updated affiliations...');
+    console.log('📊 Lab data before save:', {
+      _id: lab._id,
+      labName: lab.labName,
+      affiliatedHospitals: lab.affiliatedHospitals,
+      servicesProvided: lab.servicesProvided,
+      profileImageUrl: lab.profileImageUrl
+    });
+    
+    try {
+      await lab.save();
+      console.log('✅ Lab saved successfully');
+    } catch (saveError) {
+      console.error('❌ Save error:', saveError);
+      if (saveError.name === 'ValidationError') {
+        console.error('❌ Validation errors:', saveError.errors);
+        return res.status(400).json({
+          success: false,
+          error: 'Validation error',
+          details: Object.keys(saveError.errors).map(key => ({
+            field: key,
+            message: saveError.errors[key].message
+          }))
+        });
+      }
+      throw saveError;
+    }
 
     res.json({
       success: true,
@@ -611,10 +674,12 @@ const associateLabWithHospital = async (req, res) => {
       data: lab
     });
   } catch (error) {
-    console.error('Error associating lab with hospital:', error);
+    console.error('❌ Error associating lab with hospital:', error);
+    console.error('❌ Error stack:', error.stack);
     res.status(500).json({
       success: false,
-      error: 'Failed to associate lab with hospital'
+      error: 'Failed to associate lab with hospital',
+      details: error.message
     });
   }
 };
