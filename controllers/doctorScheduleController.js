@@ -7,20 +7,35 @@ const getDoctorSchedule = async (req, res) => {
   try {
     const { doctorId } = req.params;
     
-    // Verify doctor exists
-    const doctor = await Doctor.findOne({ uid: doctorId });
+    console.log('🔍 Getting schedule for doctor ID:', doctorId);
+    
+    // Verify doctor exists - try MongoDB ID first, then Firebase UID
+    let doctor = await Doctor.findById(doctorId);
     if (!doctor) {
+      doctor = await Doctor.findOne({ uid: doctorId });
+    }
+    
+    if (!doctor) {
+      console.log('❌ Doctor not found with ID:', doctorId);
       return res.status(404).json({
         success: false,
         message: 'Doctor not found'
       });
     }
 
-    // Get all schedules for the doctor
+    console.log('✅ Doctor found:', {
+      _id: doctor._id,
+      uid: doctor.uid,
+      fullName: doctor.fullName
+    });
+
+    // Get all schedules for the doctor using MongoDB ID
     const schedules = await DoctorSchedule.find({ 
-      doctorId: doctorId,
+      doctorId: doctor._id.toString(), // Use MongoDB ID
       isActive: true 
     }).sort({ date: 1 });
+
+    console.log(`📅 Found ${schedules.length} schedules for doctor ${doctor.fullName}`);
 
     res.json({
       success: true,
@@ -41,14 +56,27 @@ const saveDoctorSchedule = async (req, res) => {
   try {
     const { doctorId, date, timeSlots } = req.body;
 
-    // Verify doctor exists
-    const doctor = await Doctor.findOne({ uid: doctorId });
+    console.log('💾 Saving schedule for doctor ID:', doctorId, 'date:', date);
+
+    // Verify doctor exists - try MongoDB ID first, then Firebase UID
+    let doctor = await Doctor.findById(doctorId);
     if (!doctor) {
+      doctor = await Doctor.findOne({ uid: doctorId });
+    }
+    
+    if (!doctor) {
+      console.log('❌ Doctor not found with ID:', doctorId);
       return res.status(404).json({
         success: false,
         message: 'Doctor not found'
       });
     }
+
+    console.log('✅ Doctor found:', {
+      _id: doctor._id,
+      uid: doctor.uid,
+      fullName: doctor.fullName
+    });
 
     // Validate time slots
     if (!timeSlots || !Array.isArray(timeSlots) || timeSlots.length === 0) {
@@ -108,11 +136,11 @@ const saveDoctorSchedule = async (req, res) => {
       }
     }
 
-    // Update or create schedule
+    // Update or create schedule using MongoDB ID
     const schedule = await DoctorSchedule.findOneAndUpdate(
-      { doctorId, date },
+      { doctorId: doctor._id.toString(), date },
       {
-        doctorId,
+        doctorId: doctor._id.toString(), // Use MongoDB ID
         date,
         timeSlots: timeSlots.map(slot => ({
           startTime: slot.startTime,
@@ -125,6 +153,13 @@ const saveDoctorSchedule = async (req, res) => {
       },
       { upsert: true, new: true }
     );
+
+    console.log('✅ Schedule saved successfully:', {
+      scheduleId: schedule._id,
+      doctorId: schedule.doctorId,
+      date: schedule.date,
+      timeSlotsCount: schedule.timeSlots.length
+    });
 
     res.json({
       success: true,
