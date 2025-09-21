@@ -87,7 +87,7 @@ const placeOrder = async (req, res) => {
     for (const item of items) {
       const totalPrice = item.sellingPrice * item.quantity;
       subtotal += totalPrice;
-      
+
       processedItems.push({
         medicineId: item.id,
         medicineName: item.name,
@@ -1002,7 +1002,7 @@ const getOrderById = async (req, res) => {
     const order = await Order.findOne({ orderId: orderId });
     if (!order) {
       return res.status(404).json({
-        success: false,
+        success: false, 
         error: 'Order not found'
       });
     }
@@ -1015,7 +1015,7 @@ const getOrderById = async (req, res) => {
   } catch (error) {
     console.error('❌ Error fetching order:', error);
     res.status(500).json({
-      success: false,
+        success: false,
       error: 'Failed to fetch order'
     });
   }
@@ -1078,7 +1078,7 @@ const getOrderStats = async (req, res) => {
       console.log(`💰 Revenue calculation (fallback): ${totalRevenueValue} from ${completedDocs.length} completed orders`);
       console.log('📊 Sample completed orders:', completedDocs.slice(0, 3).map(o => ({ totalAmount: o.totalAmount, status: o.status })));
     }
-    
+
     res.json({
       success: true,
       data: {
@@ -1090,7 +1090,7 @@ const getOrderStats = async (req, res) => {
         totalRevenue: totalRevenueValue
       }
     });
-    
+
   } catch (error) {
     console.error('❌ Error fetching order stats:', error);
     res.status(500).json({
@@ -1103,11 +1103,12 @@ const getOrderStats = async (req, res) => {
 // Place hospital order to pharmacy
 const placeHospitalOrder = async (req, res) => {
   try {
-    const { pharmacyId, patientArcId, medicineName, quantity, notes, pharmacyName, patientDetails } = req.body;
+    const { pharmacyId, patientArcId, medicineId, medicineName, quantity, unitPrice, subtotal, deliveryFee, totalAmount, notes, pharmacyName, patientDetails } = req.body;
     
     console.log('🏥 Hospital order received:', {
       pharmacyId,
       patientArcId,
+      medicineId,
       medicineName,
       quantity,
       pharmacyName
@@ -1122,13 +1123,63 @@ const placeHospitalOrder = async (req, res) => {
       });
     }
     
+    // Get medicine information to get the price
+    const Medicine = require('../models/Medicine');
+    const medicine = await Medicine.findOne({
+      _id: medicineId,
+      pharmacyId: pharmacy._id
+    });
+    
+    if (!medicine) {
+      return res.status(404).json({
+        success: false,
+        error: 'Medicine not found in pharmacy inventory'
+      });
+    }
+    
+    console.log('💊 Medicine found:', {
+      name: medicine.name,
+      sellingPrice: medicine.sellingPrice,
+      unitPrice: medicine.unitPrice
+    });
+    
+    // Calculate prices using real medicine data
+    const medicineUnitPrice = medicine.unitPrice || 0;
+    const medicineSellingPrice = medicine.sellingPrice || 0;
+    const totalPrice = medicineSellingPrice * quantity;
+    const hospitalDeliveryFee = 30; // Fixed delivery charge
+    const hospitalSubtotal = totalPrice;
+    const hospitalTotalAmount = hospitalSubtotal + hospitalDeliveryFee;
+    
+    console.log('💰 Price calculation:', {
+      unitPrice: medicineUnitPrice,
+      sellingPrice: medicineSellingPrice,
+      quantity,
+      totalPrice,
+      deliveryFee: hospitalDeliveryFee,
+      subtotal: hospitalSubtotal,
+      totalAmount: hospitalTotalAmount
+    });
+    
+    // Get patient's Firebase UID for order tracking
+    const User = require('../models/User');
+    const patient = await User.findOne({ arcId: patientArcId });
+    const patientUserId = patient ? patient.uid : patientArcId; // Fallback to ARC ID if user not found
+    
+    console.log('👤 Patient lookup:', {
+      arcId: patientArcId,
+      found: !!patient,
+      uid: patient?.uid,
+      usingUserId: patientUserId
+    });
+    
     // Generate unique order ID
     const orderId = `HOSP-ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
     
     // Create order data
     const order = new Order({
       orderId: orderId,
-      userId: patientArcId, // Use patient ARC ID as user ID
+      userId: patientUserId, // Use patient's Firebase UID for order tracking
       userName: patientDetails?.fullName || patientDetails?.name || 'Patient',
       userEmail: patientDetails?.email || 'hospital@arcular.com',
       userPhone: patientDetails?.mobileNumber || patientDetails?.phone || 'Hospital Order',
@@ -1149,18 +1200,18 @@ const placeHospitalOrder = async (req, res) => {
         pincode: pharmacy.pincode
       },
       items: [{
-        medicineId: 'hospital-order',
-        medicineName: medicineName,
-        category: 'Prescription',
-        type: 'Tablet',
+        medicineId: medicine._id,
+        medicineName: medicine.name,
+        category: medicine.category || 'Prescription',
+        type: medicine.type || 'Tablet',
         quantity: quantity,
-        unitPrice: 0,
-        sellingPrice: 0,
-        totalPrice: 0
+        unitPrice: medicineUnitPrice,
+        sellingPrice: medicineSellingPrice,
+        totalPrice: totalPrice
       }],
-      subtotal: 0,
-      deliveryFee: 0,
-      totalAmount: 0,
+      subtotal: hospitalSubtotal,
+      deliveryFee: hospitalDeliveryFee,
+      totalAmount: hospitalTotalAmount,
       deliveryMethod: 'Home Delivery',
       paymentMethod: 'Cash on Delivery',
       userNotes: notes || 'Hospital order for patient',
@@ -1174,6 +1225,32 @@ const placeHospitalOrder = async (req, res) => {
     
     await order.save();
     console.log('✅ Hospital order created successfully:', order.orderId);
+    
+    // Update pharmacy inventory stock for the ordered medicine
+    try {
+      const newStock = Math.max(0, (medicine.stock || 0) - quantity);
+      const newStockQuantity = Math.max(0, (medicine.stockQuantity || medicine.stock || 0) - quantity);
+      let newStatus = 'In Stock';
+      if (newStock <= 0) newStatus = 'Out of Stock';
+      else if (newStock <= (medicine.minStock || 10)) newStatus = 'Low Stock';
+
+      await Medicine.updateOne(
+        { _id: medicine._id },
+        {
+          $set: { 
+            stock: newStock, 
+            stockQuantity: newStockQuantity, 
+            status: newStatus, 
+            lastUpdated: new Date().toISOString().split('T')[0] 
+          }
+        }
+      );
+
+      console.log(`📉 Stock updated for ${medicine.name}: ${medicine.stock} -> ${newStock}`);
+    } catch (stockError) {
+      console.error('❌ Error updating stock after hospital order placement:', stockError);
+      // Continue without failing the order
+    }
     
     // Send email to pharmacy with patient details
     const pharmacyEmailHtml = `
@@ -1210,8 +1287,8 @@ const placeHospitalOrder = async (req, res) => {
               <p><strong>Status:</strong> Pending Confirmation</p>
               <p><strong>Order Time:</strong> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</p>
               <p><strong>Order Type:</strong> Hospital Order</p>
-            </div>
-            
+          </div>
+          
             <div class="patient-info">
               <h3 style="margin-top: 0; color: #1976d2;">👤 Patient Information</h3>
               <p><strong>Patient Name:</strong> ${patientDetails?.fullName || patientDetails?.name || 'N/A'}</p>
@@ -1219,30 +1296,35 @@ const placeHospitalOrder = async (req, res) => {
               <p><strong>Contact:</strong> ${patientDetails?.mobileNumber || patientDetails?.phone || 'N/A'}</p>
               <p><strong>Address:</strong> ${patientDetails?.address || 'Hospital Address'}</p>
               <p><strong>Email:</strong> ${patientDetails?.email || 'N/A'}</p>
-            </div>
+              </div>
             
             <div class="medicine-info">
               <h3 style="margin-top: 0; color: #7b1fa2;">💊 Medicine Details</h3>
-              <p><strong>Medicine:</strong> ${medicineName}</p>
+              <p><strong>Medicine:</strong> ${medicine.name}</p>
               <p><strong>Quantity:</strong> ${quantity}</p>
+              <p><strong>Unit Price:</strong> ₹${medicineUnitPrice}</p>
+              <p><strong>Selling Price:</strong> ₹${medicineSellingPrice}</p>
+              <p><strong>Total Price:</strong> ₹${totalPrice}</p>
+              <p><strong>Delivery Fee:</strong> ₹${hospitalDeliveryFee}</p>
+              <p><strong>Total Amount:</strong> ₹${hospitalTotalAmount}</p>
               <p><strong>Notes:</strong> ${notes || 'No additional notes'}</p>
             </div>
-            
+          
             <div class="delivery-info">
               <h3 style="margin-top: 0; color: #2e7d32;">🚚 Delivery Information</h3>
               <p><strong>Delivery Method:</strong> Hospital Delivery</p>
               <p><strong>Payment Method:</strong> Hospital Account</p>
               <p><strong>Priority:</strong> High (Hospital Order)</p>
-            </div>
-            
+          </div>
+          
             <div style="text-align: center; margin: 30px 0;">
               <a href="https://arcular-pluse-a-unified-healthcare-peach.vercel.app/" class="cta-button" target="_blank">View Order in Dashboard</a>
             </div>
             
             <p style="background-color: #fff3cd; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107; margin: 20px 0;">
               <strong>⚠️ Action Required:</strong> Please prepare and deliver this medicine to the patient as soon as possible. Contact the patient using the provided details for delivery coordination.
-            </p>
-          </div>
+          </p>
+        </div>
           <div class="footer">
             <p>This is an automated notification from Arcular Plus</p>
             <p>Please do not reply to this email</p>
