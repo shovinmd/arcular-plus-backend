@@ -101,9 +101,9 @@ const registerHospital = async (req, res) => {
     }
     
     // Also check main body for document URLs (fallback)
-    if (req.body.licenseDocumentUrl) {
+      if (req.body.licenseDocumentUrl) {
       console.log('✅ Found licenseDocumentUrl in main body:', req.body.licenseDocumentUrl);
-    }
+      }
     if (req.body.registrationCertificateUrl) {
       console.log('✅ Found registrationCertificateUrl in main body:', req.body.registrationCertificateUrl);
     }
@@ -638,7 +638,7 @@ const approveHospitalByStaff = async (req, res) => {
       if (isObjectId) {
         hospital = await Hospital.findById(hospitalId);
       }
-      if (!hospital) {
+    if (!hospital) {
         hospital = await Hospital.findOne({ uid: hospitalId });
       }
     } catch (lookupErr) {
@@ -676,7 +676,7 @@ const approveHospitalByStaff = async (req, res) => {
     hospital.approvedAt = new Date();
     hospital.approvedBy = approvedBy || staffUid || 'staff';
     hospital.approvalNotes = notes || 'Approved by staff';
-
+    
     await hospital.save();
     console.log('✅ Hospital approved and saved:', { id: hospital._id, uid: hospital.uid });
 
