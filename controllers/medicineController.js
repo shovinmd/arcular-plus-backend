@@ -328,6 +328,70 @@ const searchMedicines = async (req, res) => {
   }
 };
 
+// Save medicine QR code
+const saveMedicineQRCode = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { qrCodeData } = req.body;
+
+    const medicine = await Medicine.findById(id);
+    if (!medicine) {
+      return res.status(404).json({
+        success: false,
+        message: 'Medicine not found'
+      });
+    }
+
+    // Update medicine with QR code data
+    medicine.qrCodeData = qrCodeData;
+    medicine.qrCodeGeneratedAt = new Date();
+    await medicine.save();
+
+    res.json({
+      success: true,
+      message: 'QR code saved successfully',
+      data: {
+        medicineId: medicine._id,
+        qrCodeData: qrCodeData
+      }
+    });
+  } catch (error) {
+    console.error('Error saving medicine QR code:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to save QR code',
+      error: error.message
+    });
+  }
+};
+
+// Get medicine by QR code
+const getMedicineByQRCode = async (req, res) => {
+  try {
+    const { qrCode } = req.params;
+
+    const medicine = await Medicine.findOne({ qrCodeData: qrCode });
+    if (!medicine) {
+      return res.status(404).json({
+        success: false,
+        message: 'Medicine not found for this QR code'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: medicine
+    });
+  } catch (error) {
+    console.error('Error getting medicine by QR code:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get medicine by QR code',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getMedicines,
   getMedicineById,
@@ -336,5 +400,7 @@ module.exports = {
   updateMedicine,
   deleteMedicine,
   getMedicineCategories,
-  searchMedicines
+  searchMedicines,
+  saveMedicineQRCode,
+  getMedicineByQRCode
 };

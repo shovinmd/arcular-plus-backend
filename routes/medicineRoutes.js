@@ -27,4 +27,10 @@ router.put('/:id', verifyFirebaseToken, medicineController.updateMedicine);
 // Delete medicine (pharmacy only)
 router.delete('/:id', verifyFirebaseToken, medicineController.deleteMedicine);
 
+// Save medicine QR code
+router.post('/:id/qr-code', verifyFirebaseToken, medicineController.saveMedicineQRCode);
+
+// Get medicine by QR code
+router.get('/qr/:qrCode', medicineController.getMedicineByQRCode);
+
 module.exports = router;

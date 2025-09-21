@@ -171,6 +171,16 @@ const medicineSchema = new mongoose.Schema({
     default: false
   },
   
+  // QR Code Information
+  qrCodeData: {
+    type: String,
+    default: null
+  },
+  qrCodeGeneratedAt: {
+    type: Date,
+    default: null
+  },
+  
   // Timestamps
   createdAt: {
     type: Date,
