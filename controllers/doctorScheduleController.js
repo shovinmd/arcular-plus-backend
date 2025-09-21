@@ -54,9 +54,10 @@ const getDoctorSchedule = async (req, res) => {
 // Save or update doctor schedule
 const saveDoctorSchedule = async (req, res) => {
   try {
-    const { doctorId, date, timeSlots } = req.body;
+    const { doctorId, date, timeSlots, hospitalSchedules, availabilitySettings } = req.body;
 
     console.log('💾 Saving schedule for doctor ID:', doctorId, 'date:', date);
+    console.log('🏥 Hospital schedules:', hospitalSchedules ? hospitalSchedules.length : 0);
 
     // Verify doctor exists - try MongoDB ID first, then Firebase UID
     let doctor = await Doctor.findById(doctorId);
@@ -75,7 +76,8 @@ const saveDoctorSchedule = async (req, res) => {
     console.log('✅ Doctor found:', {
       _id: doctor._id,
       uid: doctor.uid,
-      fullName: doctor.fullName
+      fullName: doctor.fullName,
+      affiliatedHospitals: doctor.affiliatedHospitals?.length || 0
     });
 
     // Validate time slots
@@ -136,21 +138,61 @@ const saveDoctorSchedule = async (req, res) => {
       }
     }
 
-    // Update or create schedule using MongoDB ID
-    const schedule = await DoctorSchedule.findOneAndUpdate(
-      { doctorId: doctor._id.toString(), date },
-      {
-        doctorId: doctor._id.toString(), // Use MongoDB ID
-        date,
+    // Prepare hospital schedules if provided
+    let processedHospitalSchedules = [];
+    if (hospitalSchedules && Array.isArray(hospitalSchedules)) {
+      processedHospitalSchedules = hospitalSchedules.map(hospitalSchedule => ({
+        hospitalId: hospitalSchedule.hospitalId,
+        hospitalName: hospitalSchedule.hospitalName,
+        timeSlots: hospitalSchedule.timeSlots.map(slot => ({
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          isAvailable: slot.isAvailable !== undefined ? slot.isAvailable : true,
+          maxBookings: slot.maxBookings || 1,
+          currentBookings: 0, // Reset current bookings
+          bookingType: slot.bookingType || 'consultation'
+        })),
+        isActive: hospitalSchedule.isActive !== undefined ? hospitalSchedule.isActive : true
+      }));
+    } else if (doctor.affiliatedHospitals && doctor.affiliatedHospitals.length > 0) {
+      // Create default hospital schedules for all affiliated hospitals
+      processedHospitalSchedules = doctor.affiliatedHospitals.map(hospital => ({
+        hospitalId: hospital.hospitalId,
+        hospitalName: hospital.hospitalName,
         timeSlots: timeSlots.map(slot => ({
           startTime: slot.startTime,
           endTime: slot.endTime,
           isAvailable: slot.isAvailable !== undefined ? slot.isAvailable : true,
           maxBookings: slot.maxBookings || 1,
-          currentBookings: 0 // Reset current bookings
+          currentBookings: 0,
+          bookingType: 'consultation'
         })),
         isActive: true
-      },
+      }));
+    }
+
+    // Update or create schedule using MongoDB ID
+    const scheduleData = {
+      doctorId: doctor._id.toString(), // Use MongoDB ID
+      date,
+      timeSlots: timeSlots.map(slot => ({
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        isAvailable: slot.isAvailable !== undefined ? slot.isAvailable : true,
+        maxBookings: slot.maxBookings || 1,
+        currentBookings: 0 // Reset current bookings
+      })),
+      isActive: true
+    };
+
+    // Add hospital schedules if available
+    if (processedHospitalSchedules.length > 0) {
+      scheduleData.hospitalSchedules = processedHospitalSchedules;
+    }
+
+    const schedule = await DoctorSchedule.findOneAndUpdate(
+      { doctorId: doctor._id.toString(), date },
+      scheduleData,
       { upsert: true, new: true }
     );
 
@@ -158,7 +200,8 @@ const saveDoctorSchedule = async (req, res) => {
       scheduleId: schedule._id,
       doctorId: schedule.doctorId,
       date: schedule.date,
-      timeSlotsCount: schedule.timeSlots.length
+      timeSlotsCount: schedule.timeSlots.length,
+      hospitalSchedulesCount: schedule.hospitalSchedules?.length || 0
     });
 
     res.json({
@@ -415,11 +458,191 @@ const deleteDoctorSchedule = async (req, res) => {
   }
 };
 
+// Get available time slots for a specific doctor, date, and hospital
+const getAvailableTimeSlotsForHospital = async (req, res) => {
+  try {
+    const { doctorId } = req.params;
+    const { date, hospitalId } = req.query;
+
+    console.log('🏥 Getting time slots for doctor:', doctorId, 'date:', date, 'hospital:', hospitalId);
+
+    if (!doctorId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Doctor ID is required'
+      });
+    }
+
+    if (!date) {
+      return res.status(400).json({
+        success: false,
+        message: 'Date parameter is required'
+      });
+    }
+
+    if (!hospitalId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Hospital ID is required'
+      });
+    }
+
+    // Get doctor schedule for the specific date
+    const schedule = await DoctorSchedule.findOne({
+      doctorId,
+      date,
+      isActive: true
+    });
+
+    if (!schedule) {
+      return res.json({
+        success: true,
+        data: [],
+        message: 'No schedule found for this date'
+      });
+    }
+
+    // Get available slots for the specific hospital
+    const availableSlots = schedule.getAvailableSlotsForHospital(hospitalId);
+
+    console.log(`🏥 Found ${availableSlots.length} available slots for hospital ${hospitalId}`);
+
+    res.json({
+      success: true,
+      data: availableSlots.map(slot => ({
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        bookingType: slot.bookingType,
+        maxBookings: slot.maxBookings,
+        currentBookings: slot.currentBookings
+      }))
+    });
+  } catch (error) {
+    console.error('Error getting available time slots for hospital:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get available time slots for hospital',
+      error: error.message
+    });
+  }
+};
+
+// Get all hospital schedules with availability for a doctor and date
+const getHospitalSchedulesWithAvailability = async (req, res) => {
+  try {
+    const { doctorId } = req.params;
+    const { date } = req.query;
+
+    console.log('🏥 Getting hospital schedules for doctor:', doctorId, 'date:', date);
+
+    if (!doctorId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Doctor ID is required'
+      });
+    }
+
+    if (!date) {
+      return res.status(400).json({
+        success: false,
+        message: 'Date parameter is required'
+      });
+    }
+
+    // Get doctor schedule for the specific date
+    const schedule = await DoctorSchedule.findOne({
+      doctorId,
+      date,
+      isActive: true
+    });
+
+    if (!schedule) {
+      return res.json({
+        success: true,
+        data: [],
+        message: 'No schedule found for this date'
+      });
+    }
+
+    // Get hospital schedules with availability
+    const hospitalSchedules = schedule.getHospitalSchedulesWithAvailability();
+
+    console.log(`🏥 Found ${hospitalSchedules.length} hospital schedules`);
+
+    res.json({
+      success: true,
+      data: hospitalSchedules
+    });
+  } catch (error) {
+    console.error('Error getting hospital schedules with availability:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get hospital schedules with availability',
+      error: error.message
+    });
+  }
+};
+
+// Book a time slot for a specific hospital
+const bookTimeSlotForHospital = async (req, res) => {
+  try {
+    const { doctorId, date, hospitalId, startTime, endTime, bookingType = 'consultation' } = req.body;
+
+    console.log('📅 Booking slot for hospital:', {
+      doctorId,
+      date,
+      hospitalId,
+      startTime,
+      endTime,
+      bookingType
+    });
+
+    const schedule = await DoctorSchedule.findOne({
+      doctorId,
+      date,
+      isActive: true
+    });
+
+    if (!schedule) {
+      return res.status(404).json({
+        success: false,
+        message: 'Schedule not found for this date'
+      });
+    }
+
+    const success = schedule.bookSlotForHospital(hospitalId, startTime, endTime, bookingType);
+    
+    if (!success) {
+      return res.status(400).json({
+        success: false,
+        message: 'Time slot is not available or fully booked for this hospital'
+      });
+    }
+
+    await schedule.save();
+
+    res.json({
+      success: true,
+      message: 'Time slot booked successfully for hospital'
+    });
+  } catch (error) {
+    console.error('Error booking time slot for hospital:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to book time slot for hospital',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getDoctorSchedule,
   saveDoctorSchedule,
   getAvailableTimeSlots,
+  getAvailableTimeSlotsForHospital,
+  getHospitalSchedulesWithAvailability,
   bookTimeSlot,
+  bookTimeSlotForHospital,
   cancelTimeSlotBooking,
   deleteDoctorSchedule
 };
