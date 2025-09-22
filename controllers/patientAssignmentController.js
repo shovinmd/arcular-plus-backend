@@ -44,12 +44,21 @@ const createAssignment = async (req, res) => {
       return res.status(404).json({ success: false, error: 'Patient not found' });
     }
 
+    // Build identifier variants to accept both with/without ARC- prefix
+    const buildIdVariants = (value) => {
+      const raw = String(value || '').trim();
+      const noArc = raw.replace(/^ARC[-_]?/i, '');
+      const withArc = `ARC-${noArc}`;
+      return Array.from(new Set([raw, noArc, withArc]));
+    };
+    const doctorIdVariants = buildIdVariants(doctorArcId);
+
     // Find doctor by multiple identifiers for compatibility (User collection)
     let doctor = await User.findOne({
       $and: [
         { $or: [
-          { arcId: doctorArcId },
-          { healthQrId: doctorArcId },
+          { arcId: { $in: doctorIdVariants } },
+          { healthQrId: { $in: doctorIdVariants } },
           { uid: doctorArcId },
           { email: doctorArcId }
         ] },
@@ -62,7 +71,7 @@ const createAssignment = async (req, res) => {
       const DoctorModel = require('../models/Doctor');
       const doctorDoc = await DoctorModel.findOne({
         $or: [
-          { arcId: doctorArcId },
+          { arcId: { $in: doctorIdVariants } },
           { uid: doctorArcId },
           { email: doctorArcId }
         ]
