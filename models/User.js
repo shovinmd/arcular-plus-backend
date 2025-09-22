@@ -54,7 +54,7 @@ const UserSchema = new mongoose.Schema({
   periodDuration: Number, // Added missing field
   cycleHistory: [Object], // Added missing field
   healthQrId: String, // for QR code
-  arcId: { type: String, unique: true }, // Arcular ID
+  arcId: { type: String, unique: true, sparse: true }, // Arcular ID
   qrCode: String, // QR code data (base64 or URL)
   profileImageUrl: String, // URL to user's profile image
   

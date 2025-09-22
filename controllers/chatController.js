@@ -23,18 +23,57 @@ exports.sendMessage = async (req, res) => {
         try {
           console.log('🆕 Creating minimal user record for UID:', req.user.uid);
           const userEmail = req.user.email || `${req.user.uid}@temp.com`;
-          currentUser = new User({
-            uid: req.user.uid,
-            email: userEmail,
-            fullName: req.user.name || 'Unknown User',
-            type: 'nurse', // Default to nurse for chat functionality
-            createdAt: new Date(),
-          });
-          await currentUser.save();
-          console.log('✅ Minimal user created with ID:', currentUser._id);
+          
+          // Check if user already exists with this email (to avoid duplicate key errors)
+          const existingUser = await User.findOne({ email: userEmail });
+          if (existingUser) {
+            console.log('👤 Found existing user with same email, using that instead');
+            currentUser = existingUser;
+          } else {
+            currentUser = new User({
+              uid: req.user.uid,
+              email: userEmail,
+              fullName: req.user.name || 'Unknown User',
+              type: 'nurse', // Default to nurse for chat functionality
+              createdAt: new Date(),
+              // Don't set arcId to avoid unique constraint issues with null values
+            });
+            await currentUser.save();
+            console.log('✅ Minimal user created with ID:', currentUser._id);
+          }
         } catch (createError) {
           console.error('❌ Error creating minimal user:', createError.message);
-          return res.status(500).json({ success: false, message: 'Failed to create user record', error: createError.message });
+          
+          // If it's a duplicate key error, try to find the existing user
+          if (createError.code === 11000) {
+            console.log('🔄 Duplicate key error, trying to find existing user...');
+            currentUser = await User.findOne({ uid: req.user.uid });
+            if (!currentUser) {
+              currentUser = await User.findOne({ email: req.user.email || `${req.user.uid}@temp.com` });
+            }
+            if (currentUser) {
+              console.log('✅ Found existing user after duplicate key error');
+            } else {
+              // If still no user found, try to create with a unique email
+              try {
+                const uniqueEmail = `${req.user.uid}-${Date.now()}@temp.com`;
+                currentUser = new User({
+                  uid: req.user.uid,
+                  email: uniqueEmail,
+                  fullName: req.user.name || 'Unknown User',
+                  type: 'nurse',
+                  createdAt: new Date(),
+                });
+                await currentUser.save();
+                console.log('✅ Created user with unique email:', uniqueEmail);
+              } catch (retryError) {
+                console.error('❌ Failed to create user even with unique email:', retryError.message);
+                return res.status(500).json({ success: false, message: 'Failed to create or find user record', error: retryError.message });
+              }
+            }
+          } else {
+            return res.status(500).json({ success: false, message: 'Failed to create user record', error: createError.message });
+          }
         }
       }
     }
