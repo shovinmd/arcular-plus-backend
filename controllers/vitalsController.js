@@ -82,7 +82,6 @@ const getVitalsForPatient = async (req, res) => {
   }
 };
 
-module.exports = { recordVitals, getVitalsForPatient };
 // Update existing vitals
 const updateVitals = async (req, res) => {
   try {
@@ -110,7 +109,6 @@ const deleteVital = async (req, res) => {
   }
 };
 
-module.exports.updateVitals = updateVitals;
-module.exports.deleteVital = deleteVital;
+module.exports = { recordVitals, getVitalsForPatient, updateVitals, deleteVital };
 
 
