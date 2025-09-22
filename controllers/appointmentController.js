@@ -298,7 +298,11 @@ const getUserAppointments = async (req, res) => {
     const query = { userId: firebaseUser.uid };
 
     if (status) {
+      // Exact status filter when provided
       query.appointmentStatus = status;
+    } else {
+      // Default: include active and completed appointments
+      query.appointmentStatus = { $in: ['confirmed', 'pending', 'scheduled', 'approved', 'completed'] };
     }
 
     const appointments = await Appointment.find(query)
