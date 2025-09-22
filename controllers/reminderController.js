@@ -26,15 +26,71 @@ const createReminder = async (req, res) => {
     } = req.body;
 
     // Validate required fields
-    if (!title || !patientArcId || !patientId || !doctorId || !hospitalId) {
+    if (!title || !patientArcId) {
       return res.status(400).json({
         success: false,
-        message: 'Missing required fields: title, patientArcId, patientId, doctorId, hospitalId'
+        message: 'Missing required fields: title, patientArcId'
+      });
+    }
+
+    // Resolve missing IDs when not provided by client
+    let resolvedPatientId = patientId;
+    let resolvedDoctorId = doctorId;
+    let resolvedHospitalId = hospitalId;
+
+    // Resolve doctor from authenticated user if not provided
+    if (!resolvedDoctorId && req.user && req.user.uid) {
+      const doctorUser = await User.findOne({ uid: req.user.uid });
+      if (doctorUser) {
+        resolvedDoctorId = doctorUser._id;
+      }
+    }
+
+    // Resolve patient by ARC ID if not provided
+    if (!resolvedPatientId) {
+      const patient = await User.findOne({
+        $or: [
+          { healthQrId: patientArcId },
+          { arcId: patientArcId },
+        ],
+      });
+      if (patient) {
+        resolvedPatientId = patient._id;
+      }
+    }
+
+    // Try to resolve hospital from latest patient assignment, or from doctor's profile
+    if (!resolvedHospitalId) {
+      try {
+        const PatientAssignment = require('../models/PatientAssignment');
+        const latestAssignment = await PatientAssignment.findOne({ patientArcId })
+          .sort({ createdAt: -1 })
+          .lean();
+        if (latestAssignment && latestAssignment.hospitalId) {
+          resolvedHospitalId = latestAssignment.hospitalId;
+        }
+      } catch (_) {
+        // ignore if model not available
+      }
+      if (!resolvedHospitalId && resolvedDoctorId) {
+        // Try from Doctor profile
+        const doctorProfile = await Doctor.findOne({ userId: resolvedDoctorId }).lean();
+        if (doctorProfile && doctorProfile.hospitalId) {
+          resolvedHospitalId = doctorProfile.hospitalId;
+        }
+      }
+    }
+
+    // Final validation after auto-resolution
+    if (!resolvedPatientId || !resolvedDoctorId || !resolvedHospitalId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Unable to resolve patient/doctor/hospital. Provide patientId, doctorId, and hospitalId or ensure ARC ID and authenticated doctor are valid.'
       });
     }
 
     // Verify patient exists
-    const patient = await User.findById(patientId);
+    const patient = await User.findById(resolvedPatientId);
     if (!patient) {
       return res.status(404).json({
         success: false,
@@ -43,7 +99,7 @@ const createReminder = async (req, res) => {
     }
 
     // Verify doctor exists
-    const doctor = await User.findById(doctorId);
+    const doctor = await User.findById(resolvedDoctorId);
     if (!doctor) {
       return res.status(404).json({
         success: false,
@@ -52,7 +108,7 @@ const createReminder = async (req, res) => {
     }
 
     // Verify hospital exists
-    const hospital = await Hospital.findById(hospitalId);
+    const hospital = await Hospital.findById(resolvedHospitalId);
     if (!hospital) {
       return res.status(404).json({
         success: false,
@@ -88,10 +144,10 @@ const createReminder = async (req, res) => {
       title,
       notes,
       patientArcId,
-      patientId,
-      doctorId,
+      patientId: resolvedPatientId,
+      doctorId: resolvedDoctorId,
       nurseId,
-      hospitalId,
+      hospitalId: resolvedHospitalId,
       priority,
       dueAt: parsedDueAt,
       dueTime,
