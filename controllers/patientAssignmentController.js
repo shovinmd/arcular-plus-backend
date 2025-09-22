@@ -80,7 +80,23 @@ const createAssignment = async (req, res) => {
         // Try to resolve linked User by uid or email
         doctor = await User.findOne({ $or: [ { uid: doctorDoc.uid }, { email: doctorDoc.email } ] });
         if (!doctor) {
-          return res.status(404).json({ success: false, error: 'Doctor not found (no linked user account)' });
+          // Auto-create minimal linked User for doctor to maintain schema consistency
+          try {
+            const newUserPayload = {
+              uid: doctorDoc.uid || `doc_${doctorDoc._id}`,
+              email: doctorDoc.email || `${(doctorDoc.fullName || 'doctor').toLowerCase().replace(/\s+/g, '.')}.${doctorDoc._id}@arcular.local`,
+              fullName: doctorDoc.fullName || 'Doctor',
+              type: 'doctor',
+              role: 'doctor',
+              arcId: doctorDoc.arcId,
+              specialization: doctorDoc.specialization,
+              consultationFee: doctorDoc.consultationFee,
+              affiliatedHospitals: Array.isArray(doctorDoc.affiliatedHospitals) ? doctorDoc.affiliatedHospitals.map(h => h.hospitalId || h) : []
+            };
+            doctor = await User.create(newUserPayload);
+          } catch (createErr) {
+            return res.status(404).json({ success: false, error: 'Doctor not found (failed to create linked user)' });
+          }
         }
       }
     }
