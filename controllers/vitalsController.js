@@ -83,5 +83,34 @@ const getVitalsForPatient = async (req, res) => {
 };
 
 module.exports = { recordVitals, getVitalsForPatient };
+// Update existing vitals
+const updateVitals = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body || {};
+    const vital = await PatientVital.findByIdAndUpdate(id, updates, { new: true });
+    if (!vital) return res.status(404).json({ success: false, error: 'Not found' });
+    return res.json({ success: true, data: vital });
+  } catch (error) {
+    console.error('Error updating vitals:', error);
+    return res.status(500).json({ success: false, error: 'Failed to update vitals' });
+  }
+};
+
+// Delete vitals
+const deleteVital = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const vital = await PatientVital.findByIdAndDelete(id);
+    if (!vital) return res.status(404).json({ success: false, error: 'Not found' });
+    return res.json({ success: true, message: 'Deleted' });
+  } catch (error) {
+    console.error('Error deleting vitals:', error);
+    return res.status(500).json({ success: false, error: 'Failed to delete vitals' });
+  }
+};
+
+module.exports.updateVitals = updateVitals;
+module.exports.deleteVital = deleteVital;
 
 
