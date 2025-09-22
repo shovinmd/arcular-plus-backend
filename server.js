@@ -187,6 +187,11 @@ app.post('/api/patient-assignments/create', (req, res, next) => {
   next();
 }, firebaseAuthMiddleware, patientAssignmentController.createAssignment);
 
+// Safety net GET endpoints to fetch assignments (doctor/nurse/hospital)
+app.get('/api/patient-assignments/doctor', firebaseAuthMiddleware, patientAssignmentController.getDoctorAssignments);
+app.get('/api/patient-assignments/nurse', firebaseAuthMiddleware, patientAssignmentController.getNurseAssignments);
+app.get('/api/patient-assignments/hospital', firebaseAuthMiddleware, patientAssignmentController.getHospitalAssignments);
+
 // Route probes for troubleshooting routing vs auth
 app.get('/api/patient-assignments/create', (req, res) => {
   res.json({ ok: true, method: 'GET', note: 'POST with Bearer token is required for creation', marker: DEPLOY_MARKER });
