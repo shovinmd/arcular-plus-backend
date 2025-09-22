@@ -9,7 +9,7 @@ const session = require('express-session');
 require('dotenv').config();
 
 // Simple deploy marker to verify latest build is running in production
-const DEPLOY_MARKER = 'PA_ASSIGNMENTS_DEBUG_2025-09-22_1';
+const DEPLOY_MARKER = 'NURSE_TALK_ROUTES_2025-09-22_2';
 
 // Import Firebase Admin (already initialized in firebase.js)
 const { admin, testFirebaseConnection, isStorageAvailable } = require('./firebase');
@@ -217,6 +217,21 @@ app.use('/api/vitals', vitalsRoutes);
 app.use('/api/reminders', reminderRoutes);
 app.use('/api/chats', chatRoutes);
 app.use('/api/nurse-talk', nurseTalkRoutes);
+
+// Test endpoint for NurseTalk routes
+app.get('/api/nurse-talk/test', (req, res) => {
+  res.json({ 
+    success: true, 
+    message: 'NurseTalk routes are working!',
+    timestamp: new Date().toISOString(),
+    routes: [
+      'GET /api/nurse-talk/nurses',
+      'GET /api/nurse-talk/handover',
+      'POST /api/nurse-talk/send',
+      'GET /api/nurse-talk/messages/:receiverId'
+    ]
+  });
+});
 app.use('/api/test-requests', testRequestRoutes);
 
 // Canonical creation endpoint (kept for strict frontend usage)
@@ -248,7 +263,8 @@ app.get('/api/deploy-info', (req, res) => {
     env: process.env.NODE_ENV || 'development',
     timestamp: new Date().toISOString(),
     probes: {
-      patientAssignmentsProbe: '/api/patient-assignments/_probe'
+      patientAssignmentsProbe: '/api/patient-assignments/_probe',
+      nurseTalkProbe: '/api/nurse-talk/test'
     }
   });
 });

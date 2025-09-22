@@ -12,7 +12,10 @@ router.get('/test', (req, res) => {
 router.use(firebaseAuthMiddleware);
 
 // Get nurses in the same hospital
-router.get('/nurses', nurseTalkController.getHospitalNurses);
+router.get('/nurses', (req, res, next) => {
+  console.log('🏥 NurseTalk: GET /nurses route hit');
+  next();
+}, nurseTalkController.getHospitalNurses);
 
 // Send message to another nurse
 router.post('/send', nurseTalkController.sendMessage);
@@ -21,7 +24,10 @@ router.post('/send', nurseTalkController.sendMessage);
 router.get('/messages/:receiverId', nurseTalkController.getMessages);
 
 // Get handover notes for the hospital
-router.get('/handover', nurseTalkController.getHandoverNotes);
+router.get('/handover', (req, res, next) => {
+  console.log('📝 NurseTalk: GET /handover route hit');
+  next();
+}, nurseTalkController.getHandoverNotes);
 
 // Mark message as read
 router.patch('/read/:messageId', nurseTalkController.markAsRead);
