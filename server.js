@@ -47,6 +47,7 @@ const patientRecordsRoutes = require('./routes/patientRecords');
 const patientAssignmentRoutes = require('./routes/patientAssignmentRoutes');
 const testRequestRoutes = require('./routes/testRequestRoutes');
 const reminderRoutes = require('./routes/reminderRoutes');
+const chatRoutes = require('./routes/chatRoutes');
 // Direct controller/middleware imports for hard-wiring critical routes
 const patientAssignmentController = require('./controllers/patientAssignmentController');
 const firebaseAuthMiddleware = require('./middleware/firebaseAuthMiddleware');
@@ -183,6 +184,7 @@ app.use('/api/patient-records', patientRecordsRoutes);
 app.use('/api/patient-assignments', patientAssignmentRoutes);
 app.use('/api/vitals', vitalsRoutes);
 app.use('/api/reminders', reminderRoutes);
+app.use('/api/chats', chatRoutes);
 app.use('/api/test-requests', testRequestRoutes);
 
 // Canonical creation endpoint (kept for strict frontend usage)
