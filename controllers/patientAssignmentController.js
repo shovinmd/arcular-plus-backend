@@ -45,7 +45,7 @@ const createAssignment = async (req, res) => {
     }
 
     // Find doctor by multiple identifiers for compatibility (User collection)
-    const doctor = await User.findOne({
+    let doctor = await User.findOne({
       $and: [
         { $or: [
           { arcId: doctorArcId },
@@ -56,6 +56,25 @@ const createAssignment = async (req, res) => {
         { $or: [ { type: 'doctor' }, { role: 'doctor' } ] }
       ]
     });
+    
+    // Fallback: if not found in User, try Doctor model, then map to User by uid/email
+    if (!doctor) {
+      const DoctorModel = require('../models/Doctor');
+      const doctorDoc = await DoctorModel.findOne({
+        $or: [
+          { arcId: doctorArcId },
+          { uid: doctorArcId },
+          { email: doctorArcId }
+        ]
+      });
+      if (doctorDoc) {
+        // Try to resolve linked User by uid or email
+        doctor = await User.findOne({ $or: [ { uid: doctorDoc.uid }, { email: doctorDoc.email } ] });
+        if (!doctor) {
+          return res.status(404).json({ success: false, error: 'Doctor not found (no linked user account)' });
+        }
+      }
+    }
     if (!doctor) {
       return res.status(404).json({ success: false, error: 'Doctor not found' });
     }
