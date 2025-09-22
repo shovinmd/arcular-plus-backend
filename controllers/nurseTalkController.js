@@ -15,14 +15,27 @@ const getHospitalNurses = async (req, res) => {
 
     // Get nurse profile to find hospital
     const nurseProfile = await Nurse.findOne({ userId: currentUser._id });
-    if (!nurseProfile || !nurseProfile.hospitalId) {
+    console.log('🔍 NurseTalk: Found nurse profile:', nurseProfile ? 'Yes' : 'No');
+    if (nurseProfile) {
+      console.log('🏥 NurseTalk: Nurse hospitalAffiliation:', nurseProfile.hospitalAffiliation);
+      console.log('🏥 NurseTalk: Nurse affiliatedHospitals:', nurseProfile.affiliatedHospitals?.length || 0);
+    }
+    
+    if (!nurseProfile || !nurseProfile.hospitalAffiliation) {
+      console.log('❌ NurseTalk: No nurse profile or hospital affiliation found');
       return res.status(404).json({ success: false, message: 'Nurse hospital not found' });
     }
 
-    // Get all nurses in the same hospital
-    const hospitalNurses = await Nurse.find({ hospitalId: nurseProfile.hospitalId })
+    // Get all nurses in the same hospital (using hospitalAffiliation)
+    console.log('🔍 NurseTalk: Searching for nurses with hospitalAffiliation:', nurseProfile.hospitalAffiliation);
+    const hospitalNurses = await Nurse.find({ 
+      hospitalAffiliation: nurseProfile.hospitalAffiliation,
+      isApproved: true 
+    })
       .populate('userId', 'fullName email uid')
       .lean();
+    
+    console.log('👥 NurseTalk: Found hospital nurses:', hospitalNurses.length);
 
     // Get online status (simplified - in real app, use WebSocket or Redis)
     const nurses = hospitalNurses.map(nurse => ({
@@ -36,6 +49,7 @@ const getHospitalNurses = async (req, res) => {
       lastSeen: new Date(Date.now() - Math.random() * 24 * 60 * 60 * 1000)
     }));
 
+    console.log('✅ NurseTalk: Returning nurses:', nurses.length);
     res.json({ success: true, data: nurses });
   } catch (error) {
     console.error('Error fetching hospital nurses:', error);
@@ -131,12 +145,12 @@ const getHandoverNotes = async (req, res) => {
     }
 
     const nurseProfile = await Nurse.findOne({ userId: currentUser._id });
-    if (!nurseProfile || !nurseProfile.hospitalId) {
+    if (!nurseProfile || !nurseProfile.hospitalAffiliation) {
       return res.status(404).json({ success: false, message: 'Nurse hospital not found' });
     }
 
     const handoverNotes = await NurseTalk.find({
-      hospitalId: nurseProfile.hospitalId,
+      hospitalId: nurseProfile.hospitalAffiliation,
       messageType: 'handover'
     })
     .sort({ createdAt: -1 })
