@@ -3,6 +3,11 @@ const router = express.Router();
 const nurseTalkController = require('../controllers/nurseTalkController');
 const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
 
+// Test route without auth
+router.get('/test', (req, res) => {
+  res.json({ success: true, message: 'NurseTalk routes are working!' });
+});
+
 // Apply Firebase auth to all routes
 router.use(firebaseAuthMiddleware);
 
