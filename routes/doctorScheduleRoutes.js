@@ -12,12 +12,6 @@ router.post('/', authenticateToken, doctorScheduleController.saveDoctorSchedule)
 // Get available time slots for booking
 router.get('/:doctorId/available-slots', authenticateToken, doctorScheduleController.getAvailableTimeSlots);
 
-// Get available time slots for a specific hospital
-router.get('/:doctorId/hospital/:hospitalId/available-slots', authenticateToken, doctorScheduleController.getAvailableTimeSlotsForHospital);
-
-// Get all hospital schedules with availability for a doctor and date
-router.get('/:doctorId/hospital-schedules', authenticateToken, doctorScheduleController.getHospitalSchedulesWithAvailability);
-
 // Test endpoint for time slots (no auth required for testing)
 router.get('/test/:doctorId/available-slots', (req, res) => {
   const { doctorId } = req.params;
@@ -37,9 +31,6 @@ router.get('/test/:doctorId/available-slots', (req, res) => {
 
 // Book a time slot
 router.post('/book', authenticateToken, doctorScheduleController.bookTimeSlot);
-
-// Book a time slot for a specific hospital
-router.post('/book-hospital', authenticateToken, doctorScheduleController.bookTimeSlotForHospital);
 
 // Cancel a time slot booking
 router.post('/cancel-booking', authenticateToken, doctorScheduleController.cancelTimeSlotBooking);

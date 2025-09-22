@@ -529,6 +529,61 @@ const getOrdersByPharmacy = async (req, res) => {
   }
 };
 
+// Get orders by hospital
+const getOrdersByHospital = async (req, res) => {
+  try {
+    const { hospitalId } = req.params;
+    
+    console.log('🏥 Fetching orders for hospital:', hospitalId);
+    
+    // First, try to find hospital by UID to get MongoDB ID
+    const Hospital = require('../models/Hospital');
+    let hospital = await Hospital.findOne({ uid: hospitalId });
+    
+    if (!hospital) {
+      // If not found by UID, try by MongoDB ID
+      hospital = await Hospital.findById(hospitalId);
+    }
+    
+    if (!hospital) {
+      return res.status(404).json({
+        success: false, 
+        error: 'Hospital not found'
+      });
+    }
+    
+    console.log('🏥 Found hospital:', {
+      uid: hospital.uid,
+      _id: hospital._id,
+      name: hospital.hospitalName || hospital.fullName
+    });
+    
+    // Find orders where the order was placed by this hospital
+    // We'll look for orders that have hospital-related information in userNotes or other fields
+    const orders = await Order.find({ 
+      $or: [
+        { userNotes: { $regex: 'Hospital order', $options: 'i' } },
+        { userEmail: { $regex: 'hospital@arcular.com', $options: 'i' } },
+        { userName: { $regex: 'Hospital', $options: 'i' } }
+      ]
+    }).sort({ orderDate: -1 });
+    
+    console.log(`✅ Found ${orders.length} hospital orders for ${hospital.hospitalName || hospital.fullName}`);
+
+    res.json({
+      success: true,
+      data: orders
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching hospital orders:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch orders'
+    });
+  }
+};
+
 // Update order status
 const updateOrderStatus = async (req, res) => {
   try {
@@ -1369,6 +1424,7 @@ module.exports = {
   placeHospitalOrder,
   getOrdersByUser,
   getOrdersByPharmacy,
+  getOrdersByHospital,
   updateOrderStatus,
   getOrderById,
   getOrderStats

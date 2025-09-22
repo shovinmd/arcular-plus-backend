@@ -15,6 +15,9 @@ router.get('/user/:userId', firebaseAuthMiddleware, orderController.getOrdersByU
 // Get orders by pharmacy (requires authentication)
 router.get('/pharmacy/:pharmacyId', firebaseAuthMiddleware, orderController.getOrdersByPharmacy);
 
+// Get orders by hospital (requires authentication)
+router.get('/hospital/:hospitalId', firebaseAuthMiddleware, orderController.getOrdersByHospital);
+
 // Update order status (requires authentication)
 router.put('/:orderId/status', firebaseAuthMiddleware, orderController.updateOrderStatus);
 
