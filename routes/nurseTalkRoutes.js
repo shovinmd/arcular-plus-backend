@@ -8,6 +8,26 @@ router.get('/test', (req, res) => {
   res.json({ success: true, message: 'NurseTalk routes are working!' });
 });
 
+// Simple test route for nurses without auth
+router.get('/test-nurses', async (req, res) => {
+  try {
+    const Nurse = require('../models/Nurse');
+    const nurseCount = await Nurse.countDocuments();
+    res.json({ 
+      success: true, 
+      message: 'NurseTalk test successful',
+      nurseCount: nurseCount,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      message: 'Test failed', 
+      error: error.message 
+    });
+  }
+});
+
 // Apply Firebase auth to all routes
 router.use(firebaseAuthMiddleware);
 

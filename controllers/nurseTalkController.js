@@ -84,10 +84,22 @@ const getHospitalNurses = async (req, res) => {
     }));
 
     console.log('✅ NurseTalk: Returning nurses:', nurses.length);
+    
+    // If no nurses found, return empty array instead of error
+    if (nurses.length === 0) {
+      console.log('ℹ️ NurseTalk: No nurses found, returning empty array');
+    }
+    
     res.json({ success: true, data: nurses });
   } catch (error) {
-    console.error('Error fetching hospital nurses:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch nurses', error: error.message });
+    console.error('❌ Error fetching hospital nurses:', error);
+    console.error('❌ Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch nurses', 
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 };
 
@@ -208,8 +220,8 @@ const getHandoverNotes = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Nurse hospital not found' });
     }
 
+    // For now, get all handover notes since we don't have proper hospitalId mapping
     const handoverNotes = await NurseTalk.find({
-      hospitalId: nurseProfile.hospitalAffiliation,
       messageType: 'handover'
     })
     .sort({ createdAt: -1 })
@@ -219,8 +231,14 @@ const getHandoverNotes = async (req, res) => {
 
     res.json({ success: true, data: handoverNotes });
   } catch (error) {
-    console.error('Error fetching handover notes:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch handover notes', error: error.message });
+    console.error('❌ Error fetching handover notes:', error);
+    console.error('❌ Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch handover notes', 
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 };
 
