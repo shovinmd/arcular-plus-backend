@@ -182,7 +182,20 @@ app.use('/api/patient-assignments', patientAssignmentRoutes);
 app.use('/api/test-requests', testRequestRoutes);
 
 // Canonical creation endpoint (kept for strict frontend usage)
-app.post('/api/patient-assignments/create', firebaseAuthMiddleware, patientAssignmentController.createAssignment);
+app.post('/api/patient-assignments/create', (req, res, next) => {
+  console.log('➡️  Hit POST /api/patient-assignments/create');
+  next();
+}, firebaseAuthMiddleware, patientAssignmentController.createAssignment);
+
+// Route probes for troubleshooting routing vs auth
+app.get('/api/patient-assignments/create', (req, res) => {
+  res.json({ ok: true, method: 'GET', note: 'POST with Bearer token is required for creation', marker: DEPLOY_MARKER });
+});
+
+app.post('/api/patient-assignments/create/_probe', (req, res) => {
+  console.log('🧪 Probe POST /api/patient-assignments/create/_probe');
+  res.json({ ok: true, method: 'POST', probe: true, marker: DEPLOY_MARKER });
+});
 
 // Lightweight probes to verify deployment version and route availability (no auth)
 app.get('/api/deploy-info', (req, res) => {
