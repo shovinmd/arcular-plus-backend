@@ -17,6 +17,8 @@ router.get('/:id', firebaseAuthMiddleware, reminderController.getReminderById);
 
 // Update reminder status
 router.patch('/:id/status', firebaseAuthMiddleware, reminderController.updateReminderStatus);
+// Alias to support client calling PATCH /api/reminders/:id
+router.patch('/:id', firebaseAuthMiddleware, reminderController.updateReminderStatus);
 
 // Update reminder
 router.put('/:id', firebaseAuthMiddleware, reminderController.updateReminder);
