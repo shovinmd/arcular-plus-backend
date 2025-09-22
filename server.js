@@ -42,6 +42,7 @@ const hospitalRecordRoutes = require('./routes/hospitalRecordRoutes');
 const sessionRoutes = require('./routes/sessionRoutes');
 const doctorScheduleRoutes = require('./routes/doctorScheduleRoutes');
 const ratingRoutes = require('./routes/ratingRoutes');
+const vitalsRoutes = require('./routes/vitalsRoutes');
 const patientRecordsRoutes = require('./routes/patientRecords');
 const patientAssignmentRoutes = require('./routes/patientAssignmentRoutes');
 const testRequestRoutes = require('./routes/testRequestRoutes');
@@ -179,6 +180,7 @@ app.use('/api/doctor-schedule', doctorScheduleRoutes);
 app.use('/api/ratings', ratingRoutes);
 app.use('/api/patient-records', patientRecordsRoutes);
 app.use('/api/patient-assignments', patientAssignmentRoutes);
+app.use('/api/vitals', vitalsRoutes);
 app.use('/api/test-requests', testRequestRoutes);
 
 // Canonical creation endpoint (kept for strict frontend usage)
