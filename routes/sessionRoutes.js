@@ -51,9 +51,9 @@ router.post('/test', async (req, res) => {
     try {
       const path = require('path');
       const fs = require('fs');
-      const logoPath = path.join(__dirname, '..', 'assets', 'brand-logo.png');
+      const logoPath = path.join(__dirname, '..', 'assets', 'logo1.png');
       if (fs.existsSync(logoPath)) {
-        attachments.push({ filename: 'brand-logo.png', path: logoPath, cid: 'brandlogo' });
+        attachments.push({ filename: 'logo1.png', path: logoPath, cid: 'brandlogo' });
       }
     } catch (_) {}
 

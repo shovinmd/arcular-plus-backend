@@ -86,7 +86,9 @@ const saveDoctorSchedule = async (req, res) => {
       });
     }
 
-    // Validate each time slot
+    // Generate individual 30-minute slots from time ranges
+    const generatedSlots = [];
+    
     for (const slot of timeSlots) {
       if (!slot.startTime || !slot.endTime) {
         return res.status(400).json({
@@ -95,46 +97,27 @@ const saveDoctorSchedule = async (req, res) => {
         });
       }
 
+      // Convert 12-hour format to 24-hour format if needed
+      const startTime24 = convertTo24Hour(slot.startTime);
+      const endTime24 = convertTo24Hour(slot.endTime);
+
       // Validate time format (HH:MM)
       const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
-      if (!timeRegex.test(slot.startTime) || !timeRegex.test(slot.endTime)) {
+      if (!timeRegex.test(startTime24) || !timeRegex.test(endTime24)) {
         return res.status(400).json({
           success: false,
           message: 'Invalid time format. Use HH:MM format'
         });
       }
 
-      // Validate start time is before end time
-      const startMinutes = parseInt(slot.startTime.split(':')[0]) * 60 + parseInt(slot.startTime.split(':')[1]);
-      const endMinutes = parseInt(slot.endTime.split(':')[0]) * 60 + parseInt(slot.endTime.split(':')[1]);
-      
-      if (startMinutes >= endMinutes) {
-        return res.status(400).json({
-          success: false,
-          message: 'Start time must be before end time'
-        });
-      }
+      // Generate individual 30-minute slots
+      const slots = generateTimeSlots(startTime24, endTime24);
+      generatedSlots.push(...slots);
     }
 
-    // Check for overlapping time slots
-    for (let i = 0; i < timeSlots.length; i++) {
-      for (let j = i + 1; j < timeSlots.length; j++) {
-        const slot1 = timeSlots[i];
-        const slot2 = timeSlots[j];
-        
-        const start1 = parseInt(slot1.startTime.split(':')[0]) * 60 + parseInt(slot1.startTime.split(':')[1]);
-        const end1 = parseInt(slot1.endTime.split(':')[0]) * 60 + parseInt(slot1.endTime.split(':')[1]);
-        const start2 = parseInt(slot2.startTime.split(':')[0]) * 60 + parseInt(slot2.startTime.split(':')[1]);
-        const end2 = parseInt(slot2.endTime.split(':')[0]) * 60 + parseInt(slot2.endTime.split(':')[1]);
-        
-        if ((start1 < end2 && end1 > start2)) {
-          return res.status(400).json({
-            success: false,
-            message: 'Time slots cannot overlap'
-          });
-        }
-      }
-    }
+    console.log('🕐 Generated', generatedSlots.length, 'individual time slots from', timeSlots.length, 'ranges');
+
+    // Individual slots are generated, no overlap check needed
 
     // Update or create schedule using MongoDB ID
     const schedule = await DoctorSchedule.findOneAndUpdate(
@@ -142,7 +125,7 @@ const saveDoctorSchedule = async (req, res) => {
       {
         doctorId: doctor._id.toString(), // Use MongoDB ID
         date,
-        timeSlots: timeSlots.map(slot => ({
+        timeSlots: generatedSlots.map(slot => ({
           startTime: slot.startTime,
           endTime: slot.endTime,
           isAvailable: slot.isAvailable !== undefined ? slot.isAvailable : true,
@@ -414,6 +397,70 @@ const deleteDoctorSchedule = async (req, res) => {
     });
   }
 };
+
+// Helper function to convert 12-hour format to 24-hour format
+function convertTo24Hour(time12Hour) {
+  // If already in 24-hour format, return as is
+  if (!time12Hour.includes('AM') && !time12Hour.includes('PM')) {
+    return time12Hour;
+  }
+  
+  const parts = time12Hour.split(' ');
+  const timePart = parts[0];
+  const period = parts.length > 1 ? parts[1] : '';
+  
+  const timeComponents = timePart.split(':');
+  let hour = parseInt(timeComponents[0]);
+  const minute = timeComponents[1];
+  
+  if (period.toUpperCase() === 'PM' && hour !== 12) {
+    hour += 12;
+  } else if (period.toUpperCase() === 'AM' && hour === 12) {
+    hour = 0;
+  }
+  
+  return `${hour.toString().padStart(2, '0')}:${minute}`;
+}
+
+// Helper function to generate individual 30-minute slots from time range
+function generateTimeSlots(startTime, endTime) {
+  const slots = [];
+  
+  // Parse start and end times
+  const [startHour, startMinute] = startTime.split(':').map(Number);
+  const [endHour, endMinute] = endTime.split(':').map(Number);
+  
+  // Convert to minutes for easier calculation
+  let currentMinutes = startHour * 60 + startMinute;
+  const endMinutes = endHour * 60 + endMinute;
+  
+  // Generate 30-minute slots
+  while (currentMinutes < endMinutes) {
+    const slotStartMinutes = currentMinutes;
+    const slotEndMinutes = Math.min(currentMinutes + 30, endMinutes);
+    
+    // Convert back to HH:MM format
+    const slotStartHour = Math.floor(slotStartMinutes / 60);
+    const slotStartMin = slotStartMinutes % 60;
+    const slotEndHour = Math.floor(slotEndMinutes / 60);
+    const slotEndMin = slotEndMinutes % 60;
+    
+    const slotStartTime = `${slotStartHour.toString().padStart(2, '0')}:${slotStartMin.toString().padStart(2, '0')}`;
+    const slotEndTime = `${slotEndHour.toString().padStart(2, '0')}:${slotEndMin.toString().padStart(2, '0')}`;
+    
+    slots.push({
+      startTime: slotStartTime,
+      endTime: slotEndTime,
+      isAvailable: true,
+      maxBookings: 1,
+      currentBookings: 0
+    });
+    
+    currentMinutes += 30;
+  }
+  
+  return slots;
+}
 
 module.exports = {
   getDoctorSchedule,
