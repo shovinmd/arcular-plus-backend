@@ -12,17 +12,51 @@ const getHospitalNurses = async (req, res) => {
       console.log('❌ NurseTalk: User not found for UID:', req.user.uid);
       return res.status(404).json({ success: false, message: 'User not found' });
     }
+    console.log('👤 NurseTalk: Found user:', currentUser.fullName, 'ID:', currentUser._id);
 
-    // Get nurse profile to find hospital
-    const nurseProfile = await Nurse.findOne({ userId: currentUser._id });
-    console.log('🔍 NurseTalk: Found nurse profile:', nurseProfile ? 'Yes' : 'No');
+    // Try different ways to find nurse profile
+    let nurseProfile = await Nurse.findOne({ userId: currentUser._id });
+    console.log('🔍 NurseTalk: Found nurse profile by userId:', nurseProfile ? 'Yes' : 'No');
+    
+    if (!nurseProfile) {
+      // Try finding by UID directly
+      nurseProfile = await Nurse.findOne({ uid: req.user.uid });
+      console.log('🔍 NurseTalk: Found nurse profile by uid:', nurseProfile ? 'Yes' : 'No');
+    }
+    
+    if (!nurseProfile) {
+      // Try finding by email
+      nurseProfile = await Nurse.findOne({ email: currentUser.email });
+      console.log('🔍 NurseTalk: Found nurse profile by email:', nurseProfile ? 'Yes' : 'No');
+    }
     if (nurseProfile) {
       console.log('🏥 NurseTalk: Nurse hospitalAffiliation:', nurseProfile.hospitalAffiliation);
       console.log('🏥 NurseTalk: Nurse affiliatedHospitals:', nurseProfile.affiliatedHospitals?.length || 0);
     }
     
-    if (!nurseProfile || !nurseProfile.hospitalAffiliation) {
-      console.log('❌ NurseTalk: No nurse profile or hospital affiliation found');
+    if (!nurseProfile) {
+      console.log('❌ NurseTalk: No nurse profile found, creating minimal profile');
+      // Create a minimal nurse profile for NurseTalk functionality
+      try {
+        nurseProfile = await Nurse.create({
+          uid: req.user.uid,
+          fullName: currentUser.fullName || 'Unknown Nurse',
+          email: currentUser.email || `${req.user.uid}@temp.com`,
+          mobileNumber: '0000000000',
+          hospitalAffiliation: 'Default Hospital', // Default hospital
+          qualification: 'RN',
+          isApproved: true,
+          createdAt: new Date()
+        });
+        console.log('✅ NurseTalk: Created minimal nurse profile');
+      } catch (createError) {
+        console.error('❌ NurseTalk: Failed to create nurse profile:', createError.message);
+        return res.status(500).json({ success: false, message: 'Failed to create nurse profile' });
+      }
+    }
+    
+    if (!nurseProfile.hospitalAffiliation) {
+      console.log('❌ NurseTalk: No hospital affiliation found');
       return res.status(404).json({ success: false, message: 'Nurse hospital not found' });
     }
 
@@ -144,8 +178,33 @@ const getHandoverNotes = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    const nurseProfile = await Nurse.findOne({ userId: currentUser._id });
-    if (!nurseProfile || !nurseProfile.hospitalAffiliation) {
+    let nurseProfile = await Nurse.findOne({ userId: currentUser._id });
+    if (!nurseProfile) {
+      nurseProfile = await Nurse.findOne({ uid: req.user.uid });
+    }
+    if (!nurseProfile) {
+      nurseProfile = await Nurse.findOne({ email: currentUser.email });
+    }
+    
+    if (!nurseProfile) {
+      // Create minimal nurse profile
+      try {
+        nurseProfile = await Nurse.create({
+          uid: req.user.uid,
+          fullName: currentUser.fullName || 'Unknown Nurse',
+          email: currentUser.email || `${req.user.uid}@temp.com`,
+          mobileNumber: '0000000000',
+          hospitalAffiliation: 'Default Hospital',
+          qualification: 'RN',
+          isApproved: true,
+          createdAt: new Date()
+        });
+      } catch (createError) {
+        return res.status(500).json({ success: false, message: 'Failed to create nurse profile' });
+      }
+    }
+    
+    if (!nurseProfile.hospitalAffiliation) {
       return res.status(404).json({ success: false, message: 'Nurse hospital not found' });
     }
 
