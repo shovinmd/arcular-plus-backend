@@ -172,20 +172,45 @@ const getDoctorAssignments = async (req, res) => {
       return res.status(401).json({ success: false, error: 'Unauthorized' });
     }
 
-    const doctor = await User.findOne({ uid: firebaseUser.uid, userType: 'doctor' });
-    if (!doctor) {
+    // Resolve doctor user (type/role compatibility)
+    let doctorUser = await User.findOne({
+      uid: firebaseUser.uid,
+      $or: [ { type: 'doctor' }, { role: 'doctor' } ]
+    });
+
+    // If not explicitly marked as doctor, still try to fetch by uid
+    if (!doctorUser) {
+      doctorUser = await User.findOne({ uid: firebaseUser.uid });
+    }
+
+    // Build query conditions: prefer by doctorId, fall back to doctorArcId
+    const orConditions = [];
+    if (doctorUser) {
+      orConditions.push({ doctorId: doctorUser._id });
+      if (doctorUser.arcId) {
+        orConditions.push({ doctorArcId: doctorUser.arcId });
+      }
+    } else {
+      // Last resort: map from Doctor model by uid/email
+      const DoctorModel = require('../models/Doctor');
+      const doctorDoc = await DoctorModel.findOne({
+        $or: [ { uid: firebaseUser.uid }, { email: firebaseUser.email || '' } ]
+      });
+      if (doctorDoc?.arcId) {
+        orConditions.push({ doctorArcId: doctorDoc.arcId });
+      }
+    }
+
+    if (orConditions.length === 0) {
       return res.status(404).json({ success: false, error: 'Doctor not found' });
     }
 
-    const assignments = await PatientAssignment.find({ doctorId: doctor._id })
+    const assignments = await PatientAssignment.find({ $or: orConditions })
       .populate('patientId', 'fullName arcId email phone')
       .populate('nurseId', 'fullName uid')
       .sort({ assignmentDate: -1, createdAt: -1 });
 
-    res.json({
-      success: true,
-      data: assignments
-    });
+    res.json({ success: true, data: assignments });
   } catch (error) {
     console.error('Error fetching doctor assignments:', error);
     res.status(500).json({
