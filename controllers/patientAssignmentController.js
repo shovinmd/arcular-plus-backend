@@ -224,13 +224,17 @@ const getDoctorAssignments = async (req, res) => {
 // Get assignments for a nurse
 const getNurseAssignments = async (req, res) => {
   try {
+    console.log('👩‍⚕️ Getting nurse assignments for UID:', req.user?.uid);
     const firebaseUser = req.user;
     if (!firebaseUser || !firebaseUser.uid) {
+      console.log('❌ No Firebase user or UID');
       return res.status(401).json({ success: false, error: 'Unauthorized' });
     }
 
     const nurse = await Nurse.findOne({ uid: firebaseUser.uid });
+    console.log('👩‍⚕️ Nurse found:', nurse ? 'Yes' : 'No');
     if (!nurse) {
+      console.log('❌ Nurse not found in Nurse collection for UID:', firebaseUser.uid);
       return res.status(404).json({ success: false, error: 'Nurse not found' });
     }
 

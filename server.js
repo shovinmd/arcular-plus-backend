@@ -69,14 +69,25 @@ app.use(morgan('combined'));
 if (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV) {
   // Development: Allow all origins
   app.use(cors({
-    origin: true, // Allow all origins
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      
+      // Allow all localhost ports
+      if (origin.match(/^http:\/\/localhost:\d+$/)) {
+        return callback(null, true);
+      }
+      
+      // Allow all origins in development
+      return callback(null, true);
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Origin', 'Accept', 'Access-Control-Allow-Origin'],
     preflightContinue: false,
     optionsSuccessStatus: 204
   }));
-  console.log('🌍 Development mode: CORS allows all origins');
+  console.log('🌍 Development mode: CORS allows all origins including localhost ports');
 } else {
   // Production: Restrict to specific origins
   app.use(cors({
@@ -91,6 +102,8 @@ if (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV) {
       'http://localhost:3000',
       'http://localhost:59123',
       'http://localhost:64413',
+      'http://localhost:64921',
+      'http://localhost:60889',
       'http://127.0.0.1:5500',
       'http://127.0.0.1:3000',
       'http://localhost:8080',
@@ -137,6 +150,22 @@ app.use((req, res, next) => {
 });
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Additional CORS headers for better compatibility
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Origin, Accept');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+  
+  next();
+});
 
 // Session middleware
 app.use(session({
