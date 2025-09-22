@@ -5,7 +5,8 @@ const User = require('../models/User');
 exports.sendMessage = async (req, res) => {
   try {
     console.log('📨 Chat send request body:', req.body);
-    const { message, patientArcId, priority = 'Low', senderRole } = req.body;
+    const { message, patientArcId, priority = 'Low', senderRole, receiverName } = req.body;
+    console.log('🎯 Receiver name:', receiverName);
     if (!message || !patientArcId || !senderRole) {
       console.log('❌ Missing required fields:', { message: !!message, patientArcId: !!patientArcId, senderRole: !!senderRole });
       return res.status(400).json({ success: false, message: 'message, patientArcId, senderRole required' });
