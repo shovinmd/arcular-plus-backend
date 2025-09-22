@@ -39,11 +39,18 @@ const createReminder = async (req, res) => {
     let resolvedHospitalId = hospitalId;
 
     // Resolve doctor from authenticated user if not provided
+    let currentUserObjectId = null;
     if (!resolvedDoctorId && req.user && req.user.uid) {
       const doctorUser = await User.findOne({ uid: req.user.uid });
       if (doctorUser) {
         resolvedDoctorId = doctorUser._id;
+        currentUserObjectId = doctorUser._id;
       }
+    }
+    // If doctorId was provided or resolved, also set current user id if missing
+    if (!currentUserObjectId && req.user && req.user.uid) {
+      const currentUser = await User.findOne({ uid: req.user.uid });
+      if (currentUser) currentUserObjectId = currentUser._id;
     }
 
     // Resolve patient by ARC ID if not provided
@@ -156,7 +163,7 @@ const createReminder = async (req, res) => {
       recurringPattern,
       recurringInterval,
       tags,
-      createdBy: req.user.uid
+      createdBy: currentUserObjectId || resolvedDoctorId
     });
 
     await reminder.save();
@@ -329,7 +336,14 @@ const updateReminderStatus = async (req, res) => {
 
     // Update fields
     reminder.status = status;
-    reminder.updatedBy = req.user.uid;
+    // Resolve current user ObjectId
+    let currentUserObjectId = null;
+    if (req.user && req.user.uid) {
+      const currentUser = await User.findOne({ uid: req.user.uid });
+      if (currentUser) currentUserObjectId = currentUser._id;
+    }
+
+    reminder.updatedBy = currentUserObjectId || reminder.updatedBy;
 
     if (notes) {
       reminder.notes = notes;
@@ -338,7 +352,7 @@ const updateReminderStatus = async (req, res) => {
     // Set completion timestamp if marking as completed
     if (status === 'completed') {
       reminder.completedAt = new Date();
-      reminder.completedBy = req.user.uid;
+      reminder.completedBy = currentUserObjectId || reminder.completedBy;
     }
 
     await reminder.save();
