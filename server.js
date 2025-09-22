@@ -8,6 +8,9 @@ const path = require('path');
 const session = require('express-session');
 require('dotenv').config();
 
+// Simple deploy marker to verify latest build is running in production
+const DEPLOY_MARKER = 'PA_ASSIGNMENTS_DEBUG_2025-09-22_1';
+
 // Import Firebase Admin (already initialized in firebase.js)
 const { admin, testFirebaseConnection, isStorageAvailable } = require('./firebase');
 
@@ -182,6 +185,28 @@ app.use('/api/test-requests', testRequestRoutes);
 app.post('/api/patient-assignments', firebaseAuthMiddleware, patientAssignmentController.createAssignment);
 app.post('/api/patient-assignments/create', firebaseAuthMiddleware, patientAssignmentController.createAssignment);
 app.post('/api/patient-assignments/create-assignment', firebaseAuthMiddleware, patientAssignmentController.createAssignment);
+
+// Lightweight probes to verify deployment version and route availability (no auth)
+app.get('/api/deploy-info', (req, res) => {
+  res.json({
+    status: 'OK',
+    marker: DEPLOY_MARKER,
+    env: process.env.NODE_ENV || 'development',
+    timestamp: new Date().toISOString(),
+    probes: {
+      patientAssignmentsProbe: '/api/patient-assignments/_probe'
+    }
+  });
+});
+
+app.get('/api/patient-assignments/_probe', (req, res) => {
+  res.json({
+    ok: true,
+    mounted: true,
+    marker: DEPLOY_MARKER,
+    timestamp: new Date().toISOString()
+  });
+});
 
 // Test endpoint to verify CORS
 app.get('/api/test-cors', (req, res) => {
