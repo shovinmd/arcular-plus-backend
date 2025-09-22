@@ -4,15 +4,44 @@ const User = require('../models/User');
 // Send a chat message (doctor or nurse)
 exports.sendMessage = async (req, res) => {
   try {
+    console.log('📨 Chat send request body:', req.body);
     const { message, patientArcId, priority = 'Low', senderRole } = req.body;
     if (!message || !patientArcId || !senderRole) {
+      console.log('❌ Missing required fields:', { message: !!message, patientArcId: !!patientArcId, senderRole: !!senderRole });
       return res.status(400).json({ success: false, message: 'message, patientArcId, senderRole required' });
     }
 
     // resolve current user ObjectId
     let currentUser = null;
-    if (req.user && req.user.uid) currentUser = await User.findOne({ uid: req.user.uid });
-    if (!currentUser) return res.status(401).json({ success: false, message: 'User not found' });
+    if (req.user && req.user.uid) {
+      console.log('🔍 Looking for user with UID:', req.user.uid);
+      currentUser = await User.findOne({ uid: req.user.uid });
+      console.log('👤 User found:', currentUser ? 'Yes' : 'No');
+      
+      // If user not found, create a minimal user record
+      if (!currentUser) {
+        try {
+          console.log('🆕 Creating minimal user record for UID:', req.user.uid);
+          const userEmail = req.user.email || `${req.user.uid}@temp.com`;
+          currentUser = new User({
+            uid: req.user.uid,
+            email: userEmail,
+            fullName: req.user.name || 'Unknown User',
+            type: 'nurse', // Default to nurse for chat functionality
+            createdAt: new Date(),
+          });
+          await currentUser.save();
+          console.log('✅ Minimal user created with ID:', currentUser._id);
+        } catch (createError) {
+          console.error('❌ Error creating minimal user:', createError.message);
+          return res.status(500).json({ success: false, message: 'Failed to create user record', error: createError.message });
+        }
+      }
+    }
+    if (!currentUser) {
+      console.log('❌ User not found in database for UID:', req.user?.uid);
+      return res.status(401).json({ success: false, message: 'User not found' });
+    }
 
     // resolve patientId by ARC
     let patient = await User.findOne({ $or: [{ healthQrId: patientArcId }, { arcId: patientArcId }] });
