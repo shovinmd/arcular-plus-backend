@@ -17,6 +17,17 @@ router.get('/nurses', (req, res, next) => {
   next();
 }, nurseTalkController.getHospitalNurses);
 
+// Fallback route for nurses if controller fails
+router.get('/nurses-fallback', (req, res) => {
+  console.log('🏥 NurseTalk: GET /nurses-fallback route hit');
+  res.json({
+    success: true,
+    message: 'Nurses fallback route working',
+    data: [],
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Send message to another nurse
 router.post('/send', nurseTalkController.sendMessage);
 

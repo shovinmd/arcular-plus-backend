@@ -9,7 +9,7 @@ const session = require('express-session');
 require('dotenv').config();
 
 // Simple deploy marker to verify latest build is running in production
-const DEPLOY_MARKER = 'NURSE_TALK_ROUTES_2025-09-22_2';
+const DEPLOY_MARKER = 'NURSE_TALK_ROUTES_2025-09-22_3';
 
 // Import Firebase Admin (already initialized in firebase.js)
 const { admin, testFirebaseConnection, isStorageAvailable } = require('./firebase');
@@ -220,15 +220,36 @@ app.use('/api/nurse-talk', nurseTalkRoutes);
 
 // Test endpoint for NurseTalk routes
 app.get('/api/nurse-talk/test', (req, res) => {
+  console.log('🧪 NurseTalk test endpoint hit');
   res.json({ 
     success: true, 
     message: 'NurseTalk routes are working!',
     timestamp: new Date().toISOString(),
+    deployMarker: DEPLOY_MARKER,
     routes: [
       'GET /api/nurse-talk/nurses',
       'GET /api/nurse-talk/handover',
       'POST /api/nurse-talk/send',
       'GET /api/nurse-talk/messages/:receiverId'
+    ]
+  });
+});
+
+// Additional debug endpoint to check route mounting
+app.get('/api/debug-routes', (req, res) => {
+  console.log('🔍 Debug routes endpoint hit');
+  res.json({
+    success: true,
+    message: 'Route debugging info',
+    timestamp: new Date().toISOString(),
+    deployMarker: DEPLOY_MARKER,
+    nurseTalkRoutesMounted: true,
+    allRoutes: [
+      '/api/nurse-talk/test',
+      '/api/nurse-talk/nurses', 
+      '/api/nurse-talk/handover',
+      '/api/nurse-talk/send',
+      '/api/nurse-talk/messages/:receiverId'
     ]
   });
 });
@@ -440,6 +461,9 @@ const startServer = async () => {
     console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
     console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`⏰ Cron jobs: Daily reminders at 9:00 AM IST`);
+    console.log(`🏥 NurseTalk routes mounted at /api/nurse-talk`);
+    console.log(`🧪 Test endpoint: /api/nurse-talk/test`);
+    console.log(`🔍 Debug endpoint: /api/debug-routes`);
   });
 };
 
