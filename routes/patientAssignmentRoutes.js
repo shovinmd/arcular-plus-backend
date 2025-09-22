@@ -6,9 +6,7 @@ const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
 // Create patient assignment (Hospital only)
 // Primary path
 router.post('/create', firebaseAuthMiddleware, patientAssignmentController.createAssignment);
-// Backward/alternate compatibility paths
-router.post('/', firebaseAuthMiddleware, patientAssignmentController.createAssignment);
-router.post('/create-assignment', firebaseAuthMiddleware, patientAssignmentController.createAssignment);
+// Note: removed alternate compatibility paths to enforce a single canonical endpoint
 
 // Get assignments for doctor
 router.get('/doctor', firebaseAuthMiddleware, patientAssignmentController.getDoctorAssignments);

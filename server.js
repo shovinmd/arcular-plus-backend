@@ -181,15 +181,8 @@ app.use('/api/patient-records', patientRecordsRoutes);
 app.use('/api/patient-assignments', patientAssignmentRoutes);
 app.use('/api/test-requests', testRequestRoutes);
 
-// Safety net routes: ensure creation endpoint exists regardless of router issues
-app.post('/api/patient-assignments', firebaseAuthMiddleware, patientAssignmentController.createAssignment);
+// Canonical creation endpoint (kept for strict frontend usage)
 app.post('/api/patient-assignments/create', firebaseAuthMiddleware, patientAssignmentController.createAssignment);
-app.post('/api/patient-assignments/create-assignment', firebaseAuthMiddleware, patientAssignmentController.createAssignment);
-// Additional alias routes to avoid 404s from client variations
-app.post('/api/assignments', firebaseAuthMiddleware, patientAssignmentController.createAssignment);
-app.post('/api/assignments/create', firebaseAuthMiddleware, patientAssignmentController.createAssignment);
-app.post('/api/patient-assignment', firebaseAuthMiddleware, patientAssignmentController.createAssignment);
-app.post('/api/patient-assignment/create', firebaseAuthMiddleware, patientAssignmentController.createAssignment);
 
 // Lightweight probes to verify deployment version and route availability (no auth)
 app.get('/api/deploy-info', (req, res) => {
