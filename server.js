@@ -185,6 +185,11 @@ app.use('/api/test-requests', testRequestRoutes);
 app.post('/api/patient-assignments', firebaseAuthMiddleware, patientAssignmentController.createAssignment);
 app.post('/api/patient-assignments/create', firebaseAuthMiddleware, patientAssignmentController.createAssignment);
 app.post('/api/patient-assignments/create-assignment', firebaseAuthMiddleware, patientAssignmentController.createAssignment);
+// Additional alias routes to avoid 404s from client variations
+app.post('/api/assignments', firebaseAuthMiddleware, patientAssignmentController.createAssignment);
+app.post('/api/assignments/create', firebaseAuthMiddleware, patientAssignmentController.createAssignment);
+app.post('/api/patient-assignment', firebaseAuthMiddleware, patientAssignmentController.createAssignment);
+app.post('/api/patient-assignment/create', firebaseAuthMiddleware, patientAssignmentController.createAssignment);
 
 // Lightweight probes to verify deployment version and route availability (no auth)
 app.get('/api/deploy-info', (req, res) => {
@@ -206,6 +211,14 @@ app.get('/api/patient-assignments/_probe', (req, res) => {
     marker: DEPLOY_MARKER,
     timestamp: new Date().toISOString()
   });
+});
+
+app.get('/api/assignments/_probe', (req, res) => {
+  res.json({ ok: true, mounted: true, marker: DEPLOY_MARKER, alias: '/api/assignments', timestamp: new Date().toISOString() });
+});
+
+app.get('/api/patient-assignment/_probe', (req, res) => {
+  res.json({ ok: true, mounted: true, marker: DEPLOY_MARKER, alias: '/api/patient-assignment', timestamp: new Date().toISOString() });
 });
 
 // Test endpoint to verify CORS
