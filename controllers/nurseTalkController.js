@@ -6,8 +6,10 @@ const Hospital = require('../models/Hospital');
 // Get nurses in the same hospital
 const getHospitalNurses = async (req, res) => {
   try {
+    console.log('🏥 NurseTalk: Getting hospital nurses for UID:', req.user.uid);
     const currentUser = await User.findOne({ uid: req.user.uid });
     if (!currentUser) {
+      console.log('❌ NurseTalk: User not found for UID:', req.user.uid);
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
@@ -121,8 +123,10 @@ const getMessages = async (req, res) => {
 // Get handover notes for the hospital
 const getHandoverNotes = async (req, res) => {
   try {
+    console.log('📝 NurseTalk: Getting handover notes for UID:', req.user.uid);
     const currentUser = await User.findOne({ uid: req.user.uid });
     if (!currentUser) {
+      console.log('❌ NurseTalk: User not found for handover notes UID:', req.user.uid);
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 

@@ -36,7 +36,7 @@ exports.sendMessage = async (req, res) => {
               fullName: req.user.name || 'Unknown User',
               type: 'nurse', // Default to nurse for chat functionality
               createdAt: new Date(),
-              // Don't set arcId to avoid unique constraint issues with null values
+              arcId: `TEMP-${req.user.uid}-${Date.now()}`, // Generate unique temp arcId
             });
             await currentUser.save();
             console.log('✅ Minimal user created with ID:', currentUser._id);
@@ -63,6 +63,7 @@ exports.sendMessage = async (req, res) => {
                   fullName: req.user.name || 'Unknown User',
                   type: 'nurse',
                   createdAt: new Date(),
+                  arcId: `TEMP-${req.user.uid}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, // Generate unique temp arcId
                 });
                 await currentUser.save();
                 console.log('✅ Created user with unique email:', uniqueEmail);
