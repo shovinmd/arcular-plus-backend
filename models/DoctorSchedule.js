@@ -6,6 +6,16 @@ const doctorScheduleSchema = new mongoose.Schema({
     required: true,
     index: true
   },
+  // Hospital context (optional for backward compatibility)
+  hospitalId: {
+    type: String,
+    default: null,
+    index: true
+  },
+  hospitalName: {
+    type: String,
+    default: null
+  },
   date: {
     type: String, // Format: YYYY-MM-DD
     required: true,
@@ -49,8 +59,9 @@ const doctorScheduleSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Compound index for efficient queries
-doctorScheduleSchema.index({ doctorId: 1, date: 1 }, { unique: true });
+// Compound index for efficient queries and hospital isolation
+// Unique per doctor, date, and hospital (hospitalId may be null)
+doctorScheduleSchema.index({ doctorId: 1, date: 1, hospitalId: 1 }, { unique: true });
 
 // Method to get available time slots for a specific date
 doctorScheduleSchema.methods.getAvailableSlots = function() {
