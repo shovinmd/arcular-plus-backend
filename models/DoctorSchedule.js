@@ -96,4 +96,27 @@ doctorScheduleSchema.methods.cancelBooking = function(startTime, endTime) {
   return false;
 };
 
-module.exports = mongoose.model('DoctorSchedule', doctorScheduleSchema);
+const DoctorSchedule = mongoose.model('DoctorSchedule', doctorScheduleSchema);
+
+// One-time safe migration: drop legacy unique index (doctorId+date) if present
+(async () => {
+  try {
+    if (!DoctorSchedule.collection?.indexExists) return; // older drivers fallback
+    const indexes = await DoctorSchedule.collection.indexes();
+    const legacy = indexes.find(i => i.name === 'doctorId_1_date_1');
+    if (legacy) {
+      await DoctorSchedule.collection.dropIndex('doctorId_1_date_1');
+      // Recreate the new composite index explicitly to be safe
+      await DoctorSchedule.collection.createIndex(
+        { doctorId: 1, date: 1, hospitalId: 1 },
+        { unique: true, name: 'doctorId_1_date_1_hospitalId_1' }
+      );
+      console.log('🛠️ Migrated DoctorSchedule index to include hospitalId');
+    }
+  } catch (e) {
+    // Non-fatal: log and continue
+    console.log('ℹ️ DoctorSchedule index check:', e.message);
+  }
+})();
+
+module.exports = DoctorSchedule;

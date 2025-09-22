@@ -474,7 +474,7 @@ const getOrdersByUser = async (req, res) => {
   } catch (error) {
     console.error('❌ Error fetching user orders:', error);
     res.status(500).json({
-      success: false,
+        success: false, 
       error: 'Failed to fetch orders'
     });
   }
@@ -560,7 +560,7 @@ const getOrdersByHospital = async (req, res) => {
     
     // Find orders where the order was placed by this hospital
     // We'll look for orders that have hospital-related information in userNotes or other fields
-    const orders = await Order.find({ 
+    const orders = await Order.find({
       $or: [
         { userNotes: { $regex: 'Hospital order', $options: 'i' } },
         { userEmail: { $regex: 'hospital@arcular.com', $options: 'i' } },
@@ -1363,7 +1363,7 @@ const placeHospitalOrder = async (req, res) => {
               <p><strong>Delivery Fee:</strong> ₹${hospitalDeliveryFee}</p>
               <p><strong>Total Amount:</strong> ₹${hospitalTotalAmount}</p>
               <p><strong>Notes:</strong> ${notes || 'No additional notes'}</p>
-            </div>
+          </div>
           
             <div class="delivery-info">
               <h3 style="margin-top: 0; color: #2e7d32;">🚚 Delivery Information</h3>
