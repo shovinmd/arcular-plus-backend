@@ -42,6 +42,9 @@ const ratingRoutes = require('./routes/ratingRoutes');
 const patientRecordsRoutes = require('./routes/patientRecords');
 const patientAssignmentRoutes = require('./routes/patientAssignmentRoutes');
 const testRequestRoutes = require('./routes/testRequestRoutes');
+// Direct controller/middleware imports for hard-wiring critical routes
+const patientAssignmentController = require('./controllers/patientAssignmentController');
+const firebaseAuthMiddleware = require('./middleware/firebaseAuthMiddleware');
 
 // Import web interface routes
 const adminWebRoutes = require('./routes/adminWebRoutes');
@@ -174,6 +177,11 @@ app.use('/api/ratings', ratingRoutes);
 app.use('/api/patient-records', patientRecordsRoutes);
 app.use('/api/patient-assignments', patientAssignmentRoutes);
 app.use('/api/test-requests', testRequestRoutes);
+
+// Safety net routes: ensure creation endpoint exists regardless of router issues
+app.post('/api/patient-assignments', firebaseAuthMiddleware, patientAssignmentController.createAssignment);
+app.post('/api/patient-assignments/create', firebaseAuthMiddleware, patientAssignmentController.createAssignment);
+app.post('/api/patient-assignments/create-assignment', firebaseAuthMiddleware, patientAssignmentController.createAssignment);
 
 // Test endpoint to verify CORS
 app.get('/api/test-cors', (req, res) => {
