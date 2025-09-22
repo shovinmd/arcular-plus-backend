@@ -298,11 +298,18 @@ const getUserAppointments = async (req, res) => {
     const query = { userId: firebaseUser.uid };
 
     if (status) {
-      // Exact status filter when provided
-      query.appointmentStatus = status;
+      // Case-insensitive status filter
+      const s = String(status).toLowerCase();
+      query.appointmentStatus = { $in: [s, s.toUpperCase(), s.charAt(0).toUpperCase() + s.slice(1)] };
     } else {
-      // Default: include active and completed appointments
-      query.appointmentStatus = { $in: ['confirmed', 'pending', 'scheduled', 'approved', 'completed'] };
+      // Default: include active and completed appointments (case-insensitive set)
+      query.appointmentStatus = { $in: [
+        'confirmed','Confirmed','CONFIRMED',
+        'pending','Pending','PENDING',
+        'scheduled','Scheduled','SCHEDULED',
+        'approved','Approved','APPROVED',
+        'completed','Completed','COMPLETED'
+      ] };
     }
 
     const appointments = await Appointment.find(query)
@@ -356,7 +363,8 @@ const getUserAppointmentsById = async (req, res) => {
     const query = { userId: userId };
 
     if (status) {
-      query.appointmentStatus = status;
+      const s = String(status).toLowerCase();
+      query.appointmentStatus = { $in: [s, s.toUpperCase(), s.charAt(0).toUpperCase() + s.slice(1)] };
     }
 
     console.log('🔍 Backend: Searching for appointments with query:', query);
