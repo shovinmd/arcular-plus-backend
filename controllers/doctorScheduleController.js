@@ -29,11 +29,18 @@ const getDoctorSchedule = async (req, res) => {
       fullName: doctor.fullName
     });
 
-    // Get all schedules for the doctor using MongoDB ID
-    const schedules = await DoctorSchedule.find({ 
+    // Get schedules for the doctor using MongoDB ID, optionally filtered by hospital
+    const query = { 
       doctorId: doctor._id.toString(), // Use MongoDB ID
       isActive: true 
-    }).sort({ date: 1 });
+    };
+    
+    // Add hospital filter if provided
+    if (req.query.hospitalId) {
+      query.hospitalId = req.query.hospitalId;
+    }
+    
+    const schedules = await DoctorSchedule.find(query).sort({ date: 1 });
 
     console.log(`📅 Found ${schedules.length} schedules for doctor ${doctor.fullName}`);
 
@@ -119,12 +126,18 @@ const saveDoctorSchedule = async (req, res) => {
 
     // Individual slots are generated, no overlap check needed
 
-    // Update or create schedule using MongoDB ID
+    // Update or create schedule using MongoDB ID and hospital-specific data
     const schedule = await DoctorSchedule.findOneAndUpdate(
-      { doctorId: doctor._id.toString(), date },
+      { 
+        doctorId: doctor._id.toString(), 
+        date,
+        hospitalId: req.body.hospitalId || null // Include hospital ID in query
+      },
       {
         doctorId: doctor._id.toString(), // Use MongoDB ID
         date,
+        hospitalId: req.body.hospitalId || null, // Store hospital ID
+        hospitalName: req.body.hospitalName || null, // Store hospital name
         timeSlots: generatedSlots.map(slot => ({
           startTime: slot.startTime,
           endTime: slot.endTime,
