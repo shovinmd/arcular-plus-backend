@@ -35,6 +35,9 @@ router.post('/book', authenticateToken, doctorScheduleController.bookTimeSlot);
 // Cancel a time slot booking
 router.post('/cancel-booking', authenticateToken, doctorScheduleController.cancelTimeSlotBooking);
 
+// Delete a specific time slot
+router.delete('/:doctorId/:date/slot', authenticateToken, doctorScheduleController.deleteTimeSlot);
+
 // Delete doctor schedule
 router.delete('/:doctorId/:date', authenticateToken, doctorScheduleController.deleteDoctorSchedule);
 

@@ -194,62 +194,34 @@ const getAvailableTimeSlots = async (req, res) => {
       });
     }
 
-    // Get doctor schedule for the specific date
-    const schedule = await DoctorSchedule.findOne({
+    // Optional hospital filter so slots are hospital-specific
+    const { hospitalId } = req.query || {};
+
+    // Get doctor schedule for the specific date (and hospital when provided)
+    let schedule = await DoctorSchedule.findOne({
       doctorId,
       date,
-      isActive: true
+      isActive: true,
+      ...(hospitalId ? { hospitalId } : {})
     });
 
     if (!schedule) {
-      // Create default time slots if no schedule exists
-      const defaultTimeSlots = [
-        { startTime: '09:00', endTime: '09:30', isAvailable: true, maxBookings: 1, currentBookings: 0 },
-        { startTime: '09:30', endTime: '10:00', isAvailable: true, maxBookings: 1, currentBookings: 0 },
-        { startTime: '10:00', endTime: '10:30', isAvailable: true, maxBookings: 1, currentBookings: 0 },
-        { startTime: '10:30', endTime: '11:00', isAvailable: true, maxBookings: 1, currentBookings: 0 },
-        { startTime: '11:00', endTime: '11:30', isAvailable: true, maxBookings: 1, currentBookings: 0 },
-        { startTime: '11:30', endTime: '12:00', isAvailable: true, maxBookings: 1, currentBookings: 0 },
-        { startTime: '14:00', endTime: '14:30', isAvailable: true, maxBookings: 1, currentBookings: 0 },
-        { startTime: '14:30', endTime: '15:00', isAvailable: true, maxBookings: 1, currentBookings: 0 },
-        { startTime: '15:00', endTime: '15:30', isAvailable: true, maxBookings: 1, currentBookings: 0 },
-        { startTime: '15:30', endTime: '16:00', isAvailable: true, maxBookings: 1, currentBookings: 0 },
-        { startTime: '16:00', endTime: '16:30', isAvailable: true, maxBookings: 1, currentBookings: 0 },
-        { startTime: '16:30', endTime: '17:00', isAvailable: true, maxBookings: 1, currentBookings: 0 },
-      ];
-
-      // Create a default schedule for this date
-      try {
-        const defaultSchedule = new DoctorSchedule({
-          doctorId,
-          date,
-          timeSlots: defaultTimeSlots,
-          isActive: true
-        });
-
-        await defaultSchedule.save();
-        console.log('📅 Created default schedule for doctor', doctorId, 'on', date);
-
-        // Use the default schedule
-        schedule = defaultSchedule;
-      } catch (scheduleError) {
-        console.error('❌ Error creating default schedule:', scheduleError);
-        return res.status(500).json({
-          success: false,
-          message: 'Failed to create default schedule',
-          error: scheduleError.message
-        });
-      }
+      // No schedule for this hospital/date → return empty set (do not create defaults here)
+      return res.json({ success: true, data: [] });
     }
 
     // Get existing appointments for this doctor and date
     let appointments = [];
     try {
-      appointments = await Appointment.find({
+      const appointmentQuery = {
         doctorId,
         appointmentDate: new Date(date),
         status: { $in: ['confirmed', 'scheduled', 'pending'] }
-      });
+      };
+      if (hospitalId) {
+        appointmentQuery.hospitalId = hospitalId;
+      }
+      appointments = await Appointment.find(appointmentQuery);
       console.log('📅 Found', appointments.length, 'existing appointments for', date);
     } catch (appointmentError) {
       console.log('⚠️ Error fetching appointments (continuing with empty list):', appointmentError.message);
@@ -333,6 +305,41 @@ const bookTimeSlot = async (req, res) => {
       message: 'Failed to book time slot',
       error: error.message
     });
+  }
+};
+
+// Delete a specific time slot from a day's schedule
+const deleteTimeSlot = async (req, res) => {
+  try {
+    const { doctorId, date } = req.params;
+    const { startTime, endTime, hospitalId } = req.body || {};
+
+    if (!startTime || !endTime) {
+      return res.status(400).json({ success: false, message: 'startTime and endTime are required' });
+    }
+
+    const schedule = await DoctorSchedule.findOne({
+      doctorId,
+      date,
+      isActive: true,
+      ...(hospitalId ? { hospitalId } : {})
+    });
+
+    if (!schedule) {
+      return res.status(404).json({ success: false, message: 'Schedule not found' });
+    }
+
+    const before = schedule.timeSlots.length;
+    schedule.timeSlots = schedule.timeSlots.filter(
+      s => !(s.startTime === startTime && s.endTime === endTime)
+    );
+    const after = schedule.timeSlots.length;
+
+    await schedule.save();
+    return res.json({ success: true, removed: before - after, remaining: after });
+  } catch (e) {
+    console.error('❌ Error deleting time slot:', e);
+    return res.status(500).json({ success: false, message: 'Failed to delete time slot' });
   }
 };
 
@@ -481,5 +488,6 @@ module.exports = {
   getAvailableTimeSlots,
   bookTimeSlot,
   cancelTimeSlotBooking,
-  deleteDoctorSchedule
+  deleteDoctorSchedule,
+  deleteTimeSlot
 };
