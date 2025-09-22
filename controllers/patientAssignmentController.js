@@ -44,15 +44,17 @@ const createAssignment = async (req, res) => {
       return res.status(404).json({ success: false, error: 'Patient not found' });
     }
 
-    // Find doctor by multiple identifiers for compatibility
+    // Find doctor by multiple identifiers for compatibility (User collection)
     const doctor = await User.findOne({
-      $or: [
-        { arcId: doctorArcId },
-        { healthQrId: doctorArcId },
-        { uid: doctorArcId },
-        { email: doctorArcId }
-      ],
-      userType: 'doctor'
+      $and: [
+        { $or: [
+          { arcId: doctorArcId },
+          { healthQrId: doctorArcId },
+          { uid: doctorArcId },
+          { email: doctorArcId }
+        ] },
+        { $or: [ { type: 'doctor' }, { role: 'doctor' } ] }
+      ]
     });
     if (!doctor) {
       return res.status(404).json({ success: false, error: 'Doctor not found' });
