@@ -27,10 +27,26 @@ const getHospitalNurses = async (req, res) => {
       console.log('🏥 NurseTalk: Nurse affiliatedHospitals:', nurseProfile.affiliatedHospitals?.length || 0);
     }
     
-    // If still not found, return empty list gracefully (don't auto-create here)
+    // If still not found, fall back to a general nurses list (same app-wide visibility)
     if (!nurseProfile) {
-      console.log('ℹ️ NurseTalk: No nurse profile found; returning empty list');
-      return res.json({ success: true, data: [] });
+      console.log('ℹ️ NurseTalk: No nurse profile found; returning general approved nurses list (fallback)');
+      const general = await Nurse.find({ isApproved: true })
+        .select('fullName email uid qualification lastSeen')
+        .limit(50)
+        .lean();
+      const nowTs = Date.now();
+      const mapped = general
+        .filter(n => String(n.uid) !== String(req.user.uid) && String(n.email || '') !== String(currentUser.email || ''))
+        .map(n => ({
+          id: n._id,
+          name: n.fullName,
+          email: n.email,
+          uid: n.uid,
+          qualification: n.qualification,
+          isOnline: n.lastSeen ? (nowTs - new Date(n.lastSeen).getTime() < 2*60*1000) : false,
+          lastSeen: n.lastSeen || null,
+        }));
+      return res.json({ success: true, data: mapped });
     }
     
     // Determine hospital context: prefer affiliatedHospitals.hospitalId
@@ -169,12 +185,21 @@ const sendMessage = async (req, res) => {
 // Get messages between two nurses
 const getMessages = async (req, res) => {
   try {
-    const { receiverId } = req.params;
+    let { receiverId } = req.params;
     const limit = Math.min(parseInt(req.query.limit || '50', 10), 100);
 
     const currentUser = await User.findOne({ uid: req.user.uid });
     if (!currentUser) {
       return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Resolve receiverId to ObjectId if a uid/email was passed
+    const mongoose = require('mongoose');
+    if (!mongoose.Types.ObjectId.isValid(receiverId)) {
+      const candidate = await User.findOne({
+        $or: [ { uid: receiverId }, { email: receiverId } ]
+      });
+      if (candidate) receiverId = String(candidate._id);
     }
 
     // Only fetch direct chat messages here; handover is shown in its own tab
