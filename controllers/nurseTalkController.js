@@ -14,18 +14,11 @@ const getHospitalNurses = async (req, res) => {
     }
     console.log('👤 NurseTalk: Found user:', currentUser.fullName, 'ID:', currentUser._id);
 
-    // Try different ways to find nurse profile
-    let nurseProfile = await Nurse.findOne({ userId: currentUser._id });
-    console.log('🔍 NurseTalk: Found nurse profile by userId:', nurseProfile ? 'Yes' : 'No');
-    
-    if (!nurseProfile) {
-      // Try finding by UID directly
-      nurseProfile = await Nurse.findOne({ uid: req.user.uid });
-      console.log('🔍 NurseTalk: Found nurse profile by uid:', nurseProfile ? 'Yes' : 'No');
-    }
-    
-    if (!nurseProfile) {
-      // Try finding by email
+    // Try different ways to find nurse profile (Nurse stores uid/email directly)
+    let nurseProfile = await Nurse.findOne({ uid: req.user.uid });
+    console.log('🔍 NurseTalk: Found nurse profile by uid:', nurseProfile ? 'Yes' : 'No');
+
+    if (!nurseProfile && currentUser.email) {
       nurseProfile = await Nurse.findOne({ email: currentUser.email });
       console.log('🔍 NurseTalk: Found nurse profile by email:', nurseProfile ? 'Yes' : 'No');
     }
@@ -34,53 +27,48 @@ const getHospitalNurses = async (req, res) => {
       console.log('🏥 NurseTalk: Nurse affiliatedHospitals:', nurseProfile.affiliatedHospitals?.length || 0);
     }
     
+    // If still not found, return empty list gracefully (don't auto-create here)
     if (!nurseProfile) {
-      console.log('❌ NurseTalk: No nurse profile found, creating minimal profile');
-      // Create a minimal nurse profile for NurseTalk functionality
-      try {
-        nurseProfile = await Nurse.create({
-          uid: req.user.uid,
-          fullName: currentUser.fullName || 'Unknown Nurse',
-          email: currentUser.email || `${req.user.uid}@temp.com`,
-          mobileNumber: '0000000000',
-          hospitalAffiliation: 'Default Hospital', // Default hospital
-          qualification: 'RN',
-          isApproved: true,
-          createdAt: new Date()
-        });
-        console.log('✅ NurseTalk: Created minimal nurse profile');
-      } catch (createError) {
-        console.error('❌ NurseTalk: Failed to create nurse profile:', createError.message);
-        return res.status(500).json({ success: false, message: 'Failed to create nurse profile' });
-      }
+      console.log('ℹ️ NurseTalk: No nurse profile found; returning empty list');
+      return res.json({ success: true, data: [] });
     }
     
-    if (!nurseProfile.hospitalAffiliation) {
-      console.log('❌ NurseTalk: No hospital affiliation found');
-      return res.status(404).json({ success: false, message: 'Nurse hospital not found' });
+    // Determine hospital context: prefer affiliatedHospitals.hospitalId
+    let hospitalIdFilter = undefined;
+    if (Array.isArray(nurseProfile.affiliatedHospitals) && nurseProfile.affiliatedHospitals.length > 0) {
+      const active = nurseProfile.affiliatedHospitals.find(h => h.isActive !== false) || nurseProfile.affiliatedHospitals[0];
+      hospitalIdFilter = String(active.hospitalId || '');
     }
 
-    // Get all nurses in the same hospital (using hospitalAffiliation)
-    console.log('🔍 NurseTalk: Searching for nurses with hospitalAffiliation:', nurseProfile.hospitalAffiliation);
-    const hospitalNurses = await Nurse.find({ 
-      hospitalAffiliation: nurseProfile.hospitalAffiliation,
-      isApproved: true 
-    })
-      .populate('userId', 'fullName email uid')
-      .lean();
+    let hospitalNurses = [];
+    if (hospitalIdFilter && hospitalIdFilter.length > 0) {
+      console.log('🔍 NurseTalk: Searching nurses by hospitalId:', hospitalIdFilter);
+      hospitalNurses = await Nurse.find({
+        isApproved: true,
+        'affiliatedHospitals.hospitalId': hospitalIdFilter,
+      }).select('fullName email uid qualification affiliatedHospitals').lean();
+    } else if (nurseProfile.hospitalAffiliation) {
+      console.log('🔍 NurseTalk: Searching nurses by hospitalAffiliation:', nurseProfile.hospitalAffiliation);
+      hospitalNurses = await Nurse.find({
+        isApproved: true,
+        hospitalAffiliation: nurseProfile.hospitalAffiliation,
+      }).select('fullName email uid qualification affiliatedHospitals').lean();
+    } else {
+      console.log('ℹ️ NurseTalk: No hospital context; returning empty list');
+      return res.json({ success: true, data: [] });
+    }
     
     console.log('👥 NurseTalk: Found hospital nurses:', hospitalNurses.length);
 
     // Get online status (simplified - in real app, use WebSocket or Redis)
     const nurses = hospitalNurses.map(nurse => ({
       id: nurse._id,
-      userId: nurse.userId._id,
-      name: nurse.userId.fullName,
-      email: nurse.userId.email,
-      uid: nurse.userId.uid,
+      name: nurse.fullName,
+      email: nurse.email,
+      uid: nurse.uid,
       qualification: nurse.qualification,
-      isOnline: Math.random() > 0.3, // Mock online status
-      lastSeen: new Date(Date.now() - Math.random() * 24 * 60 * 60 * 1000)
+      isOnline: Math.random() > 0.3,
+      lastSeen: new Date(Date.now() - Math.random() * 24 * 60 * 60 * 1000),
     }));
 
     console.log('✅ NurseTalk: Returning nurses:', nurses.length);
