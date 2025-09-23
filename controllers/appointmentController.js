@@ -89,6 +89,28 @@ const createOfflineAppointment = async (req, res) => {
 
     await appointment.save();
 
+    // Increment currentBookings for the schedule slot (non-blocking)
+    try {
+      const DoctorSchedule = require('../models/DoctorSchedule');
+      const schedule = await DoctorSchedule.findOne({
+        doctorId: String(doctor._id),
+        date: appointmentDate,
+        isActive: true,
+        hospitalId: resolvedHospitalId,
+      });
+      if (schedule) {
+        const slot = schedule.timeSlots.find(
+          (s) => appointmentTime >= s.startTime && appointmentTime < s.endTime
+        );
+        if (slot && slot.isAvailable && slot.currentBookings < (slot.maxBookings || 1)) {
+          slot.currentBookings += 1;
+          await schedule.save();
+        }
+      }
+    } catch (e) {
+      console.log('⚠️ Schedule update failed (non-blocking):', e.message);
+    }
+
     // Email patient if requested
     if (sendEmail && patientEmail) {
       try {
