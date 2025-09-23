@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const nurseController = require('../controllers/nurseController');
 const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
+const Nurse = require('../models/Nurse');
 
 // Registration
 router.post('/register', firebaseAuthMiddleware, nurseController.registerNurse);
@@ -169,5 +170,21 @@ router.get('/qr/uid/:uid', async (req, res) => {
 
 // Update nurse shift
 router.put('/shift/:nurseId', firebaseAuthMiddleware, nurseController.updateNurseShift);
+
+// Presence ping (non-breaking): updates lastSeen; safe to call from app every 30-60s
+router.post('/presence/ping', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    const uid = req.user?.uid;
+    if (!uid) return res.json({ success: false });
+    const nurse = await Nurse.findOne({ uid });
+    if (nurse) {
+      nurse.lastSeen = new Date();
+      await nurse.save();
+    }
+    return res.json({ success: true });
+  } catch (_) {
+    return res.json({ success: true });
+  }
+});
 
 module.exports = router; 

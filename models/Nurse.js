@@ -87,6 +87,9 @@ const nurseSchema = new mongoose.Schema({
     endDate: { type: Date, required: false },
     isActive: { type: Boolean, default: true }
   }],
+
+  // Presence (optional)
+  lastSeen: { type: Date },
   
   // Address Information
   address: {

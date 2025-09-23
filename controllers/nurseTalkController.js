@@ -62,17 +62,22 @@ const getHospitalNurses = async (req, res) => {
 
     // Get online status (simplified - in real app, use WebSocket or Redis)
     // Exclude the current nurse from the list
+    const now = Date.now();
     const nurses = hospitalNurses
       .filter(n => String(n.uid) !== String(req.user.uid) && String(n.email || '') !== String(currentUser.email || ''))
-      .map(nurse => ({
-      id: nurse._id,
-      name: nurse.fullName,
-      email: nurse.email,
-      uid: nurse.uid,
-      qualification: nurse.qualification,
-      isOnline: Math.random() > 0.3,
-      lastSeen: new Date(Date.now() - Math.random() * 24 * 60 * 60 * 1000),
-    }));
+      .map(nurse => {
+        const lastSeenTs = nurse.lastSeen ? new Date(nurse.lastSeen).getTime() : 0;
+        const isOnline = lastSeenTs && (now - lastSeenTs) < 2 * 60 * 1000; // 2 minutes
+        return {
+          id: nurse._id,
+          name: nurse.fullName,
+          email: nurse.email,
+          uid: nurse.uid,
+          qualification: nurse.qualification,
+          isOnline,
+          lastSeen: nurse.lastSeen || null,
+        };
+      });
 
     console.log('✅ NurseTalk: Returning nurses:', nurses.length);
     
@@ -141,7 +146,8 @@ const sendMessage = async (req, res) => {
       hospitalId: resolvedHospitalId,
       patientArcId,
       patientName,
-      status: 'sent'
+      status: 'sent',
+      createdAt: new Date()
     });
 
     await nurseTalk.save();
