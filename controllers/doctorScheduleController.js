@@ -205,8 +205,20 @@ const getAvailableTimeSlots = async (req, res) => {
       ...(hospitalId ? { hospitalId } : {})
     });
 
+    // If a hospital filter is provided but no schedule is found, fall back to
+    // the doctor-wide schedule (no hospital scoping). This avoids empty results
+    // when older schedules were saved without hospitalId.
+    if (!schedule && hospitalId) {
+      console.log('ℹ️ No hospital-scoped schedule found, falling back to unscoped schedule');
+      schedule = await DoctorSchedule.findOne({
+        doctorId,
+        date,
+        isActive: true,
+      });
+    }
+
     if (!schedule) {
-      // No schedule for this hospital/date → return empty set (do not create defaults here)
+      // No schedule found even after fallback → return empty set (no defaults here)
       return res.json({ success: true, data: [] });
     }
 
