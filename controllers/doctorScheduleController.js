@@ -179,6 +179,7 @@ const getAvailableTimeSlots = async (req, res) => {
     const { date } = req.query;
 
     console.log('🕐 Getting time slots for doctor:', doctorId, 'date:', date);
+    console.log('🔍 Query params:', req.query);
 
     if (!doctorId) {
       return res.status(400).json({
@@ -196,6 +197,7 @@ const getAvailableTimeSlots = async (req, res) => {
 
     // Optional hospital filter so slots are hospital-specific
     const { hospitalId } = req.query || {};
+    console.log('🏥 Hospital filter:', hospitalId);
 
     // Resolve both Mongo doctorId and Firebase UID for cross-collection matching
     let doctorDoc = null;
@@ -209,6 +211,12 @@ const getAvailableTimeSlots = async (req, res) => {
 
     // Choose the correct identifier used in schedules (Mongo _id string)
     const scheduleDoctorId = doctorDoc ? String(doctorDoc._id) : String(doctorId);
+    console.log('👨‍⚕️ Doctor resolved:', {
+      originalId: doctorId,
+      mongoId: doctorDoc?._id,
+      scheduleDoctorId: scheduleDoctorId,
+      doctorName: doctorDoc?.fullName
+    });
 
     // Get doctor schedule for the specific date (and hospital when provided)
     let schedule = await DoctorSchedule.findOne({
@@ -217,6 +225,13 @@ const getAvailableTimeSlots = async (req, res) => {
       isActive: true,
       ...(hospitalId ? { hospitalId } : {})
     });
+    
+    console.log('📅 Schedule query result:', {
+      found: !!schedule,
+      scheduleId: schedule?._id,
+      timeSlotsCount: schedule?.timeSlots?.length || 0,
+      hospitalId: schedule?.hospitalId
+    });
 
     // STRICT HOSPITAL SCOPING: If hospitalId is provided but no schedule is
     // found for that hospital, do NOT fall back to unscoped. This prevents
@@ -224,6 +239,7 @@ const getAvailableTimeSlots = async (req, res) => {
     // selected.
 
     if (!schedule) {
+      console.log('🔄 No hospital-specific schedule found, trying unscoped fallback...');
       // As a safe fallback, if a hospital-specific schedule isn't found, try unscoped schedule for the same date
       // This prevents the frontend UI from disabling time selection when a date has valid unscoped slots.
       schedule = await DoctorSchedule.findOne({
@@ -232,8 +248,15 @@ const getAvailableTimeSlots = async (req, res) => {
         isActive: true,
         hospitalId: null,
       });
+      
+      console.log('📅 Fallback schedule query result:', {
+        found: !!schedule,
+        scheduleId: schedule?._id,
+        timeSlotsCount: schedule?.timeSlots?.length || 0
+      });
 
       if (!schedule) {
+        console.log('❌ No schedule found for doctor', scheduleDoctorId, 'on date', date);
         return res.json({ success: true, data: [] });
       }
     }
@@ -281,8 +304,14 @@ const getAvailableTimeSlots = async (req, res) => {
       availableSlots = ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30'];
     }
 
+    console.log('✅ Final result:', {
+      availableSlotsCount: availableSlots.length,
+      availableSlots: availableSlots
+    });
+
     // If no slots available, return explicit message and empty list (frontend can show acknowledgement)
     if (!availableSlots || availableSlots.length === 0) {
+      console.log('⚠️ No slots available, returning empty array');
       return res.json({ success: true, data: [], message: 'No slots available for this date at the selected hospital' });
     }
 
