@@ -221,12 +221,23 @@ const getMessages = async (req, res) => {
       if (candidate) receiverId = String(candidate._id);
     }
 
+    const currentIdStr = String(currentUser._id);
+    const receiverIdStr = String(receiverId);
+
     // Only fetch direct chat messages here; handover is shown in its own tab
     const messages = await NurseTalk.find({
       messageType: 'chat',
       $or: [
+        // Correct normalized ObjectId pairs
         { senderId: currentUser._id, receiverId: receiverId },
-        { senderId: receiverId, receiverId: currentUser._id }
+        { senderId: receiverId, receiverId: currentUser._id },
+        // Legacy variants where one or both ids may have been saved as strings
+        { senderId: currentIdStr, receiverId: receiverId },
+        { senderId: receiverId, receiverId: currentIdStr },
+        { senderId: currentUser._id, receiverId: receiverIdStr },
+        { senderId: receiverIdStr, receiverId: currentUser._id },
+        { senderId: currentIdStr, receiverId: receiverIdStr },
+        { senderId: receiverIdStr, receiverId: currentIdStr },
       ]
     })
     .sort({ createdAt: -1 })
