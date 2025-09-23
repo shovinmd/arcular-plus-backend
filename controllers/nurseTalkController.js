@@ -61,7 +61,10 @@ const getHospitalNurses = async (req, res) => {
     console.log('👥 NurseTalk: Found hospital nurses:', hospitalNurses.length);
 
     // Get online status (simplified - in real app, use WebSocket or Redis)
-    const nurses = hospitalNurses.map(nurse => ({
+    // Exclude the current nurse from the list
+    const nurses = hospitalNurses
+      .filter(n => String(n.uid) !== String(req.user.uid) && String(n.email || '') !== String(currentUser.email || ''))
+      .map(nurse => ({
       id: nurse._id,
       name: nurse.fullName,
       email: nurse.email,
