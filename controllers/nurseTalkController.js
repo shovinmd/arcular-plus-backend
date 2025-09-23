@@ -97,10 +97,25 @@ const getHospitalNurses = async (req, res) => {
 // Send message to another nurse
 const sendMessage = async (req, res) => {
   try {
-    const { receiverId, message, patientArcId, patientName, messageType = 'chat' } = req.body;
+    let { receiverId, message, patientArcId, patientName, messageType = 'chat' } = req.body;
 
-    if (!receiverId || !message) {
+    if (!message) {
       return res.status(400).json({ success: false, message: 'receiverId and message are required' });
+    }
+
+    // Resolve receiverId from uid/email if needed
+    if (!receiverId || receiverId.length < 12) {
+      // Try to find by uid or email
+      const byUid = await User.findOne({ uid: receiverId });
+      const byEmail = !byUid && receiverId?.includes('@') ? await User.findOne({ email: receiverId }) : null;
+      const target = byUid || byEmail;
+      if (target) {
+        receiverId = String(target._id);
+      }
+    }
+
+    if (!receiverId) {
+      return res.status(400).json({ success: false, message: 'Valid receiver not found' });
     }
 
     const currentUser = await User.findOne({ uid: req.user.uid });
@@ -109,8 +124,12 @@ const sendMessage = async (req, res) => {
     }
 
     // Get nurse profile for hospital context
-    const nurseProfile = await Nurse.findOne({ userId: currentUser._id });
-    if (!nurseProfile || !nurseProfile.hospitalId) {
+    let nurseProfile = await Nurse.findOne({ userId: currentUser._id });
+    if (!nurseProfile) nurseProfile = await Nurse.findOne({ uid: currentUser.uid });
+    if (!nurseProfile && currentUser.email) nurseProfile = await Nurse.findOne({ email: currentUser.email });
+    // Use hospitalAffiliation if hospitalId is not present
+    const resolvedHospitalId = nurseProfile?.hospitalId || nurseProfile?.affiliatedHospitals?.[0]?.hospitalId || null;
+    if (!nurseProfile || !resolvedHospitalId) {
       return res.status(404).json({ success: false, message: 'Nurse hospital not found' });
     }
 
@@ -119,7 +138,7 @@ const sendMessage = async (req, res) => {
       messageType,
       senderId: currentUser._id,
       receiverId,
-      hospitalId: nurseProfile.hospitalId,
+      hospitalId: resolvedHospitalId,
       patientArcId,
       patientName,
       status: 'sent'
