@@ -100,14 +100,19 @@ const getHospitalNurses = async (req, res) => {
     // Exclude the current nurse from the list
     const now = Date.now();
     const nurses = hospitalNurses
-      .filter(n => String(n.uid) !== String(req.user.uid) && String(n.email || '') !== String(currentUser.email || ''))
+      .filter(n => {
+        const notSameUid = String(n.uid) !== String(req.user.uid);
+        const notSameEmail = String(n.email || '') !== String(currentUser.email || '');
+        const notSameUserId = String(n.userId || n._id) !== String(currentUser._id);
+        return notSameUid && notSameEmail && notSameUserId;
+      })
       .map(nurse => {
         const lastSeenTs = nurse.lastSeen ? new Date(nurse.lastSeen).getTime() : 0;
         const isOnline = lastSeenTs && (now - lastSeenTs) < 2 * 60 * 1000; // 2 minutes
         console.log(`👤 Nurse ${nurse.fullName}: lastSeen=${nurse.lastSeen}, isOnline=${isOnline}`);
         return {
           id: nurse._id,
-          userId: nurse._id, // Add userId field for frontend compatibility
+          userId: nurse.userId || nurse._id, // Prefer profile.userId if present
           name: nurse.fullName,
           email: nurse.email,
           uid: nurse.uid,
