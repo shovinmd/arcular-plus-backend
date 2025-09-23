@@ -58,6 +58,7 @@ const getHospitalNurses = async (req, res) => {
         .filter(n => String(n.uid) !== String(req.user.uid) && String(n.email || '') !== String(currentUser.email || ''))
         .map(n => ({
           id: n._id,
+          userId: n._id, // Add userId field for frontend compatibility
           name: n.fullName,
           email: n.email,
           uid: n.uid,
@@ -392,11 +393,34 @@ const getUnreadCount = async (req, res) => {
   }
 };
 
+// Ping presence (update lastSeen)
+const pingPresence = async (req, res) => {
+  try {
+    const currentUser = await User.findOne({ uid: req.user.uid });
+    if (!currentUser) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Update nurse's lastSeen timestamp
+    await Nurse.findOneAndUpdate(
+      { userId: currentUser._id },
+      { lastSeen: new Date() },
+      { upsert: false }
+    );
+
+    res.json({ success: true, message: 'Presence updated' });
+  } catch (error) {
+    console.error('Error updating presence:', error);
+    res.status(500).json({ success: false, message: 'Failed to update presence', error: error.message });
+  }
+};
+
 module.exports = {
   getHospitalNurses,
   sendMessage,
   getMessages,
   getHandoverNotes,
   markAsRead,
-  getUnreadCount
+  getUnreadCount,
+  pingPresence
 };

@@ -66,4 +66,7 @@ router.patch('/read/:messageId', nurseTalkController.markAsRead);
 // Get unread message count
 router.get('/unread-count', nurseTalkController.getUnreadCount);
 
+// Ping presence
+router.post('/ping', firebaseAuthMiddleware, nurseTalkController.pingPresence);
+
 module.exports = router;
