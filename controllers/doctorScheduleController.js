@@ -274,10 +274,12 @@ const getAvailableTimeSlots = async (req, res) => {
       availableSlots = ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30'];
     }
 
-    res.json({
-      success: true,
-      data: availableSlots
-    });
+    // If no slots available, return explicit message and empty list (frontend can show acknowledgement)
+    if (!availableSlots || availableSlots.length === 0) {
+      return res.json({ success: true, data: [], message: 'No slots available for this date at the selected hospital' });
+    }
+
+    res.json({ success: true, data: availableSlots });
   } catch (error) {
     console.error('Error getting available time slots:', error);
     res.status(500).json({
@@ -374,8 +376,14 @@ const deleteTimeSlot = async (req, res) => {
     );
     const after = schedule.timeSlots.length;
 
+    if (after === 0) {
+      // If no slots left for this date/hospital, delete the schedule doc so UI won't show "Active" section
+      await DoctorSchedule.deleteOne({ _id: schedule._id });
+      return res.json({ success: true, removed: before, remaining: 0, scheduleDeleted: true });
+    }
+
     await schedule.save();
-    return res.json({ success: true, removed: before - after, remaining: after });
+    return res.json({ success: true, removed: before - after, remaining: after, scheduleDeleted: false });
   } catch (e) {
     console.error('❌ Error deleting time slot:', e);
     return res.status(500).json({ success: false, message: 'Failed to delete time slot' });
