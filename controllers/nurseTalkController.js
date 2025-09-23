@@ -7,10 +7,29 @@ const Hospital = require('../models/Hospital');
 const getHospitalNurses = async (req, res) => {
   try {
     console.log('🏥 NurseTalk: Getting hospital nurses for UID:', req.user.uid);
-    const currentUser = await User.findOne({ uid: req.user.uid });
+    let currentUser = await User.findOne({ uid: req.user.uid });
     if (!currentUser) {
-      console.log('❌ NurseTalk: User not found for UID:', req.user.uid);
-      return res.status(404).json({ success: false, message: 'User not found' });
+      console.log('❌ NurseTalk: User not found for UID:', req.user.uid, '→ attempting fallback from Nurse profile');
+      // Fallback: try to create a minimal User from Nurse profile so routes work
+      const nurse = await Nurse.findOne({ uid: req.user.uid });
+      if (nurse) {
+        try {
+          currentUser = await User.create({
+            uid: req.user.uid,
+            email: req.user.email || nurse.email || `${req.user.uid}@temp.com`,
+            fullName: nurse.fullName || 'Unknown User',
+            type: 'nurse',
+            arcId: `TEMP-${req.user.uid}-${Date.now()}`,
+            createdAt: new Date(),
+          });
+          console.log('✅ NurseTalk: Minimal user created from Nurse profile');
+        } catch (e) {
+          console.log('⚠️ NurseTalk: Could not create minimal user:', e.message);
+        }
+      }
+      if (!currentUser) {
+        return res.status(404).json({ success: false, message: 'User not found' });
+      }
     }
     console.log('👤 NurseTalk: Found user:', currentUser.fullName, 'ID:', currentUser._id);
 
@@ -227,10 +246,28 @@ const getMessages = async (req, res) => {
 const getHandoverNotes = async (req, res) => {
   try {
     console.log('📝 NurseTalk: Getting handover notes for UID:', req.user.uid);
-    const currentUser = await User.findOne({ uid: req.user.uid });
+    let currentUser = await User.findOne({ uid: req.user.uid });
     if (!currentUser) {
-      console.log('❌ NurseTalk: User not found for handover notes UID:', req.user.uid);
-      return res.status(404).json({ success: false, message: 'User not found' });
+      console.log('❌ NurseTalk: User not found for handover notes UID:', req.user.uid, '→ attempting fallback from Nurse profile');
+      const nurse = await Nurse.findOne({ uid: req.user.uid });
+      if (nurse) {
+        try {
+          currentUser = await User.create({
+            uid: req.user.uid,
+            email: req.user.email || nurse.email || `${req.user.uid}@temp.com`,
+            fullName: nurse.fullName || 'Unknown User',
+            type: 'nurse',
+            arcId: `TEMP-${req.user.uid}-${Date.now()}`,
+            createdAt: new Date(),
+          });
+          console.log('✅ NurseTalk: Minimal user created for handover');
+        } catch (e) {
+          console.log('⚠️ NurseTalk: Could not create minimal user for handover:', e.message);
+        }
+      }
+      if (!currentUser) {
+        return res.status(404).json({ success: false, message: 'User not found' });
+      }
     }
 
     let nurseProfile = await Nurse.findOne({ userId: currentUser._id });
