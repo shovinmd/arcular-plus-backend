@@ -239,25 +239,29 @@ const getAvailableTimeSlots = async (req, res) => {
     // selected.
 
     if (!schedule) {
-      console.log('🔄 No hospital-specific schedule found, trying broad fallback (any hospital)...');
-      // As a safe fallback, if a hospital-specific schedule isn't found, try ANY schedule for the same date
-      // (hospital-scoped or unscoped). This ensures users still see slots when the doctor has a schedule that day.
-      schedule = await DoctorSchedule.findOne({
-        doctorId: scheduleDoctorId,
-        date,
-        isActive: true,
-      });
+      if (hospitalId) {
+        // When a hospital is explicitly selected, do NOT fallback. Return no slots.
+        console.log('❌ No schedule for selected hospital. Not falling back.');
+        return res.json({ success: true, data: [], message: 'No slots available for this date at the selected hospital' });
+      } else {
+        console.log('🔄 No hospital specified; trying broad fallback (any hospital)...');
+        schedule = await DoctorSchedule.findOne({
+          doctorId: scheduleDoctorId,
+          date,
+          isActive: true,
+        });
 
-      console.log('📅 Broad fallback schedule query result:', {
-        found: !!schedule,
-        scheduleId: schedule?._id,
-        timeSlotsCount: schedule?.timeSlots?.length || 0,
-        hospitalIdFound: schedule?.hospitalId || null
-      });
+        console.log('📅 Broad fallback schedule query result:', {
+          found: !!schedule,
+          scheduleId: schedule?._id,
+          timeSlotsCount: schedule?.timeSlots?.length || 0,
+          hospitalIdFound: schedule?.hospitalId || null
+        });
 
-      if (!schedule) {
-        console.log('❌ No schedule found for doctor', scheduleDoctorId, 'on date', date);
-        return res.json({ success: true, data: [] });
+        if (!schedule) {
+          console.log('❌ No schedule found for doctor', scheduleDoctorId, 'on date', date);
+          return res.json({ success: true, data: [] });
+        }
       }
     }
 

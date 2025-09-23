@@ -274,6 +274,28 @@ const createAppointment = async (req, res) => {
 
     await appointment.save();
 
+    // Increment currentBookings for the schedule slot (non-blocking)
+    try {
+      const DoctorSchedule = require('../models/DoctorSchedule');
+      const schedule = await DoctorSchedule.findOne({
+        doctorId: String(doctor._id),
+        date: appointmentDate.toISOString().slice(0,10), // schedules store date as YYYY-MM-DD string
+        isActive: true,
+        hospitalId: String(resolvedHospitalId),
+      });
+      if (schedule) {
+        const slot = schedule.timeSlots.find(
+          (s) => appointmentTime >= s.startTime && appointmentTime < s.endTime
+        );
+        if (slot && slot.isAvailable && slot.currentBookings < (slot.maxBookings || 1)) {
+          slot.currentBookings += 1;
+          await schedule.save();
+        }
+      }
+    } catch (e) {
+      console.log('⚠️ Schedule update failed (non-blocking):', e.message);
+    }
+
     // Send email confirmation
     await sendAppointmentConfirmationEmail(appointment);
 
