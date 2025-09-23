@@ -341,12 +341,28 @@ const deleteTimeSlot = async (req, res) => {
       return res.status(400).json({ success: false, message: 'startTime and endTime are required' });
     }
 
-    const schedule = await DoctorSchedule.findOne({
-      doctorId,
-      date,
-      isActive: true,
-      ...(hospitalId ? { hospitalId } : {})
-    });
+    // When multiple hospital-scoped schedules exist for same date, we must
+    // target the correct schedule. If hospitalId is not provided and more than
+    // one schedule exists, return a clear error instead of deleting from the
+    // wrong schedule.
+    let schedule = null;
+    if (hospitalId) {
+      schedule = await DoctorSchedule.findOne({
+        doctorId,
+        date,
+        isActive: true,
+        hospitalId,
+      });
+    } else {
+      const schedules = await DoctorSchedule.find({ doctorId, date, isActive: true });
+      if (schedules.length > 1) {
+        return res.status(400).json({
+          success: false,
+          message: 'Multiple hospital schedules exist for this date. Provide hospitalId to delete a specific slot.',
+        });
+      }
+      schedule = schedules[0] || null;
+    }
 
     if (!schedule) {
       return res.status(404).json({ success: false, message: 'Schedule not found' });
