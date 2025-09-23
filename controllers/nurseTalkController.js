@@ -171,7 +171,9 @@ const getMessages = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
+    // Only fetch direct chat messages here; handover is shown in its own tab
     const messages = await NurseTalk.find({
+      messageType: 'chat',
       $or: [
         { senderId: currentUser._id, receiverId: receiverId },
         { senderId: receiverId, receiverId: currentUser._id }
