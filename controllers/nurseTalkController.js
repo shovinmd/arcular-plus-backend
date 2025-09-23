@@ -177,7 +177,7 @@ const sendMessage = async (req, res) => {
       }
     }
 
-    const currentUser = await User.findOne({ uid: req.user.uid });
+    let currentUser = await User.findOne({ uid: req.user.uid });
     if (!currentUser) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
@@ -186,6 +186,17 @@ const sendMessage = async (req, res) => {
     let nurseProfile = await Nurse.findOne({ userId: currentUser._id });
     if (!nurseProfile) nurseProfile = await Nurse.findOne({ uid: currentUser.uid });
     if (!nurseProfile && currentUser.email) nurseProfile = await Nurse.findOne({ email: currentUser.email });
+    // Ensure current user has a display name for UI (populate from nurse profile if missing)
+    try {
+      const needsNameUpdate = !currentUser.fullName || currentUser.fullName === 'Unknown User';
+      if (needsNameUpdate && nurseProfile?.fullName) {
+        currentUser.fullName = nurseProfile.fullName;
+        await currentUser.save();
+      }
+    } catch (nameErr) {
+      console.log('⚠️ NurseTalk: Could not update user fullName:', nameErr.message);
+    }
+
     // Use hospitalAffiliation if hospitalId is not present
     const resolvedHospitalId = nurseProfile?.hospitalId || nurseProfile?.affiliatedHospitals?.[0]?.hospitalId || null;
     if (!nurseProfile || !resolvedHospitalId) {
