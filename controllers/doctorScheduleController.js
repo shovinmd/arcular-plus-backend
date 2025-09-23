@@ -207,9 +207,12 @@ const getAvailableTimeSlots = async (req, res) => {
     } catch (_) {}
     const doctorUid = doctorDoc?.uid ? String(doctorDoc.uid) : undefined;
 
+    // Choose the correct identifier used in schedules (Mongo _id string)
+    const scheduleDoctorId = doctorDoc ? String(doctorDoc._id) : String(doctorId);
+
     // Get doctor schedule for the specific date (and hospital when provided)
     let schedule = await DoctorSchedule.findOne({
-      doctorId,
+      doctorId: scheduleDoctorId,
       date,
       isActive: true,
       ...(hospitalId ? { hospitalId } : {})
@@ -221,8 +224,18 @@ const getAvailableTimeSlots = async (req, res) => {
     // selected.
 
     if (!schedule) {
-      // No schedule found even after fallback → return empty set (no defaults here)
-      return res.json({ success: true, data: [] });
+      // As a safe fallback, if a hospital-specific schedule isn't found, try unscoped schedule for the same date
+      // This prevents the frontend UI from disabling time selection when a date has valid unscoped slots.
+      schedule = await DoctorSchedule.findOne({
+        doctorId: scheduleDoctorId,
+        date,
+        isActive: true,
+        hospitalId: null,
+      });
+
+      if (!schedule) {
+        return res.json({ success: true, data: [] });
+      }
     }
 
     // Get existing appointments for this doctor and date
