@@ -320,14 +320,20 @@ const getAvailableTimeSlots = async (req, res) => {
     try {
       availableSlots = schedule.timeSlots.filter(slot => {
         if (!slot.isAvailable) return false;
-        
-        // Check if slot is fully booked
+
+        // Hide if counter shows fully booked
+        const bookingsCount = Number(slot.currentBookings || 0);
+        const max = Number(slot.maxBookings || 1);
+        if (bookingsCount >= max) return false;
+
+        // Additionally, hide if appointments already fill the slot
         const slotAppointments = appointments.filter(apt => {
           const aptTime = apt.appointmentTime;
           return aptTime >= slot.startTime && aptTime < slot.endTime;
         });
-        
-        return slotAppointments.length < slot.maxBookings;
+        if (slotAppointments.length >= max) return false;
+
+        return true;
       }).map(slot => slot.startTime); // Return just the start time as string
 
       console.log('🕐 Available time slots for doctor', doctorId, 'on', date, ':', availableSlots);

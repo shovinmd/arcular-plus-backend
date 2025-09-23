@@ -277,9 +277,10 @@ const createAppointment = async (req, res) => {
     // Increment currentBookings for the schedule slot (non-blocking)
     try {
       const DoctorSchedule = require('../models/DoctorSchedule');
+      const dateStr = new Date(appointmentDate).toISOString().slice(0, 10);
       const schedule = await DoctorSchedule.findOne({
         doctorId: String(doctor._id),
-        date: appointmentDate.toISOString().slice(0,10), // schedules store date as YYYY-MM-DD string
+        date: dateStr, // schedules store date as YYYY-MM-DD string
         isActive: true,
         hospitalId: String(resolvedHospitalId),
       });
@@ -288,7 +289,7 @@ const createAppointment = async (req, res) => {
           (s) => appointmentTime >= s.startTime && appointmentTime < s.endTime
         );
         if (slot && slot.isAvailable && slot.currentBookings < (slot.maxBookings || 1)) {
-          slot.currentBookings += 1;
+          slot.currentBookings = Number(slot.currentBookings || 0) + 1;
           await schedule.save();
         }
       }
