@@ -239,20 +239,20 @@ const getAvailableTimeSlots = async (req, res) => {
     // selected.
 
     if (!schedule) {
-      console.log('🔄 No hospital-specific schedule found, trying unscoped fallback...');
-      // As a safe fallback, if a hospital-specific schedule isn't found, try unscoped schedule for the same date
-      // This prevents the frontend UI from disabling time selection when a date has valid unscoped slots.
+      console.log('🔄 No hospital-specific schedule found, trying broad fallback (any hospital)...');
+      // As a safe fallback, if a hospital-specific schedule isn't found, try ANY schedule for the same date
+      // (hospital-scoped or unscoped). This ensures users still see slots when the doctor has a schedule that day.
       schedule = await DoctorSchedule.findOne({
         doctorId: scheduleDoctorId,
         date,
         isActive: true,
-        hospitalId: null,
       });
-      
-      console.log('📅 Fallback schedule query result:', {
+
+      console.log('📅 Broad fallback schedule query result:', {
         found: !!schedule,
         scheduleId: schedule?._id,
-        timeSlotsCount: schedule?.timeSlots?.length || 0
+        timeSlotsCount: schedule?.timeSlots?.length || 0,
+        hospitalIdFound: schedule?.hospitalId || null
       });
 
       if (!schedule) {
