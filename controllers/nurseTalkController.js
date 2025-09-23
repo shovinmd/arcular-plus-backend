@@ -17,7 +17,7 @@ const getHospitalNurses = async (req, res) => {
           currentUser = await User.create({
             uid: req.user.uid,
             email: req.user.email || nurse.email || `${req.user.uid}@temp.com`,
-            fullName: nurse.fullName || 'Unknown User',
+            fullName: nurse.fullName || (req.user.email ? req.user.email.split('@')[0] : 'Nurse'),
             type: 'nurse',
             arcId: `TEMP-${req.user.uid}-${Date.now()}`,
             createdAt: new Date(),
@@ -255,7 +255,7 @@ const getHandoverNotes = async (req, res) => {
           currentUser = await User.create({
             uid: req.user.uid,
             email: req.user.email || nurse.email || `${req.user.uid}@temp.com`,
-            fullName: nurse.fullName || 'Unknown User',
+            fullName: nurse.fullName || (req.user.email ? req.user.email.split('@')[0] : 'Nurse'),
             type: 'nurse',
             arcId: `TEMP-${req.user.uid}-${Date.now()}`,
             createdAt: new Date(),
