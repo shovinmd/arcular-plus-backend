@@ -124,31 +124,65 @@ const saveDoctorSchedule = async (req, res) => {
 
     console.log('🕐 Generated', generatedSlots.length, 'individual time slots from', timeSlots.length, 'ranges');
 
-    // Individual slots are generated, no overlap check needed
+    // If a schedule exists for this doctor/date/hospital, MERGE new slots instead of overwriting
+    const query = {
+      doctorId: doctor._id.toString(),
+      date,
+      hospitalId: req.body.hospitalId || null,
+    };
 
-    // Update or create schedule using MongoDB ID and hospital-specific data
-    const schedule = await DoctorSchedule.findOneAndUpdate(
-      { 
-        doctorId: doctor._id.toString(), 
-        date,
-        hospitalId: req.body.hospitalId || null // Include hospital ID in query
-      },
-      {
-        doctorId: doctor._id.toString(), // Use MongoDB ID
-        date,
-        hospitalId: req.body.hospitalId || null, // Store hospital ID
-        hospitalName: req.body.hospitalName || null, // Store hospital name
-        timeSlots: generatedSlots.map(slot => ({
-          startTime: slot.startTime,
-          endTime: slot.endTime,
-          isAvailable: slot.isAvailable !== undefined ? slot.isAvailable : true,
-          maxBookings: slot.maxBookings || 1,
-          currentBookings: 0 // Reset current bookings
-        })),
-        isActive: true
-      },
-      { upsert: true, new: true }
-    );
+    let schedule = await DoctorSchedule.findOne(query);
+
+    if (schedule) {
+      const existingByKey = new Map();
+      for (const s of schedule.timeSlots) {
+        existingByKey.set(`${s.startTime}-${s.endTime}`, s);
+      }
+
+      for (const ns of generatedSlots) {
+        const key = `${ns.startTime}-${ns.endTime}`;
+        const found = existingByKey.get(key);
+        if (found) {
+          // Update configurables but keep currentBookings intact
+          found.isAvailable = ns.isAvailable !== undefined ? ns.isAvailable : true;
+          found.maxBookings = ns.maxBookings || found.maxBookings || 1;
+          // do not reset found.currentBookings
+        } else {
+          schedule.timeSlots.push({
+            startTime: ns.startTime,
+            endTime: ns.endTime,
+            isAvailable: ns.isAvailable !== undefined ? ns.isAvailable : true,
+            maxBookings: ns.maxBookings || 1,
+            currentBookings: 0,
+          });
+        }
+      }
+
+      // Ensure schedule meta fields are set
+      schedule.isActive = true;
+      schedule.hospitalName = req.body.hospitalName || schedule.hospitalName || null;
+      await schedule.save();
+    } else {
+      // Create fresh schedule
+      schedule = await DoctorSchedule.findOneAndUpdate(
+        query,
+        {
+          doctorId: doctor._id.toString(),
+          date,
+          hospitalId: req.body.hospitalId || null,
+          hospitalName: req.body.hospitalName || null,
+          timeSlots: generatedSlots.map(slot => ({
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+            isAvailable: slot.isAvailable !== undefined ? slot.isAvailable : true,
+            maxBookings: slot.maxBookings || 1,
+            currentBookings: 0,
+          })),
+          isActive: true,
+        },
+        { upsert: true, new: true }
+      );
+    }
 
     console.log('✅ Schedule saved successfully:', {
       scheduleId: schedule._id,
