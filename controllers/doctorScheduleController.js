@@ -274,32 +274,23 @@ const getAvailableTimeSlots = async (req, res) => {
     // selected.
 
     if (!schedule) {
-      if (hospitalIdNorm) {
-        // When a hospital is explicitly selected, do NOT fallback. Return no slots.
-        console.log('❌ No schedule for selected hospital. Not falling back.');
-        // Debug: list schedules available for this doctor/date
-        const candidates = await DoctorSchedule.find({ doctorId: scheduleDoctorId, date, isActive: true }).select('hospitalId timeSlots.length');
-        console.log('🧪 Candidate schedules for doctor/date:', candidates);
-        return res.json({ success: true, data: [], message: 'No slots available for this date at the selected hospital' });
-      } else {
-        console.log('🔄 No hospital specified; trying broad fallback (any hospital)...');
-        schedule = await DoctorSchedule.findOne({
-          doctorId: scheduleDoctorId,
-          date,
-          isActive: true,
-        });
+      console.log('🔄 No schedule found for selected hospital. Trying broad fallback (any hospital)...');
+      schedule = await DoctorSchedule.findOne({
+        doctorId: scheduleDoctorId,
+        date,
+        isActive: true,
+      });
 
-        console.log('📅 Broad fallback schedule query result:', {
-          found: !!schedule,
-          scheduleId: schedule?._id,
-          timeSlotsCount: schedule?.timeSlots?.length || 0,
-          hospitalIdFound: schedule?.hospitalId || null
-        });
+      console.log('📅 Broad fallback schedule query result:', {
+        found: !!schedule,
+        scheduleId: schedule?._id,
+        timeSlotsCount: schedule?.timeSlots?.length || 0,
+        hospitalIdFound: schedule?.hospitalId || null
+      });
 
-        if (!schedule) {
-          console.log('❌ No schedule found for doctor', scheduleDoctorId, 'on date', date);
-          return res.json({ success: true, data: [] });
-        }
+      if (!schedule) {
+        console.log('❌ No schedule found for doctor', scheduleDoctorId, 'on date', date);
+        return res.json({ success: true, data: [] });
       }
     }
 
