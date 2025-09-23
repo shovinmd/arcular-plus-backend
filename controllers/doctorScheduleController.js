@@ -197,6 +197,16 @@ const getAvailableTimeSlots = async (req, res) => {
     // Optional hospital filter so slots are hospital-specific
     const { hospitalId } = req.query || {};
 
+    // Resolve both Mongo doctorId and Firebase UID for cross-collection matching
+    let doctorDoc = null;
+    try {
+      doctorDoc = await Doctor.findById(doctorId);
+      if (!doctorDoc) {
+        doctorDoc = await Doctor.findOne({ uid: doctorId });
+      }
+    } catch (_) {}
+    const doctorUid = doctorDoc?.uid ? String(doctorDoc.uid) : undefined;
+
     // Get doctor schedule for the specific date (and hospital when provided)
     let schedule = await DoctorSchedule.findOne({
       doctorId,
@@ -226,7 +236,8 @@ const getAvailableTimeSlots = async (req, res) => {
     let appointments = [];
     try {
       const appointmentQuery = {
-        doctorId,
+        // Appointments may store doctorId as Mongo ID or Firebase UID. Match both.
+        doctorId: doctorUid ? { $in: [doctorId, doctorUid] } : doctorId,
         appointmentDate: new Date(date),
         status: { $in: ['confirmed', 'scheduled', 'pending'] }
       };
