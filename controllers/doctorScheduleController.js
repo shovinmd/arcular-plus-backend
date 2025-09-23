@@ -231,7 +231,8 @@ const getAvailableTimeSlots = async (req, res) => {
 
     // Optional hospital filter so slots are hospital-specific
     const { hospitalId } = req.query || {};
-    console.log('🏥 Hospital filter:', hospitalId);
+    const hospitalIdNorm = hospitalId ? String(hospitalId).trim() : null;
+    console.log('🏥 Hospital filter (normalized):', hospitalIdNorm);
 
     // Resolve both Mongo doctorId and Firebase UID for cross-collection matching
     let doctorDoc = null;
@@ -257,7 +258,7 @@ const getAvailableTimeSlots = async (req, res) => {
       doctorId: scheduleDoctorId,
       date,
       isActive: true,
-      ...(hospitalId ? { hospitalId } : {})
+      ...(hospitalIdNorm ? { hospitalId: hospitalIdNorm } : {})
     });
     
     console.log('📅 Schedule query result:', {
@@ -273,9 +274,12 @@ const getAvailableTimeSlots = async (req, res) => {
     // selected.
 
     if (!schedule) {
-      if (hospitalId) {
+      if (hospitalIdNorm) {
         // When a hospital is explicitly selected, do NOT fallback. Return no slots.
         console.log('❌ No schedule for selected hospital. Not falling back.');
+        // Debug: list schedules available for this doctor/date
+        const candidates = await DoctorSchedule.find({ doctorId: scheduleDoctorId, date, isActive: true }).select('hospitalId timeSlots.length');
+        console.log('🧪 Candidate schedules for doctor/date:', candidates);
         return res.json({ success: true, data: [], message: 'No slots available for this date at the selected hospital' });
       } else {
         console.log('🔄 No hospital specified; trying broad fallback (any hospital)...');
