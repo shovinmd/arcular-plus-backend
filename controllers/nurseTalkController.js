@@ -103,8 +103,10 @@ const getHospitalNurses = async (req, res) => {
       .map(nurse => {
         const lastSeenTs = nurse.lastSeen ? new Date(nurse.lastSeen).getTime() : 0;
         const isOnline = lastSeenTs && (now - lastSeenTs) < 2 * 60 * 1000; // 2 minutes
+        console.log(`👤 Nurse ${nurse.fullName}: lastSeen=${nurse.lastSeen}, isOnline=${isOnline}`);
         return {
           id: nurse._id,
+          userId: nurse._id, // Add userId field for frontend compatibility
           name: nurse.fullName,
           email: nurse.email,
           uid: nurse.uid,
@@ -154,8 +156,24 @@ const sendMessage = async (req, res) => {
       }
     }
 
-    if (!receiverId) {
-      return res.status(400).json({ success: false, message: 'Valid receiver not found' });
+    // If still not resolved, try to find by ObjectId directly
+    const mongoose = require('mongoose');
+    if (!mongoose.Types.ObjectId.isValid(receiverId)) {
+      console.log('🔍 ReceiverId is not a valid ObjectId, trying to resolve:', receiverId);
+      const candidate = await User.findOne({
+        $or: [ 
+          { uid: receiverId }, 
+          { email: receiverId },
+          { _id: receiverId }
+        ]
+      });
+      if (candidate) {
+        receiverId = String(candidate._id);
+        console.log('✅ Resolved receiverId to:', receiverId);
+      } else {
+        console.log('❌ Could not resolve receiverId:', receiverId);
+        return res.status(400).json({ success: false, message: 'Valid receiver not found' });
+      }
     }
 
     const currentUser = await User.findOne({ uid: req.user.uid });
