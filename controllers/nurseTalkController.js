@@ -1,4 +1,8 @@
 const NurseTalk = require('../models/NurseTalk');
+// In-memory typing indicator store (ephemeral per process)
+// key: `${senderId}->${receiverId}` => timestamp (ms)
+const typingState = new Map();
+
 const User = require('../models/User');
 const Nurse = require('../models/Nurse');
 const Hospital = require('../models/Hospital');
@@ -277,8 +281,8 @@ const getMessages = async (req, res) => {
     })
     .sort({ createdAt: -1 })
     .limit(limit)
-    .populate('senderId', 'fullName email')
-    .populate('receiverId', 'fullName email')
+    .populate('senderId', 'fullName email uid')
+    .populate('receiverId', 'fullName email uid')
     .populate('hospitalId', 'name');
 
     res.json({ success: true, data: messages.reverse() });
@@ -418,16 +422,63 @@ const pingPresence = async (req, res) => {
     }
 
     // Update nurse's lastSeen timestamp
-    await Nurse.findOneAndUpdate(
+    const update = { lastSeen: new Date() };
+    let updated = await Nurse.findOneAndUpdate(
       { userId: currentUser._id },
-      { lastSeen: new Date() },
-      { upsert: false }
+      update,
+      { new: true }
     );
+    if (!updated) {
+      updated = await Nurse.findOneAndUpdate({ uid: currentUser.uid }, update, { new: true });
+    }
+    if (!updated && currentUser.email) {
+      updated = await Nurse.findOneAndUpdate({ email: currentUser.email }, update, { new: true });
+    }
 
     res.json({ success: true, message: 'Presence updated' });
   } catch (error) {
     console.error('Error updating presence:', error);
     res.status(500).json({ success: false, message: 'Failed to update presence', error: error.message });
+  }
+};
+
+// Set typing status for a short period (7s)
+const setTyping = async (req, res) => {
+  try {
+    let { receiverId } = req.body || {};
+    const currentUser = await User.findOne({ uid: req.user.uid });
+    if (!currentUser) return res.status(404).json({ success: false, message: 'User not found' });
+
+    // Resolve receiver similar to send flow
+    const mongoose = require('mongoose');
+    if (!mongoose.Types.ObjectId.isValid(receiverId)) {
+      const candidate = await User.findOne({ $or: [{ uid: receiverId }, { email: receiverId }] });
+      if (candidate) receiverId = String(candidate._id);
+    }
+    const key = `${String(currentUser._id)}->${String(receiverId)}`;
+    typingState.set(key, Date.now());
+    return res.json({ success: true });
+  } catch (e) {
+    console.error('Error setTyping:', e);
+    return res.status(500).json({ success: false, message: 'Failed to set typing' });
+  }
+};
+
+// Get peer typing status (is the other user typing to me?)
+const getTypingStatus = async (req, res) => {
+  try {
+    let { receiverId } = req.params; // here receiverId = other nurse id I am viewing
+    const currentUser = await User.findOne({ uid: req.user.uid });
+    if (!currentUser) return res.status(404).json({ success: false, message: 'User not found' });
+
+    const key = `${String(receiverId)}->${String(currentUser._id)}`;
+    const ts = typingState.get(key);
+    const isTyping = ts && (Date.now() - ts) < 7000; // 7 seconds staleness
+    if (!isTyping && ts) typingState.delete(key);
+    return res.json({ success: true, typing: !!isTyping });
+  } catch (e) {
+    console.error('Error getTypingStatus:', e);
+    return res.status(500).json({ success: false, message: 'Failed to get typing status' });
   }
 };
 
@@ -438,5 +489,7 @@ module.exports = {
   getHandoverNotes,
   markAsRead,
   getUnreadCount,
-  pingPresence
+  pingPresence,
+  setTyping,
+  getTypingStatus
 };

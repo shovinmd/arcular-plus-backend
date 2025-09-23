@@ -69,4 +69,8 @@ router.get('/unread-count', nurseTalkController.getUnreadCount);
 // Ping presence
 router.post('/ping', firebaseAuthMiddleware, nurseTalkController.pingPresence);
 
+// Typing indicators
+router.post('/typing', nurseTalkController.setTyping);
+router.get('/typing/:receiverId', nurseTalkController.getTypingStatus);
+
 module.exports = router;
