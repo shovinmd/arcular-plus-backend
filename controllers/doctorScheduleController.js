@@ -232,7 +232,8 @@ const getAvailableTimeSlots = async (req, res) => {
         // Appointments may store doctorId as Mongo ID or Firebase UID. Match both.
         doctorId: doctorUid ? { $in: [doctorId, doctorUid] } : doctorId,
         appointmentDate: new Date(date),
-        status: { $in: ['confirmed', 'scheduled', 'pending'] }
+        // Use correct field name from schema: appointmentStatus
+        appointmentStatus: { $in: ['confirmed', 'scheduled', 'pending'] }
       };
       if (hospitalId) {
         appointmentQuery.hospitalId = hospitalId;
