@@ -26,10 +26,6 @@ transporter.verify((err, success) => {
 });
 
 // =============== Provider-agnostic send helper ===============
-/**
- * Sends an email using the best available provider.
- * Order: SendGrid HTTP API (if SENDGRID_API_KEY) → Gmail SMTP (nodemailer) → skip with log.
- */
 async function sendMailSmart({ to, subject, html, text, attachments }) {
   try {
     if (!to || (typeof to === 'string' && to.trim().length === 0)) {
@@ -37,17 +33,15 @@ async function sendMailSmart({ to, subject, html, text, attachments }) {
       return false;
     }
 
-    // Prefer SendGrid HTTP API to avoid SMTP blocks/timeouts on some hosts
-    const sgKey = process.env.SENDGRID_API_KEY;
-    if (sgKey) {
-      await sendViaSendGrid({ apiKey: sgKey, to, subject, html, text });
-      return true;
-    }
-
-    // Fallback to nodemailer (Gmail service)
-    const emailPromise = transporter.sendMail({ from: process.env.EMAIL_USER || 'your-email@gmail.com', to, subject, html, text, attachments });
-    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('SMTP send timeout')), 8000));
-    await Promise.race([emailPromise, timeoutPromise]);
+    // Gmail-only send (nodemailer service: 'gmail')
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER || 'your-email@gmail.com',
+      to,
+      subject,
+      html,
+      text,
+      attachments,
+    });
     return true;
   } catch (err) {
     console.error('✉️  sendMailSmart failed:', err.message);
@@ -55,54 +49,7 @@ async function sendMailSmart({ to, subject, html, text, attachments }) {
   }
 }
 
-function sendViaSendGrid({ apiKey, to, subject, html, text }) {
-  return new Promise((resolve, reject) => {
-    try {
-      const payload = {
-        personalizations: [{ to: Array.isArray(to) ? to.map(e => ({ email: e })) : [{ email: to }] }],
-        from: { email: process.env.EMAIL_USER || 'no-reply@arcular.plus' },
-        subject: subject || 'Arcular+ Notification',
-        content: [
-          text ? { type: 'text/plain', value: text } : undefined,
-          html ? { type: 'text/html', value: html } : undefined,
-        ].filter(Boolean)
-      };
-
-      const data = Buffer.from(JSON.stringify(payload));
-      const options = {
-        hostname: 'api.sendgrid.com',
-        port: 443,
-        path: '/v3/mail/send',
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-          'Content-Length': data.length
-        },
-        timeout: 8000,
-      };
-
-      const req = https.request(options, (res) => {
-        let body = '';
-        res.on('data', (chunk) => body += chunk);
-        res.on('end', () => {
-          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
-            return resolve();
-          }
-          return reject(new Error(`SendGrid error ${res.statusCode}: ${body}`));
-        });
-      });
-      req.on('error', reject);
-      req.on('timeout', () => {
-        req.destroy(new Error('SendGrid request timeout'));
-      });
-      req.write(data);
-      req.end();
-    } catch (e) {
-      reject(e);
-    }
-  });
-}
+// SendGrid path removed as per requirement to keep Gmail-only
 
 // Fire-and-forget executor to avoid blocking API responses
 function sendInBackground(label, fn) {
