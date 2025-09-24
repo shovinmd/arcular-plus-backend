@@ -15,6 +15,14 @@ router.post('/event', async (req, res) => {
     // Fire-and-forget email (if recipient provided and email service configured)
     process.nextTick(async () => {
       try {
+        console.log('SESSION_EMAIL: queued', {
+          uid,
+          role,
+          type,
+          email: !!email,
+          platform,
+          ts: timestamp,
+        });
         if (!email) return; // no recipient, skip silently
         const { sendSessionEmail } = require('../services/emailService');
         const attachments = [];
@@ -36,9 +44,13 @@ router.post('/event', async (req, res) => {
           setTimeout(() => reject(new Error('Email send timeout')), 7000)
         );
 
-        await Promise.race([emailPromise, timeoutPromise]).catch((err) => {
-          console.error('Session email send skipped:', err.message);
-        });
+        await Promise.race([emailPromise, timeoutPromise])
+          .then(() => {
+            console.log('SESSION_EMAIL: sent', { uid, type, to: email });
+          })
+          .catch((err) => {
+            console.error('SESSION_EMAIL: failed', { uid, type, to: email, error: err.message });
+          });
       } catch (err) {
         console.error('Session email task error:', err.message);
       }
