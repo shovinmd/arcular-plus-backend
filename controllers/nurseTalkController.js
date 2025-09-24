@@ -419,6 +419,30 @@ const getMessages = async (req, res) => {
 
     console.log('💬 NurseTalk: Found', messages.length, 'messages');
     
+    // Check if populate worked by looking at the first message
+    if (messages.length > 0) {
+      const firstMsg = messages[0];
+      console.log('🔍 NurseTalk: First message populate check:');
+      console.log('  - senderId type:', typeof firstMsg.senderId);
+      console.log('  - senderId value:', firstMsg.senderId);
+      console.log('  - receiverId type:', typeof firstMsg.receiverId);
+      console.log('  - receiverId value:', firstMsg.receiverId);
+      
+      // Check if senderId is populated (should be an object with fullName)
+      if (firstMsg.senderId && typeof firstMsg.senderId === 'object' && firstMsg.senderId.fullName) {
+        console.log('✅ SenderId is properly populated:', firstMsg.senderId.fullName);
+      } else {
+        console.log('❌ SenderId is NOT populated, it is:', firstMsg.senderId);
+      }
+      
+      // Check if receiverId is populated
+      if (firstMsg.receiverId && typeof firstMsg.receiverId === 'object' && firstMsg.receiverId.fullName) {
+        console.log('✅ ReceiverId is properly populated:', firstMsg.receiverId.fullName);
+      } else {
+        console.log('❌ ReceiverId is NOT populated, it is:', firstMsg.receiverId);
+      }
+    }
+    
     // Log first few messages for debugging
     messages.slice(0, 3).forEach((msg, i) => {
       console.log(`💬 Message ${i + 1}:`, {
@@ -429,7 +453,44 @@ const getMessages = async (req, res) => {
       });
     });
 
-    res.json({ success: true, data: messages.reverse() });
+    // If populate didn't work, manually fetch user details
+    const processedMessages = [];
+    for (const msg of messages.reverse()) {
+      let processedMsg = msg.toObject();
+      
+      // If senderId is not populated (still an ObjectId), fetch user details
+      if (msg.senderId && typeof msg.senderId === 'object' && msg.senderId._id && !msg.senderId.fullName) {
+        const senderUser = await User.findById(msg.senderId._id).select('fullName email uid');
+        if (senderUser) {
+          processedMsg.senderId = {
+            _id: senderUser._id,
+            fullName: senderUser.fullName,
+            email: senderUser.email,
+            uid: senderUser.uid
+          };
+          console.log('🔧 Manually populated sender:', senderUser.fullName);
+        }
+      }
+      
+      // If receiverId is not populated, fetch user details
+      if (msg.receiverId && typeof msg.receiverId === 'object' && msg.receiverId._id && !msg.receiverId.fullName) {
+        const receiverUser = await User.findById(msg.receiverId._id).select('fullName email uid');
+        if (receiverUser) {
+          processedMsg.receiverId = {
+            _id: receiverUser._id,
+            fullName: receiverUser.fullName,
+            email: receiverUser.email,
+            uid: receiverUser.uid
+          };
+          console.log('🔧 Manually populated receiver:', receiverUser.fullName);
+        }
+      }
+      
+      processedMessages.push(processedMsg);
+    }
+    
+    console.log('📤 NurseTalk: Returning', processedMessages.length, 'processed messages');
+    res.json({ success: true, data: processedMessages });
   } catch (error) {
     console.error('❌ Error fetching messages:', error);
     console.error('❌ Error stack:', error.stack);
