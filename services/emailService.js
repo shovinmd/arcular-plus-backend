@@ -36,15 +36,51 @@ async function sendMailSmart({ to, subject, html, text, attachments }) {
     }
 
     // Gmail-only send (nodemailer service: 'gmail')
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER || 'your-email@gmail.com',
-      to,
-      subject,
-      html,
-      text,
-      attachments,
-    });
-    return true;
+    try {
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER || 'shovinmicheldavid1285@gmail.com',
+        to,
+        subject,
+        html,
+        text,
+        attachments,
+      });
+      return true;
+    } catch (primaryErr) {
+      // Fallback to STARTTLS on port 587 if port 465 times out or is blocked
+      console.warn('✉️  Primary SMTP send failed, attempting STARTTLS fallback:', primaryErr.message);
+      try {
+        const fallback = nodemailer.createTransport({
+          host: 'smtp.gmail.com',
+          port: 587,
+          secure: false, // STARTTLS
+          pool: false,
+          connectionTimeout: 8000,
+          socketTimeout: 12000,
+          greetingTimeout: 6000,
+          auth: {
+            user: process.env.EMAIL_USER || 'shovinmicheldavid1285@gmail.com',
+            pass: process.env.EMAIL_PASS || 'fiau pzii vzgr jrkm'
+          },
+          tls: {
+            ciphers: 'TLSv1.2',
+          }
+        });
+        await fallback.verify().catch(() => {});
+        await fallback.sendMail({
+          from: process.env.EMAIL_USER || 'shovinmicheldavid1285@gmail.com',
+          to,
+          subject,
+          html,
+          text,
+          attachments,
+        });
+        return true;
+      } catch (fallbackErr) {
+        console.error('✉️  Fallback SMTP (587) failed:', fallbackErr.message);
+        return false;
+      }
+    }
   } catch (err) {
     console.error('✉️  sendMailSmart failed:', err.message);
     return false;
