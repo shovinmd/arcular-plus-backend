@@ -9,31 +9,43 @@ router.post('/event', async (req, res) => {
       return res.status(400).json({ success: false, error: 'uid and type are required' });
     }
 
-    // Prepare email
-    const { sendSessionEmail } = require('../services/emailService');
-    const to = email || null; // require explicit recipient from payload
-    const attachments = []; // Image removed per requirement
+    // Always respond immediately to avoid client timeouts; do email async
+    res.status(204).send();
 
-    if (!to) {
-      return res.status(400).json({ success: false, error: 'recipient email is required' });
-    }
+    // Fire-and-forget email (if recipient provided and email service configured)
+    process.nextTick(async () => {
+      try {
+        if (!email) return; // no recipient, skip silently
+        const { sendSessionEmail } = require('../services/emailService');
+        const attachments = [];
 
-    await sendSessionEmail({
-      to,
-      subject: `Arcular+ ${type === 'logout' ? 'Logout' : 'Login'} Activity`,
-      action: type,
-      device: platform,
-      ip: req.headers['x-forwarded-for'] || req.socket.remoteAddress,
-      location,
-      timestamp,
-      attachments,
+        const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+        const emailPromise = sendSessionEmail({
+          to: email,
+          subject: `Arcular+ ${type === 'logout' ? 'Logout' : 'Login'} Activity`,
+          action: type,
+          device: platform,
+          ip: ipAddress,
+          location,
+          timestamp,
+          attachments,
+        });
+
+        // Add 7s safety timeout so we never hang the event loop
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Email send timeout')), 7000)
+        );
+
+        await Promise.race([emailPromise, timeoutPromise]).catch((err) => {
+          console.error('Session email send skipped:', err.message);
+        });
+      } catch (err) {
+        console.error('Session email task error:', err.message);
+      }
     });
-
-    // Optionally persist minimal log (skipped to avoid DB writes per request)
-    return res.status(204).send();
   } catch (e) {
     console.error('Session event error:', e);
-    return res.status(500).json({ success: false });
+    // Response is already sent; just ensure no throw bubbles
   }
 });
 
