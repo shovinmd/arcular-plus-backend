@@ -142,7 +142,7 @@ const getHospitalNurses = async (req, res) => {
         const isOnline = lastSeenTs > 0 && (now - lastSeenTs) < 30 * 1000; // 30 seconds
         const timeDiff = lastSeenTs ? Math.round((now - lastSeenTs) / 1000) : 'never';
         
-        return {
+        const result = {
           id: nurse._id,
           userId: nurse.userId || nurse._id, // Prefer profile.userId if present
           name: nurse.fullName,
@@ -152,6 +152,17 @@ const getHospitalNurses = async (req, res) => {
           isOnline,
           lastSeen: nurse.lastSeen || null,
         };
+        
+        console.log(`🔍 NurseTalk: Returning nurse ${nurse.fullName}:`, {
+          _id: nurse._id,
+          uid: nurse.uid,
+          email: nurse.email,
+          lastSeen: nurse.lastSeen,
+          isOnline: isOnline,
+          result: result
+        });
+        
+        return result;
       });
 
     console.log('✅ NurseTalk: Returning nurses:', nurses.length);
@@ -833,6 +844,12 @@ const pingPresence = async (req, res) => {
 
     if (updated) {
       console.log('✅ NurseTalk: Presence updated successfully for:', updated.fullName);
+      console.log('🔍 Updated nurse data:', {
+        _id: updated._id,
+        uid: updated.uid,
+        email: updated.email,
+        lastSeen: updated.lastSeen
+      });
     } else {
       console.log('❌ NurseTalk: Failed to update presence');
     }
