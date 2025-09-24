@@ -104,6 +104,20 @@ function sendViaSendGrid({ apiKey, to, subject, html, text }) {
   });
 }
 
+// Fire-and-forget executor to avoid blocking API responses
+function sendInBackground(label, fn) {
+  try {
+    process.nextTick(async () => {
+      try {
+        await fn();
+        console.log(`✉️  ${label}: sent`);
+      } catch (err) {
+        console.error(`✉️  ${label}: failed`, err.message);
+      }
+    });
+  } catch (_) {}
+}
+
 // Send registration confirmation email
 const sendRegistrationConfirmation = async (userEmail, userName, userType) => {
   try {
@@ -137,12 +151,10 @@ const sendRegistrationConfirmation = async (userEmail, userName, userType) => {
       </div>
     `;
     
-    const ok = await sendMailSmart({ to: userEmail, subject, html });
-    if (ok) {
-      console.log(`✅ Registration confirmation email sent to ${userEmail}`);
-    } else {
-      console.warn(`✉️  Skipped registration email (no recipient or provider failed) -> ${userEmail}`);
-    }
+    sendInBackground('Registration email', async () => {
+      const ok = await sendMailSmart({ to: userEmail, subject, html });
+      if (!ok) throw new Error('provider failed');
+    });
   } catch (error) {
     console.error('❌ Error sending registration confirmation email:', error);
   }
@@ -198,12 +210,10 @@ const sendApprovalEmail = async (userEmail, userName, userType, isApproved, reas
       </div>
     `;
     
-    const ok = await sendMailSmart({ to: userEmail, subject, html });
-    if (ok) {
-      console.log(`✅ Approval email sent to ${userEmail} - Status: ${isApproved ? 'Approved' : 'Review Required'}`);
-    } else {
-      console.warn(`✉️  Skipped approval email -> ${userEmail}`);
-    }
+    sendInBackground('Approval email', async () => {
+      const ok = await sendMailSmart({ to: userEmail, subject, html });
+      if (!ok) throw new Error('provider failed');
+    });
   } catch (error) {
     console.error('❌ Error sending approval email:', error);
   }
@@ -241,12 +251,10 @@ const sendDocumentReviewNotification = async (userEmail, userName, userType, mis
       </div>
     `;
     
-    const ok = await sendMailSmart({ to: userEmail, subject, html });
-    if (ok) {
-      console.log(`✅ Document review notification sent to ${userEmail}`);
-    } else {
-      console.warn(`✉️  Skipped document review email -> ${userEmail}`);
-    }
+    sendInBackground('Document review email', async () => {
+      const ok = await sendMailSmart({ to: userEmail, subject, html });
+      if (!ok) throw new Error('provider failed');
+    });
   } catch (error) {
     console.error('❌ Error sending document review notification:', error);
   }
@@ -286,12 +294,10 @@ const sendWelcomeEmail = async (userEmail, userName, userType) => {
       </div>
     `;
     
-    const ok = await sendMailSmart({ to: userEmail, subject, html });
-    if (ok) {
-      console.log(`✅ Welcome email sent to ${userEmail}`);
-    } else {
-      console.warn(`✉️  Skipped welcome email -> ${userEmail}`);
-    }
+    sendInBackground('Welcome email', async () => {
+      const ok = await sendMailSmart({ to: userEmail, subject, html });
+      if (!ok) throw new Error('provider failed');
+    });
   } catch (error) {
     console.error('❌ Error sending welcome email:', error);
   }
@@ -329,12 +335,10 @@ const sendTestRequestEmail = async (data) => {
       </div>
     `;
     
-    const ok = await sendMailSmart({ to: labEmail, subject, html });
-    if (ok) {
-      console.log(`✅ Test request email sent to ${labEmail}`);
-    } else {
-      console.warn(`✉️  Skipped test request email -> ${labEmail}`);
-    }
+    sendInBackground('Test request email', async () => {
+      const ok = await sendMailSmart({ to: labEmail, subject, html });
+      if (!ok) throw new Error('provider failed');
+    });
   } catch (error) {
     console.error('❌ Error sending test request email:', error);
   }
@@ -370,12 +374,10 @@ const sendTestAdmissionEmail = async (data) => {
       </div>
     `;
     
-    const ok = await sendMailSmart({ to: patientEmail, subject, html });
-    if (ok) {
-      console.log(`✅ Test admission email sent to ${patientEmail}`);
-    } else {
-      console.warn(`✉️  Skipped test admission email -> ${patientEmail}`);
-    }
+    sendInBackground('Test admission email', async () => {
+      const ok = await sendMailSmart({ to: patientEmail, subject, html });
+      if (!ok) throw new Error('provider failed');
+    });
   } catch (error) {
     console.error('❌ Error sending test admission email:', error);
   }
@@ -438,12 +440,10 @@ const sendAppointmentEmail = async (data) => {
       </div>
     `;
     
-    const ok = await sendMailSmart({ to: patientEmail, subject, html });
-    if (ok) {
-      console.log(`✅ Appointment email sent to ${patientEmail}`);
-    } else {
-      console.warn(`✉️  Skipped appointment email -> ${patientEmail}`);
-    }
+    sendInBackground('Appointment email', async () => {
+      const ok = await sendMailSmart({ to: patientEmail, subject, html });
+      if (!ok) throw new Error('provider failed');
+    });
   } catch (error) {
     console.error('❌ Error sending appointment email:', error);
   }
@@ -484,12 +484,10 @@ const sendReportReadyEmail = async (data) => {
       </div>
     `;
     
-    const ok = await sendMailSmart({ to: patientEmail, subject, html });
-    if (ok) {
-      console.log(`✅ Report ready email sent to ${patientEmail}`);
-    } else {
-      console.warn(`✉️  Skipped report ready email -> ${patientEmail}`);
-    }
+    sendInBackground('Report ready email', async () => {
+      const ok = await sendMailSmart({ to: patientEmail, subject, html });
+      if (!ok) throw new Error('provider failed');
+    });
   } catch (error) {
     console.error('❌ Error sending report ready email:', error);
   }
@@ -573,12 +571,10 @@ const sendTestCompletionEmailToPatient = async (data) => {
       </div>
     `;
     
-    const ok = await sendMailSmart({ to: patientEmail, subject, html });
-    if (ok) {
-      console.log(`✅ Test completion email sent to patient: ${patientEmail}`);
-    } else {
-      console.warn(`✉️  Skipped test completion email (patient) -> ${patientEmail}`);
-    }
+    sendInBackground('Test completion email (patient)', async () => {
+      const ok = await sendMailSmart({ to: patientEmail, subject, html });
+      if (!ok) throw new Error('provider failed');
+    });
   } catch (error) {
     console.error('❌ Error sending test completion email to patient:', error);
   }
@@ -616,12 +612,10 @@ const sendTestCompletionEmailToHospital = async (data) => {
       </div>
     `;
     
-    const ok = await sendMailSmart({ to: hospitalEmail, subject, html });
-    if (ok) {
-      console.log(`✅ Test completion email sent to hospital: ${hospitalEmail}`);
-    } else {
-      console.warn(`✉️  Skipped test completion email (hospital) -> ${hospitalEmail}`);
-    }
+    sendInBackground('Test completion email (hospital)', async () => {
+      const ok = await sendMailSmart({ to: hospitalEmail, subject, html });
+      if (!ok) throw new Error('provider failed');
+    });
   } catch (error) {
     console.error('❌ Error sending test completion email to hospital:', error);
   }
