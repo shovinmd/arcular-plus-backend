@@ -39,7 +39,7 @@ async function ensureHospitalSOSForRequest(
               type: 'Point',
               coordinates: [location.longitude, location.latitude]
             },
-            $maxDistance: 15000
+            $maxDistance: 25000
           }
         }
       }).lean();
@@ -64,7 +64,7 @@ async function ensureHospitalSOSForRequest(
           return null;
         })
         .filter(Boolean)
-        .filter(h => h._distanceKm <= 15)
+        .filter(h => h._distanceKm <= 25)
         .sort((a, b) => a._distanceKm - b._distanceKm);
     }
 
