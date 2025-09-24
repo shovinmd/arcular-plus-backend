@@ -161,18 +161,49 @@ const createSOSRequest = async (req, res) => {
     });
 
     if (existingRequest) {
-      // Ensure HospitalSOS records exist for existing request; if not, create using fallback
-      const existingCount = await HospitalSOS.countDocuments({ sosRequestId: existingRequest._id });
-      if (existingCount === 0) {
-        await ensureHospitalSOSForRequest(existingRequest, location, address, city, state, pincode, emergencyType, description, severity);
+      // Update existing pending/accepted request with latest details (idempotent re-activation)
+      try {
+        existingRequest.patientName = patientName || existingRequest.patientName;
+        existingRequest.patientPhone = patientPhone || existingRequest.patientPhone;
+        existingRequest.patientEmail = patientEmail || existingRequest.patientEmail;
+        existingRequest.patientAge = typeof patientAge === 'number' ? patientAge : existingRequest.patientAge;
+        existingRequest.patientGender = patientGender || existingRequest.patientGender;
+        if (emergencyContact) {
+          existingRequest.emergencyContact = emergencyContact;
+        }
+        if (location && typeof location.longitude === 'number' && typeof location.latitude === 'number') {
+          existingRequest.location = {
+            type: 'Point',
+            coordinates: [location.longitude, location.latitude]
+          };
+        }
+        existingRequest.address = address || existingRequest.address;
+        existingRequest.city = city || existingRequest.city;
+        existingRequest.state = state || existingRequest.state;
+        existingRequest.pincode = pincode || existingRequest.pincode;
+        existingRequest.emergencyType = emergencyType || existingRequest.emergencyType || 'Medical';
+        existingRequest.description = description ?? existingRequest.description;
+        existingRequest.severity = severity || existingRequest.severity || 'High';
+        // Extend timeout if still pending
+        if (existingRequest.status === 'pending') {
+          existingRequest.timeoutAt = new Date(Date.now() + 2 * 60 * 1000);
+        }
+        await existingRequest.save();
+      } catch (updateErr) {
+        console.error('❌ Error updating existing SOS request:', updateErr);
       }
+
+      // Ensure HospitalSOS records exist/updated
+      await ensureHospitalSOSForRequest(existingRequest, location, address, city, state, pincode, emergencyType, description, severity);
+
       return res.status(200).json({
         success: true,
-        message: 'An active SOS request already exists',
+        message: 'Active SOS request updated and returned',
         data: {
           sosRequestId: existingRequest._id,
           status: existingRequest.status,
           timeoutAt: existingRequest.timeoutAt,
+          nearbyHospitals: await HospitalSOS.countDocuments({ sosRequestId: existingRequest._id })
         }
       });
     }
