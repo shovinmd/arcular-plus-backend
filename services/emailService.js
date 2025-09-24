@@ -6,8 +6,8 @@ const transporter = nodemailer.createTransport({
   pool: true,
   maxConnections: 2,
   maxMessages: 50,
-  connectionTimeout: 10000, // 10s to establish
-  socketTimeout: 15000, // 15s to send
+  connectionTimeout: 10000,
+  socketTimeout: 15000,
   greetingTimeout: 7000,
   auth: {
     user: process.env.EMAIL_USER || 'shovinmicheldavid1285@gmail.com',
