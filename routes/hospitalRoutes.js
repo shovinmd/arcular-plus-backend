@@ -124,7 +124,8 @@ router.get('/nearby', firebaseAuthMiddleware, hospitalController.getNearbyHospit
 // Hospital registration
 router.post('/register', firebaseAuthMiddleware, hospitalController.registerHospital);
 
-// Fetch all hospitals (must be last to avoid catching other routes)
-router.get('/', firebaseAuthMiddleware, hospitalController.getAllHospitals);
+// NOTE: Do not add another wildcard '/' route here; '/' is already used above
+// for getAllApprovedHospitals. Keeping only the earlier route avoids shadowing
+// '/nearby' and other specific endpoints.
 
 module.exports = router; 

@@ -43,6 +43,8 @@ async function ensureHospitalSOSForRequest(
           }
         }
       }).lean();
+      // Filter out any hospitals without usable coordinates (defensive)
+      nearbyHospitals = nearbyHospitals.filter(h => Array.isArray(h?.location?.coordinates) && h.location.coordinates.length === 2);
     } catch (geoError) {
       // Fallback to Haversine filter over capped set
       const candidates = await Hospital.find({ status: 'active', isApproved: true })
@@ -75,7 +77,13 @@ async function ensureHospitalSOSForRequest(
       const exists = await HospitalSOS.findOne({ sosRequestId: sosRequest._id, hospitalId: hospital.uid });
       if (exists) return exists;
 
-      const hCoords = hospital?.location?.coordinates || [hospital.longitude, hospital.latitude] || (hospital.geoCoordinates ? [hospital.geoCoordinates.lng, hospital.geoCoordinates.lat] : null);
+      const hCoords = (Array.isArray(hospital?.location?.coordinates) && hospital.location.coordinates.length === 2)
+        ? hospital.location.coordinates
+        : (typeof hospital.longitude === 'number' && typeof hospital.latitude === 'number')
+          ? [hospital.longitude, hospital.latitude]
+          : (hospital.geoCoordinates && typeof hospital.geoCoordinates.lng === 'number' && typeof hospital.geoCoordinates.lat === 'number')
+            ? [hospital.geoCoordinates.lng, hospital.geoCoordinates.lat]
+            : null;
       const hospitalSOS = new HospitalSOS({
         sosRequestId: sosRequest._id,
         hospitalId: hospital.uid,
