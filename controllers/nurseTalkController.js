@@ -112,8 +112,9 @@ const getHospitalNurses = async (req, res) => {
       })
       .map(nurse => {
         const lastSeenTs = nurse.lastSeen ? new Date(nurse.lastSeen).getTime() : 0;
-        const isOnline = lastSeenTs && (now - lastSeenTs) < 2 * 60 * 1000; // 2 minutes
-        console.log(`👤 Nurse ${nurse.fullName}: lastSeen=${nurse.lastSeen}, isOnline=${isOnline}`);
+        const isOnline = lastSeenTs && (now - lastSeenTs) < 30 * 1000; // 30 seconds
+        const timeDiff = lastSeenTs ? Math.round((now - lastSeenTs) / 1000) : 'never';
+        console.log(`👤 Nurse ${nurse.fullName}: lastSeen=${nurse.lastSeen}, timeDiff=${timeDiff}s, isOnline=${isOnline}`);
         return {
           id: nurse._id,
           userId: nurse.userId || nurse._id, // Prefer profile.userId if present
@@ -162,21 +163,18 @@ const sendMessage = async (req, res) => {
       return res.status(400).json({ success: false, message: 'receiverId and message are required' });
     }
 
-    // Resolve receiverId from uid/email if needed
-    if (!receiverId || receiverId.length < 12) {
-      // Try to find by uid or email
-      const byUid = await User.findOne({ uid: receiverId });
-      const byEmail = !byUid && receiverId?.includes('@') ? await User.findOne({ email: receiverId }) : null;
-      const target = byUid || byEmail;
-      if (target) {
-        receiverId = String(target._id);
-      }
-    }
-
-    // If still not resolved, try to find by ObjectId directly
+    // Resolve receiverId to ObjectId - try multiple approaches
     const mongoose = require('mongoose');
-    if (!mongoose.Types.ObjectId.isValid(receiverId)) {
-      console.log('🔍 ReceiverId is not a valid ObjectId, trying to resolve:', receiverId);
+    let resolvedReceiverId = receiverId;
+    
+    console.log('🔍 NurseTalk: Resolving receiverId:', receiverId);
+    
+    // If it's already a valid ObjectId, use it
+    if (mongoose.Types.ObjectId.isValid(receiverId)) {
+      resolvedReceiverId = receiverId;
+      console.log('✅ ReceiverId is already valid ObjectId:', resolvedReceiverId);
+    } else {
+      // Try to find by uid, email, or _id
       const candidate = await User.findOne({
         $or: [ 
           { uid: receiverId }, 
@@ -185,8 +183,8 @@ const sendMessage = async (req, res) => {
         ]
       });
       if (candidate) {
-        receiverId = String(candidate._id);
-        console.log('✅ Resolved receiverId to:', receiverId);
+        resolvedReceiverId = String(candidate._id);
+        console.log('✅ Resolved receiverId to:', resolvedReceiverId);
       } else {
         console.log('❌ Could not resolve receiverId:', receiverId);
         return res.status(400).json({ success: false, message: 'Valid receiver not found' });
@@ -242,7 +240,7 @@ const sendMessage = async (req, res) => {
       message,
       messageType,
       senderId: currentUser._id,
-      receiverId,
+      receiverId: resolvedReceiverId,
       hospitalId: resolvedHospitalId,
       hospitalAffiliation: hospitalAffiliation,
       patientArcId,
@@ -253,7 +251,7 @@ const sendMessage = async (req, res) => {
 
     console.log('💾 NurseTalk: Saving message with data:', {
       senderId: currentUser._id,
-      receiverId,
+      receiverId: resolvedReceiverId,
       hospitalId: resolvedHospitalId,
       hospitalAffiliation,
       messageType
@@ -293,12 +291,18 @@ const getMessages = async (req, res) => {
 
     console.log('👤 NurseTalk: Current user:', currentUser.fullName, 'ID:', currentUser._id);
 
-    // Resolve receiverId to ObjectId if a uid/email was passed
+    // Resolve receiverId to ObjectId - same logic as sendMessage
     const mongoose = require('mongoose');
     let resolvedReceiverId = receiverId;
     
-    if (!mongoose.Types.ObjectId.isValid(receiverId)) {
-      console.log('🔍 NurseTalk: ReceiverId is not ObjectId, trying to resolve:', receiverId);
+    console.log('🔍 NurseTalk: Resolving receiverId for messages:', receiverId);
+    
+    // If it's already a valid ObjectId, use it
+    if (mongoose.Types.ObjectId.isValid(receiverId)) {
+      resolvedReceiverId = receiverId;
+      console.log('✅ ReceiverId is already valid ObjectId:', resolvedReceiverId);
+    } else {
+      // Try to find by uid, email, or _id
       const candidate = await User.findOne({
         $or: [ 
           { uid: receiverId }, 
