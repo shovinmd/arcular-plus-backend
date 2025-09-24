@@ -3,7 +3,9 @@ const https = require('https');
 
 // Email configuration
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true,
   pool: true,
   maxConnections: 2,
   maxMessages: 50,
@@ -12,7 +14,7 @@ const transporter = nodemailer.createTransport({
   greetingTimeout: 7000,
   auth: {
     user: process.env.EMAIL_USER || 'shovinmicheldavid1285@gmail.com',
-    pass: process.env.EMAIL_PASS || 'qybb pcvk fact dnly'
+    pass: process.env.EMAIL_PASS || 'fiau pzii vzgr jrkm'
   }
 });
 
