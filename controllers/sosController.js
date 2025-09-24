@@ -14,6 +14,109 @@ const calculateDistance = (coord1, coord2) => {
   return R * c;
 };
 
+// Helper to create HospitalSOS records for an SOSRequest
+async function ensureHospitalSOSForRequest(
+  sosRequest,
+  location,
+  address,
+  city,
+  state,
+  pincode,
+  emergencyType,
+  description,
+  severity
+) {
+  try {
+    let nearbyHospitals = [];
+    try {
+      // Try geo $near if index exists
+      nearbyHospitals = await Hospital.find({
+        status: 'active',
+        isApproved: true,
+        location: {
+          $near: {
+            $geometry: {
+              type: 'Point',
+              coordinates: [location.longitude, location.latitude]
+            },
+            $maxDistance: 15000
+          }
+        }
+      }).lean();
+    } catch (geoError) {
+      // Fallback to Haversine filter over capped set
+      const candidates = await Hospital.find({ status: 'active', isApproved: true })
+        .select('uid hospitalName primaryPhone email address location geoCoordinates longitude latitude')
+        .limit(200)
+        .lean();
+      const lon = Number(location.longitude);
+      const lat = Number(location.latitude);
+      nearbyHospitals = candidates
+        .map(h => {
+          const hLon = h?.location?.coordinates?.[0] ?? h?.longitude ?? h?.geoCoordinates?.lng;
+          const hLat = h?.location?.coordinates?.[1] ?? h?.latitude ?? h?.geoCoordinates?.lat;
+          if (typeof hLon === 'number' && typeof hLat === 'number') {
+            const d = calculateDistance([lon, lat], [hLon, hLat]);
+            return { ...h, _distanceKm: d };
+          }
+          return null;
+        })
+        .filter(Boolean)
+        .filter(h => h._distanceKm <= 15)
+        .sort((a, b) => a._distanceKm - b._distanceKm);
+    }
+
+    if (!nearbyHospitals || nearbyHospitals.length === 0) {
+      return;
+    }
+
+    const promises = nearbyHospitals.map(async (hospital) => {
+      // Avoid duplicates
+      const exists = await HospitalSOS.findOne({ sosRequestId: sosRequest._id, hospitalId: hospital.uid });
+      if (exists) return exists;
+
+      const hCoords = hospital?.location?.coordinates || [hospital.longitude, hospital.latitude] || (hospital.geoCoordinates ? [hospital.geoCoordinates.lng, hospital.geoCoordinates.lat] : null);
+      const hospitalSOS = new HospitalSOS({
+        sosRequestId: sosRequest._id,
+        hospitalId: hospital.uid,
+        hospitalName: hospital.hospitalName,
+        hospitalPhone: hospital.primaryPhone,
+        hospitalEmail: hospital.email,
+        hospitalLocation: {
+          type: 'Point',
+          coordinates: Array.isArray(hCoords) ? hCoords : [location.longitude, location.latitude]
+        },
+        hospitalAddress: hospital.address,
+        patientInfo: {
+          patientId: sosRequest.patientId,
+          patientName: sosRequest.patientName,
+          patientPhone: sosRequest.patientPhone,
+          patientEmail: sosRequest.patientEmail,
+          patientAge: sosRequest.patientAge,
+          patientGender: sosRequest.patientGender,
+          emergencyContact: sosRequest.emergencyContact
+        },
+        emergencyDetails: {
+          emergencyType: emergencyType || 'Medical',
+          description,
+          severity: severity || 'High',
+          location: {
+            address,
+            city,
+            state,
+            pincode,
+            coordinates: [location.longitude, location.latitude]
+          }
+        }
+      });
+      return hospitalSOS.save();
+    });
+    await Promise.all(promises);
+  } catch (e) {
+    console.error('❌ ensureHospitalSOSForRequest error:', e);
+  }
+}
+
 // Create new SOS request
 const createSOSRequest = async (req, res) => {
   try {
@@ -44,16 +147,25 @@ const createSOSRequest = async (req, res) => {
     }
 
     // Check for duplicate active SOS requests from same patient
-    const existingRequest = await SOSRequest.findOne({
+    let existingRequest = await SOSRequest.findOne({
       patientId,
       status: { $in: ['pending', 'accepted'] }
     });
 
     if (existingRequest) {
-      return res.status(409).json({
-        success: false,
-        message: 'You already have an active SOS request. Please wait for it to be resolved.',
-        existingRequestId: existingRequest._id
+      // Ensure HospitalSOS records exist for existing request; if not, create using fallback
+      const existingCount = await HospitalSOS.countDocuments({ sosRequestId: existingRequest._id });
+      if (existingCount === 0) {
+        await ensureHospitalSOSForRequest(existingRequest, location, address, city, state, pincode, emergencyType, description, severity);
+      }
+      return res.status(200).json({
+        success: true,
+        message: 'An active SOS request already exists',
+        data: {
+          sosRequestId: existingRequest._id,
+          status: existingRequest.status,
+          timeoutAt: existingRequest.timeoutAt,
+        }
       });
     }
 
@@ -85,61 +197,18 @@ const createSOSRequest = async (req, res) => {
 
     await sosRequest.save();
 
-    // Find nearby hospitals (within 15km radius)
-    const nearbyHospitals = await Hospital.find({
-      status: 'active',
-      isApproved: true,
-      location: {
-        $near: {
-          $geometry: {
-            type: 'Point',
-            coordinates: [location.longitude, location.latitude]
-          },
-          $maxDistance: 15000 // 15km in meters
-        }
-      }
-    });
-
-    // Create HospitalSOS records for each nearby hospital
-    const hospitalSOSPromises = nearbyHospitals.map(async (hospital) => {
-      const hospitalSOS = new HospitalSOS({
-        sosRequestId: sosRequest._id,
-        hospitalId: hospital.uid,
-        hospitalName: hospital.hospitalName,
-        hospitalPhone: hospital.primaryPhone,
-        hospitalEmail: hospital.email,
-        hospitalLocation: {
-          type: 'Point',
-          coordinates: hospital.location.coordinates
-        },
-        hospitalAddress: hospital.address,
-        patientInfo: {
-          patientId,
-          patientName,
-          patientPhone,
-          patientEmail,
-          patientAge,
-          patientGender,
-          emergencyContact
-        },
-        emergencyDetails: {
-          emergencyType: emergencyType || 'Medical',
-          description,
-          severity: severity || 'High',
-          location: {
-            address,
-            city,
-            state,
-            pincode,
-            coordinates: [location.longitude, location.latitude]
-          }
-        }
-      });
-
-      return hospitalSOS.save();
-    });
-
-    await Promise.all(hospitalSOSPromises);
+    // Create HospitalSOS records (with geo $near first, then fallback)
+    await ensureHospitalSOSForRequest(
+      sosRequest,
+      location,
+      address,
+      city,
+      state,
+      pincode,
+      emergencyType,
+      description,
+      severity
+    );
 
     res.status(201).json({
       success: true,
