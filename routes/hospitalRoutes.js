@@ -2,6 +2,7 @@ const express = require('express');
 const { authenticateToken } = require('../middleware/auth');
 const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
 const hospitalController = require('../controllers/hospitalController');
+const hospitalLocationController = require('../controllers/hospitalLocationController');
 const router = express.Router();
 
 // Public route to get all approved hospitals (for appointment booking)
@@ -120,6 +121,9 @@ router.get('/affiliation/search', hospitalController.searchHospitalsForAffiliati
 
 // Get nearby hospitals for SOS
 router.get('/nearby', firebaseAuthMiddleware, hospitalController.getNearbyHospitals);
+
+// Update hospital geo location (dashboard/app action)
+router.put('/:hospitalId/location', firebaseAuthMiddleware, hospitalLocationController.updateHospitalLocation);
 
 // Hospital registration
 router.post('/register', firebaseAuthMiddleware, hospitalController.registerHospital);

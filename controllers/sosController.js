@@ -69,7 +69,36 @@ async function ensureHospitalSOSForRequest(
     }
 
     if (!nearbyHospitals || nearbyHospitals.length === 0) {
-      return;
+      // City-wide fallback: notify all approved+active hospitals in same city
+      try {
+        const cityHospitals = await Hospital.find({
+          isApproved: true,
+          status: 'active',
+          $or: [
+            { city: { $regex: new RegExp(`^${city}$`, 'i') } },
+            { hospitalCity: { $regex: new RegExp(`^${city}$`, 'i') } },
+          ],
+        })
+          .select('uid hospitalName primaryPhone email address location geoCoordinates longitude latitude')
+          .limit(200)
+          .lean();
+        if (Array.isArray(cityHospitals) && cityHospitals.length > 0) {
+          nearbyHospitals = cityHospitals;
+        } else {
+          // Last resort: notify all approved+active hospitals (no city filter)
+          const all = await Hospital.find({ isApproved: true, status: 'active' })
+            .select('uid hospitalName primaryPhone email address location geoCoordinates longitude latitude')
+            .limit(200)
+            .lean();
+          nearbyHospitals = all || [];
+        }
+      } catch (fallbackErr) {
+        console.error('❌ City/all fallback failed:', fallbackErr.message);
+        nearbyHospitals = [];
+      }
+      if (!nearbyHospitals || nearbyHospitals.length === 0) {
+        return;
+      }
     }
 
     const promises = nearbyHospitals.map(async (hospital) => {
