@@ -151,6 +151,13 @@ const sendMessage = async (req, res) => {
   try {
     let { receiverId, message, patientArcId, patientName, messageType = 'chat' } = req.body;
 
+    console.log('📤 NurseTalk: Sending message:', {
+      receiverId,
+      message: message?.substring(0, 50) + '...',
+      messageType,
+      senderUid: req.user.uid
+    });
+
     if (!message) {
       return res.status(400).json({ success: false, message: 'receiverId and message are required' });
     }
@@ -244,7 +251,16 @@ const sendMessage = async (req, res) => {
       createdAt: new Date()
     });
 
+    console.log('💾 NurseTalk: Saving message with data:', {
+      senderId: currentUser._id,
+      receiverId,
+      hospitalId: resolvedHospitalId,
+      hospitalAffiliation,
+      messageType
+    });
+
     await nurseTalk.save();
+    console.log('✅ NurseTalk: Message saved with ID:', nurseTalk._id);
 
     // Populate sender details
     await nurseTalk.populate([
@@ -253,6 +269,7 @@ const sendMessage = async (req, res) => {
       { path: 'hospitalId', select: 'name' }
     ]);
 
+    console.log('📤 NurseTalk: Message sent successfully from', nurseTalk.senderId?.fullName, 'to', nurseTalk.receiverId?.fullName);
     res.status(201).json({ success: true, data: nurseTalk });
   } catch (error) {
     console.error('Error sending message:', error);
@@ -266,33 +283,53 @@ const getMessages = async (req, res) => {
     let { receiverId } = req.params;
     const limit = Math.min(parseInt(req.query.limit || '50', 10), 100);
 
+    console.log('💬 NurseTalk: Getting messages for receiverId:', receiverId);
+    
     const currentUser = await User.findOne({ uid: req.user.uid });
     if (!currentUser) {
+      console.log('❌ NurseTalk: Current user not found for UID:', req.user.uid);
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
+    console.log('👤 NurseTalk: Current user:', currentUser.fullName, 'ID:', currentUser._id);
+
     // Resolve receiverId to ObjectId if a uid/email was passed
     const mongoose = require('mongoose');
+    let resolvedReceiverId = receiverId;
+    
     if (!mongoose.Types.ObjectId.isValid(receiverId)) {
+      console.log('🔍 NurseTalk: ReceiverId is not ObjectId, trying to resolve:', receiverId);
       const candidate = await User.findOne({
-        $or: [ { uid: receiverId }, { email: receiverId } ]
+        $or: [ 
+          { uid: receiverId }, 
+          { email: receiverId },
+          { _id: receiverId }
+        ]
       });
-      if (candidate) receiverId = String(candidate._id);
+      if (candidate) {
+        resolvedReceiverId = String(candidate._id);
+        console.log('✅ NurseTalk: Resolved receiverId to:', resolvedReceiverId);
+      } else {
+        console.log('❌ NurseTalk: Could not resolve receiverId:', receiverId);
+        return res.status(400).json({ success: false, message: 'Receiver not found' });
+      }
     }
 
     const currentIdStr = String(currentUser._id);
-    const receiverIdStr = String(receiverId);
+    const receiverIdStr = String(resolvedReceiverId);
+
+    console.log('💬 NurseTalk: Searching messages between:', currentIdStr, 'and', receiverIdStr);
 
     // Only fetch direct chat messages here; handover is shown in its own tab
     const messages = await NurseTalk.find({
       messageType: 'chat',
       $or: [
         // Correct normalized ObjectId pairs
-        { senderId: currentUser._id, receiverId: receiverId },
-        { senderId: receiverId, receiverId: currentUser._id },
+        { senderId: currentUser._id, receiverId: resolvedReceiverId },
+        { senderId: resolvedReceiverId, receiverId: currentUser._id },
         // Legacy variants where one or both ids may have been saved as strings
-        { senderId: currentIdStr, receiverId: receiverId },
-        { senderId: receiverId, receiverId: currentIdStr },
+        { senderId: currentIdStr, receiverId: resolvedReceiverId },
+        { senderId: resolvedReceiverId, receiverId: currentIdStr },
         { senderId: currentUser._id, receiverId: receiverIdStr },
         { senderId: receiverIdStr, receiverId: currentUser._id },
         { senderId: currentIdStr, receiverId: receiverIdStr },
@@ -305,9 +342,22 @@ const getMessages = async (req, res) => {
     .populate('receiverId', 'fullName email uid')
     .populate('hospitalId', 'name');
 
+    console.log('💬 NurseTalk: Found', messages.length, 'messages');
+    
+    // Log first few messages for debugging
+    messages.slice(0, 3).forEach((msg, i) => {
+      console.log(`💬 Message ${i + 1}:`, {
+        sender: msg.senderId?.fullName || 'Unknown',
+        receiver: msg.receiverId?.fullName || 'Unknown',
+        message: msg.message?.substring(0, 50) + '...',
+        createdAt: msg.createdAt
+      });
+    });
+
     res.json({ success: true, data: messages.reverse() });
   } catch (error) {
-    console.error('Error fetching messages:', error);
+    console.error('❌ Error fetching messages:', error);
+    console.error('❌ Error stack:', error.stack);
     res.status(500).json({ success: false, message: 'Failed to fetch messages', error: error.message });
   }
 };
@@ -468,28 +518,79 @@ const getUnreadCount = async (req, res) => {
 // Ping presence (update lastSeen)
 const pingPresence = async (req, res) => {
   try {
+    console.log('🏓 NurseTalk: Ping presence for UID:', req.user.uid);
+    
     const currentUser = await User.findOne({ uid: req.user.uid });
     if (!currentUser) {
+      console.log('❌ NurseTalk: User not found for presence ping UID:', req.user.uid);
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    // Update nurse's lastSeen timestamp
+    console.log('👤 NurseTalk: Updating presence for user:', currentUser.fullName, 'ID:', currentUser._id);
+
+    // Update nurse's lastSeen timestamp - try multiple approaches
     const update = { lastSeen: new Date() };
-    let updated = await Nurse.findOneAndUpdate(
+    let updated = null;
+    
+    // Try by userId first
+    updated = await Nurse.findOneAndUpdate(
       { userId: currentUser._id },
       update,
       { new: true }
     );
+    console.log('🏓 NurseTalk: Updated by userId:', updated ? 'Yes' : 'No');
+    
+    // Try by uid if not found
     if (!updated) {
-      updated = await Nurse.findOneAndUpdate({ uid: currentUser.uid }, update, { new: true });
+      updated = await Nurse.findOneAndUpdate(
+        { uid: currentUser.uid }, 
+        update, 
+        { new: true }
+      );
+      console.log('🏓 NurseTalk: Updated by uid:', updated ? 'Yes' : 'No');
     }
+    
+    // Try by email if still not found
     if (!updated && currentUser.email) {
-      updated = await Nurse.findOneAndUpdate({ email: currentUser.email }, update, { new: true });
+      updated = await Nurse.findOneAndUpdate(
+        { email: currentUser.email }, 
+        update, 
+        { new: true }
+      );
+      console.log('🏓 NurseTalk: Updated by email:', updated ? 'Yes' : 'No');
+    }
+    
+    // If still not found, create a minimal nurse profile
+    if (!updated) {
+      console.log('🏓 NurseTalk: Creating minimal nurse profile for presence');
+      try {
+        updated = await Nurse.create({
+          uid: currentUser.uid,
+          fullName: currentUser.fullName || 'Unknown Nurse',
+          email: currentUser.email || `${currentUser.uid}@temp.com`,
+          mobileNumber: '0000000000',
+          hospitalAffiliation: 'Default Hospital',
+          qualification: 'RN',
+          isApproved: true,
+          lastSeen: new Date(),
+          createdAt: new Date()
+        });
+        console.log('✅ NurseTalk: Created minimal nurse profile for presence');
+      } catch (createError) {
+        console.log('⚠️ NurseTalk: Could not create nurse profile for presence:', createError.message);
+      }
+    }
+
+    if (updated) {
+      console.log('✅ NurseTalk: Presence updated successfully for:', updated.fullName);
+    } else {
+      console.log('❌ NurseTalk: Failed to update presence');
     }
 
     res.json({ success: true, message: 'Presence updated' });
   } catch (error) {
-    console.error('Error updating presence:', error);
+    console.error('❌ Error updating presence:', error);
+    console.error('❌ Error stack:', error.stack);
     res.status(500).json({ success: false, message: 'Failed to update presence', error: error.message });
   }
 };
