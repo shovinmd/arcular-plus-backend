@@ -250,11 +250,34 @@ const sendMessage = async (req, res) => {
       } else {
         // Try to find User by Nurse model ID (if receiverId is a Nurse _id)
         const nurse = await Nurse.findById(receiverId);
-        if (nurse && nurse.userId) {
-          candidate = await User.findById(nurse.userId);
-          if (candidate) {
-            resolvedReceiverId = String(candidate._id);
-            console.log('✅ Found User via Nurse model for sending:', resolvedReceiverId);
+        if (nurse) {
+          console.log('🔍 Found nurse record:', { _id: nurse._id, fullName: nurse.fullName, email: nurse.email, uid: nurse.uid, userId: nurse.userId });
+          
+          // Try multiple ways to find the corresponding User
+          if (nurse.userId) {
+            candidate = await User.findById(nurse.userId);
+            if (candidate) {
+              resolvedReceiverId = String(candidate._id);
+              console.log('✅ Found User via Nurse.userId for sending:', resolvedReceiverId);
+            }
+          }
+          
+          // If userId didn't work, try by uid
+          if (!candidate && nurse.uid) {
+            candidate = await User.findOne({ uid: nurse.uid });
+            if (candidate) {
+              resolvedReceiverId = String(candidate._id);
+              console.log('✅ Found User via Nurse.uid for sending:', resolvedReceiverId);
+            }
+          }
+          
+          // If uid didn't work, try by email
+          if (!candidate && nurse.email) {
+            candidate = await User.findOne({ email: nurse.email });
+            if (candidate) {
+              resolvedReceiverId = String(candidate._id);
+              console.log('✅ Found User via Nurse.email for sending:', resolvedReceiverId);
+            }
           }
         }
         // If still not found, try by uid or email
@@ -274,7 +297,22 @@ const sendMessage = async (req, res) => {
       
       if (!candidate) {
         console.log('❌ Could not resolve receiverId for sending:', receiverId);
-        return res.status(400).json({ success: false, message: 'Valid receiver not found' });
+        console.log('🔍 Available User records for debugging:');
+        const allUsers = await User.find({}).select('_id fullName email uid').limit(5);
+        console.log('Users:', allUsers.map(u => ({ _id: u._id, fullName: u.fullName, email: u.email, uid: u.uid })));
+        
+        const allNurses = await Nurse.find({}).select('_id fullName email uid userId').limit(5);
+        console.log('Nurses:', allNurses.map(n => ({ _id: n._id, fullName: n.fullName, email: n.email, uid: n.uid, userId: n.userId })));
+        
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Valid receiver not found',
+          debug: {
+            receiverId,
+            userCount: allUsers.length,
+            nurseCount: allNurses.length
+          }
+        });
       }
     } else {
       const candidate = await User.findOne({
@@ -419,11 +457,34 @@ const getMessages = async (req, res) => {
       } else {
         // Try to find User by Nurse model ID (if receiverId is a Nurse _id)
         const nurse = await Nurse.findById(receiverId);
-        if (nurse && nurse.userId) {
-          candidate = await User.findById(nurse.userId);
-          if (candidate) {
-            resolvedReceiverId = String(candidate._id);
-            console.log('✅ Found User via Nurse model:', resolvedReceiverId);
+        if (nurse) {
+          console.log('🔍 Found nurse record:', { _id: nurse._id, fullName: nurse.fullName, email: nurse.email, uid: nurse.uid, userId: nurse.userId });
+          
+          // Try multiple ways to find the corresponding User
+          if (nurse.userId) {
+            candidate = await User.findById(nurse.userId);
+            if (candidate) {
+              resolvedReceiverId = String(candidate._id);
+              console.log('✅ Found User via Nurse.userId:', resolvedReceiverId);
+            }
+          }
+          
+          // If userId didn't work, try by uid
+          if (!candidate && nurse.uid) {
+            candidate = await User.findOne({ uid: nurse.uid });
+            if (candidate) {
+              resolvedReceiverId = String(candidate._id);
+              console.log('✅ Found User via Nurse.uid:', resolvedReceiverId);
+            }
+          }
+          
+          // If uid didn't work, try by email
+          if (!candidate && nurse.email) {
+            candidate = await User.findOne({ email: nurse.email });
+            if (candidate) {
+              resolvedReceiverId = String(candidate._id);
+              console.log('✅ Found User via Nurse.email:', resolvedReceiverId);
+            }
           }
         }
         // If still not found, try by uid or email
@@ -443,7 +504,22 @@ const getMessages = async (req, res) => {
       
       if (!candidate) {
         console.log('❌ NurseTalk: Could not resolve receiverId:', receiverId);
-        return res.status(400).json({ success: false, message: 'Receiver not found' });
+        console.log('🔍 Available User records for debugging:');
+        const allUsers = await User.find({}).select('_id fullName email uid').limit(5);
+        console.log('Users:', allUsers.map(u => ({ _id: u._id, fullName: u.fullName, email: u.email, uid: u.uid })));
+        
+        const allNurses = await Nurse.find({}).select('_id fullName email uid userId').limit(5);
+        console.log('Nurses:', allNurses.map(n => ({ _id: n._id, fullName: n.fullName, email: n.email, uid: n.uid, userId: n.userId })));
+        
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Receiver not found',
+          debug: {
+            receiverId,
+            userCount: allUsers.length,
+            nurseCount: allNurses.length
+          }
+        });
       }
     } else {
       // Try to find by uid, email, or _id
