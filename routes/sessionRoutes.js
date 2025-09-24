@@ -9,63 +9,30 @@ router.post('/event', async (req, res) => {
       return res.status(400).json({ success: false, error: 'uid and type are required' });
     }
 
-    // Always respond immediately to avoid client timeouts; do email async
-    res.status(204).send();
+    // Prepare email
+    const { sendSessionEmail } = require('../services/emailService');
+    const to = email || null; // require explicit recipient from payload
+    const attachments = [];
 
-    // Fire-and-forget email (if recipient provided and email service configured)
-    process.nextTick(async () => {
-      try {
-        console.log('SESSION_EMAIL: queued', {
-          uid,
-          role,
-          type,
-          email: !!email,
-          platform,
-          ts: timestamp,
-        });
-        if (!email) return; // no recipient, skip silently
-        const { sendSessionEmail } = require('../services/emailService');
-        const attachments = [];
-        try {
-          const path = require('path');
-          const fs = require('fs');
-          const logoPath = path.join(__dirname, '..', 'assets', 'logo1.png');
-          if (fs.existsSync(logoPath)) {
-            attachments.push({ filename: 'logo1.png', path: logoPath, cid: 'brandlogo' });
-          }
-        } catch (_) {}
+    if (!to) {
+      return res.status(400).json({ success: false, error: 'recipient email is required' });
+    }
 
-        const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-        const emailPromise = sendSessionEmail({
-          to: email,
-          subject: `Arcular+ ${type === 'logout' ? 'Logout' : 'Login'} Activity`,
-          action: type,
-          device: platform,
-          ip: ipAddress,
-          location,
-          timestamp,
-          attachments,
-        });
-
-        // Add 7s safety timeout so we never hang the event loop
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Email send timeout')), 7000)
-        );
-
-        await Promise.race([emailPromise, timeoutPromise])
-          .then(() => {
-            console.log('SESSION_EMAIL: sent', { uid, type, to: email });
-          })
-          .catch((err) => {
-            console.error('SESSION_EMAIL: failed', { uid, type, to: email, error: err.message });
-          });
-      } catch (err) {
-        console.error('Session email task error:', err.message);
-      }
+    await sendSessionEmail({
+      to,
+      subject: `Arcular+ ${type === 'logout' ? 'Logout' : 'Login'} Activity`,
+      action: type,
+      device: platform,
+      ip: req.headers['x-forwarded-for'] || req.socket.remoteAddress,
+      location,
+      timestamp,
+      attachments,
     });
+
+    return res.status(204).send();
   } catch (e) {
     console.error('Session event error:', e);
-    // Response is already sent; just ensure no throw bubbles
+    return res.status(500).json({ success: false });
   }
 });
 
