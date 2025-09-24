@@ -48,6 +48,7 @@ const patientAssignmentRoutes = require('./routes/patientAssignmentRoutes');
 const testRequestRoutes = require('./routes/testRequestRoutes');
 const reminderRoutes = require('./routes/reminderRoutes');
 const chatRoutes = require('./routes/chatRoutes');
+const testRoutes = require('./routes/testRoutes');
 const nurseTalkRoutes = require('./routes/nurseTalkRoutes');
 // Direct controller/middleware imports for hard-wiring critical routes
 const patientAssignmentController = require('./controllers/patientAssignmentController');
@@ -219,6 +220,7 @@ app.use('/api/vitals', vitalsRoutes);
 app.use('/api/reminders', reminderRoutes);
 app.use('/api/chats', chatRoutes);
 app.use('/api/nurse-talk', nurseTalkRoutes);
+app.use('/api/test', testRoutes);
 
 // Test endpoint for NurseTalk routes
 app.get('/api/nurse-talk/test', (req, res) => {
