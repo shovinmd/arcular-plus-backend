@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const https = require('https');
 
 // Email configuration
 const transporter = nodemailer.createTransport({
@@ -23,6 +24,85 @@ transporter.verify((err, success) => {
     console.log('✉️  Email transporter ready');
   }
 });
+
+// =============== Provider-agnostic send helper ===============
+/**
+ * Sends an email using the best available provider.
+ * Order: SendGrid HTTP API (if SENDGRID_API_KEY) → Gmail SMTP (nodemailer) → skip with log.
+ */
+async function sendMailSmart({ to, subject, html, text, attachments }) {
+  try {
+    if (!to || (typeof to === 'string' && to.trim().length === 0)) {
+      console.warn('✉️  Skipping email send: no recipient provided');
+      return false;
+    }
+
+    // Prefer SendGrid HTTP API to avoid SMTP blocks/timeouts on some hosts
+    const sgKey = process.env.SENDGRID_API_KEY;
+    if (sgKey) {
+      await sendViaSendGrid({ apiKey: sgKey, to, subject, html, text });
+      return true;
+    }
+
+    // Fallback to nodemailer (Gmail service)
+    const emailPromise = transporter.sendMail({ from: process.env.EMAIL_USER || 'your-email@gmail.com', to, subject, html, text, attachments });
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('SMTP send timeout')), 8000));
+    await Promise.race([emailPromise, timeoutPromise]);
+    return true;
+  } catch (err) {
+    console.error('✉️  sendMailSmart failed:', err.message);
+    return false;
+  }
+}
+
+function sendViaSendGrid({ apiKey, to, subject, html, text }) {
+  return new Promise((resolve, reject) => {
+    try {
+      const payload = {
+        personalizations: [{ to: Array.isArray(to) ? to.map(e => ({ email: e })) : [{ email: to }] }],
+        from: { email: process.env.EMAIL_USER || 'no-reply@arcular.plus' },
+        subject: subject || 'Arcular+ Notification',
+        content: [
+          text ? { type: 'text/plain', value: text } : undefined,
+          html ? { type: 'text/html', value: html } : undefined,
+        ].filter(Boolean)
+      };
+
+      const data = Buffer.from(JSON.stringify(payload));
+      const options = {
+        hostname: 'api.sendgrid.com',
+        port: 443,
+        path: '/v3/mail/send',
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'Content-Length': data.length
+        },
+        timeout: 8000,
+      };
+
+      const req = https.request(options, (res) => {
+        let body = '';
+        res.on('data', (chunk) => body += chunk);
+        res.on('end', () => {
+          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+            return resolve();
+          }
+          return reject(new Error(`SendGrid error ${res.statusCode}: ${body}`));
+        });
+      });
+      req.on('error', reject);
+      req.on('timeout', () => {
+        req.destroy(new Error('SendGrid request timeout'));
+      });
+      req.write(data);
+      req.end();
+    } catch (e) {
+      reject(e);
+    }
+  });
+}
 
 // Send registration confirmation email
 const sendRegistrationConfirmation = async (userEmail, userName, userType) => {
@@ -57,14 +137,12 @@ const sendRegistrationConfirmation = async (userEmail, userName, userType) => {
       </div>
     `;
     
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER || 'your-email@gmail.com',
-      to: userEmail,
-      subject: subject,
-      html: html
-    });
-    
-    console.log(`✅ Registration confirmation email sent to ${userEmail}`);
+    const ok = await sendMailSmart({ to: userEmail, subject, html });
+    if (ok) {
+      console.log(`✅ Registration confirmation email sent to ${userEmail}`);
+    } else {
+      console.warn(`✉️  Skipped registration email (no recipient or provider failed) -> ${userEmail}`);
+    }
   } catch (error) {
     console.error('❌ Error sending registration confirmation email:', error);
   }
@@ -120,14 +198,12 @@ const sendApprovalEmail = async (userEmail, userName, userType, isApproved, reas
       </div>
     `;
     
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER || 'your-email@gmail.com',
-      to: userEmail,
-      subject: subject,
-      html: html
-    });
-    
-    console.log(`✅ Approval email sent to ${userEmail} - Status: ${isApproved ? 'Approved' : 'Review Required'}`);
+    const ok = await sendMailSmart({ to: userEmail, subject, html });
+    if (ok) {
+      console.log(`✅ Approval email sent to ${userEmail} - Status: ${isApproved ? 'Approved' : 'Review Required'}`);
+    } else {
+      console.warn(`✉️  Skipped approval email -> ${userEmail}`);
+    }
   } catch (error) {
     console.error('❌ Error sending approval email:', error);
   }
@@ -165,14 +241,12 @@ const sendDocumentReviewNotification = async (userEmail, userName, userType, mis
       </div>
     `;
     
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER || 'your-email@gmail.com',
-      to: userEmail,
-      subject: subject,
-      html: html
-    });
-    
-    console.log(`✅ Document review notification sent to ${userEmail}`);
+    const ok = await sendMailSmart({ to: userEmail, subject, html });
+    if (ok) {
+      console.log(`✅ Document review notification sent to ${userEmail}`);
+    } else {
+      console.warn(`✉️  Skipped document review email -> ${userEmail}`);
+    }
   } catch (error) {
     console.error('❌ Error sending document review notification:', error);
   }
@@ -212,14 +286,12 @@ const sendWelcomeEmail = async (userEmail, userName, userType) => {
       </div>
     `;
     
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER || 'your-email@gmail.com',
-      to: userEmail,
-      subject: subject,
-      html: html
-    });
-    
-    console.log(`✅ Welcome email sent to ${userEmail}`);
+    const ok = await sendMailSmart({ to: userEmail, subject, html });
+    if (ok) {
+      console.log(`✅ Welcome email sent to ${userEmail}`);
+    } else {
+      console.warn(`✉️  Skipped welcome email -> ${userEmail}`);
+    }
   } catch (error) {
     console.error('❌ Error sending welcome email:', error);
   }
@@ -257,14 +329,12 @@ const sendTestRequestEmail = async (data) => {
       </div>
     `;
     
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER || 'shovinmicheldavid1285@gmail.com',
-      to: labEmail,
-      subject: subject,
-      html: html
-    });
-    
-    console.log(`✅ Test request email sent to ${labEmail}`);
+    const ok = await sendMailSmart({ to: labEmail, subject, html });
+    if (ok) {
+      console.log(`✅ Test request email sent to ${labEmail}`);
+    } else {
+      console.warn(`✉️  Skipped test request email -> ${labEmail}`);
+    }
   } catch (error) {
     console.error('❌ Error sending test request email:', error);
   }
@@ -300,14 +370,12 @@ const sendTestAdmissionEmail = async (data) => {
       </div>
     `;
     
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER || 'shovinmicheldavid1285@gmail.com',
-      to: patientEmail,
-      subject: subject,
-      html: html
-    });
-    
-    console.log(`✅ Test admission email sent to ${patientEmail}`);
+    const ok = await sendMailSmart({ to: patientEmail, subject, html });
+    if (ok) {
+      console.log(`✅ Test admission email sent to ${patientEmail}`);
+    } else {
+      console.warn(`✉️  Skipped test admission email -> ${patientEmail}`);
+    }
   } catch (error) {
     console.error('❌ Error sending test admission email:', error);
   }
@@ -370,14 +438,12 @@ const sendAppointmentEmail = async (data) => {
       </div>
     `;
     
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER || 'shovinmicheldavid1285@gmail.com',
-      to: patientEmail,
-      subject: subject,
-      html: html
-    });
-    
-    console.log(`✅ Appointment email sent to ${patientEmail}`);
+    const ok = await sendMailSmart({ to: patientEmail, subject, html });
+    if (ok) {
+      console.log(`✅ Appointment email sent to ${patientEmail}`);
+    } else {
+      console.warn(`✉️  Skipped appointment email -> ${patientEmail}`);
+    }
   } catch (error) {
     console.error('❌ Error sending appointment email:', error);
   }
@@ -418,14 +484,12 @@ const sendReportReadyEmail = async (data) => {
       </div>
     `;
     
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER || 'shovinmicheldavid1285@gmail.com',
-      to: patientEmail,
-      subject: subject,
-      html: html
-    });
-    
-    console.log(`✅ Report ready email sent to ${patientEmail}`);
+    const ok = await sendMailSmart({ to: patientEmail, subject, html });
+    if (ok) {
+      console.log(`✅ Report ready email sent to ${patientEmail}`);
+    } else {
+      console.warn(`✉️  Skipped report ready email -> ${patientEmail}`);
+    }
   } catch (error) {
     console.error('❌ Error sending report ready email:', error);
   }
@@ -474,13 +538,8 @@ const sendSessionEmail = async ({ to, subject, action, device, ip, location, tim
     </table>
   </div>`;
 
-  await transporter.sendMail({
-    from: process.env.EMAIL_USER || 'your-email@gmail.com',
-    to,
-    subject: subject || 'Arcular+ Session Activity',
-    html,
-    attachments,
-  });
+  const ok = await sendMailSmart({ to, subject: subject || 'Arcular+ Session Activity', html, attachments });
+  if (!ok) throw new Error('All email providers failed');
 };
 
 // Send test completion email to patient
@@ -514,14 +573,12 @@ const sendTestCompletionEmailToPatient = async (data) => {
       </div>
     `;
     
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER || 'shovinmicheldavid1285@gmail.com',
-      to: patientEmail,
-      subject: subject,
-      html: html
-    });
-    
-    console.log(`✅ Test completion email sent to patient: ${patientEmail}`);
+    const ok = await sendMailSmart({ to: patientEmail, subject, html });
+    if (ok) {
+      console.log(`✅ Test completion email sent to patient: ${patientEmail}`);
+    } else {
+      console.warn(`✉️  Skipped test completion email (patient) -> ${patientEmail}`);
+    }
   } catch (error) {
     console.error('❌ Error sending test completion email to patient:', error);
   }
@@ -559,14 +616,12 @@ const sendTestCompletionEmailToHospital = async (data) => {
       </div>
     `;
     
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER || 'shovinmicheldavid1285@gmail.com',
-      to: hospitalEmail,
-      subject: subject,
-      html: html
-    });
-    
-    console.log(`✅ Test completion email sent to hospital: ${hospitalEmail}`);
+    const ok = await sendMailSmart({ to: hospitalEmail, subject, html });
+    if (ok) {
+      console.log(`✅ Test completion email sent to hospital: ${hospitalEmail}`);
+    } else {
+      console.warn(`✉️  Skipped test completion email (hospital) -> ${hospitalEmail}`);
+    }
   } catch (error) {
     console.error('❌ Error sending test completion email to hospital:', error);
   }
