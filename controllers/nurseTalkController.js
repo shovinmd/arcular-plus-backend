@@ -98,28 +98,11 @@ const getHospitalNurses = async (req, res) => {
       return res.json({ success: true, data: [] });
     }
     
-    console.log('👥 NurseTalk: Found hospital nurses:', hospitalNurses.length);
 
     // Get online status (simplified - in real app, use WebSocket or Redis)
     // Exclude the current nurse from the list
     const now = Date.now();
-    console.log('🔍 NurseTalk: Current user details for filtering:');
-    console.log('  - req.user.uid:', req.user.uid);
-    console.log('  - req.user.email:', req.user.email);
-    console.log('  - currentUser._id:', currentUser._id);
-    console.log('  - currentUser.email:', currentUser.email);
-    console.log('🔍 NurseTalk: Hospital nurses before filtering:', hospitalNurses.length);
     
-    // Log all hospital nurses for debugging
-    hospitalNurses.forEach((nurse, index) => {
-      console.log(`🔍 Hospital Nurse ${index + 1}:`, {
-        _id: nurse._id,
-        userId: nurse.userId,
-        fullName: nurse.fullName,
-        email: nurse.email,
-        uid: nurse.uid
-      });
-    });
     
     // Also check if current user exists in the hospital nurses list
     const currentUserInList = hospitalNurses.find(n => 
@@ -150,12 +133,6 @@ const getHospitalNurses = async (req, res) => {
         // Check if this is the current user
         const isCurrentUser = isSameUid || isSameEmail || isSameUserId || isSameReqEmail;
         
-        console.log(`🔍 NurseTalk: Filtering nurse ${n.fullName}:`);
-        console.log(`  - n.uid: ${n.uid} vs req.user.uid: ${req.user.uid} → isSameUid: ${isSameUid}`);
-        console.log(`  - n.email: ${n.email} vs currentUser.email: ${currentUser.email} → isSameEmail: ${isSameEmail}`);
-        console.log(`  - n.email: ${n.email} vs req.user.email: ${req.user.email} → isSameReqEmail: ${isSameReqEmail}`);
-        console.log(`  - n._id: ${n._id} vs currentUser._id: ${currentUser._id} → isSameUserId: ${isSameUserId}`);
-        console.log(`  - isCurrentUser: ${isCurrentUser} → should exclude: ${isCurrentUser}`);
         
         // Exclude if this is the current user
         return !isCurrentUser;
@@ -164,7 +141,6 @@ const getHospitalNurses = async (req, res) => {
         const lastSeenTs = nurse.lastSeen ? new Date(nurse.lastSeen).getTime() : 0;
         const isOnline = lastSeenTs && (now - lastSeenTs) < 30 * 1000; // 30 seconds
         const timeDiff = lastSeenTs ? Math.round((now - lastSeenTs) / 1000) : 'never';
-        console.log(`👤 Nurse ${nurse.fullName}: lastSeen=${nurse.lastSeen}, timeDiff=${timeDiff}s, isOnline=${isOnline}`);
         return {
           id: nurse._id,
           userId: nurse.userId || nurse._id, // Prefer profile.userId if present
