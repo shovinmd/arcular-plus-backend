@@ -224,7 +224,9 @@ const createSOSRequest = async (req, res) => {
       data: {
         sosRequestId: sosRequest._id,
         status: sosRequest.status,
-        nearbyHospitals: nearbyHospitals.length,
+        // nearbyHospitals count is computed inside ensureHospitalSOSForRequest;
+        // return count of created HospitalSOS records for this request
+        nearbyHospitals: await HospitalSOS.countDocuments({ sosRequestId: sosRequest._id }),
         timeoutAt: sosRequest.timeoutAt
       }
     });
