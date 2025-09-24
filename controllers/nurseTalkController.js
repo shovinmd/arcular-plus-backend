@@ -139,7 +139,7 @@ const getHospitalNurses = async (req, res) => {
       })
       .map(nurse => {
         const lastSeenTs = nurse.lastSeen ? new Date(nurse.lastSeen).getTime() : 0;
-        const isOnline = lastSeenTs && (now - lastSeenTs) < 30 * 1000; // 30 seconds
+        const isOnline = lastSeenTs > 0 && (now - lastSeenTs) < 30 * 1000; // 30 seconds
         const timeDiff = lastSeenTs ? Math.round((now - lastSeenTs) / 1000) : 'never';
         return {
           id: nurse._id,
@@ -368,13 +368,35 @@ const sendMessage = async (req, res) => {
       { path: 'hospitalId', select: 'name' }
     ]);
 
-    // Update sender's presence after sending message
+    // Update sender's presence after sending message - try multiple approaches
     try {
-      await Nurse.findOneAndUpdate(
-        { uid: req.user.uid },
-        { lastSeen: new Date() },
-        { upsert: true }
-      );
+      const currentUser = await User.findOne({ uid: req.user.uid });
+      if (currentUser) {
+        // Try by userId first
+        let updated = await Nurse.findOneAndUpdate(
+          { userId: currentUser._id },
+          { lastSeen: new Date() },
+          { upsert: true }
+        );
+        
+        // Try by uid if not found
+        if (!updated) {
+          updated = await Nurse.findOneAndUpdate(
+            { uid: req.user.uid },
+            { lastSeen: new Date() },
+            { upsert: true }
+          );
+        }
+        
+        // Try by email if still not found
+        if (!updated && currentUser.email) {
+          updated = await Nurse.findOneAndUpdate(
+            { email: currentUser.email },
+            { lastSeen: new Date() },
+            { upsert: true }
+          );
+        }
+      }
     } catch (presenceError) {
       console.log('⚠️ Could not update presence after sending message:', presenceError.message);
     }
