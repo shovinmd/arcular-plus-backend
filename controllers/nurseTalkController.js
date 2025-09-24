@@ -141,6 +141,16 @@ const getHospitalNurses = async (req, res) => {
         const lastSeenTs = nurse.lastSeen ? new Date(nurse.lastSeen).getTime() : 0;
         const isOnline = lastSeenTs > 0 && (now - lastSeenTs) < 30 * 1000; // 30 seconds
         const timeDiff = lastSeenTs ? Math.round((now - lastSeenTs) / 1000) : 'never';
+        
+        console.log(`🔍 NurseTalk: Processing nurse ${nurse.fullName}:`, {
+          _id: nurse._id,
+          uid: nurse.uid,
+          email: nurse.email,
+          lastSeen: nurse.lastSeen,
+          lastSeenTs: lastSeenTs,
+          isOnline: isOnline,
+          timeDiff: timeDiff
+        });
         return {
           id: nurse._id,
           userId: nurse.userId || nurse._id, // Prefer profile.userId if present
@@ -772,10 +782,20 @@ const getUnreadCount = async (req, res) => {
 const pingPresence = async (req, res) => {
   try {
     console.log('🏓 NurseTalk: Ping presence for UID:', req.user.uid);
+    console.log('🔍 NurseTalk: Current user details:', {
+      uid: req.user.uid,
+      email: req.user.email,
+      fullName: req.user.fullName
+    });
     
     const currentUser = await User.findOne({ uid: req.user.uid });
     if (!currentUser) {
       console.log('❌ NurseTalk: User not found for presence ping UID:', req.user.uid);
+      
+      // Debug: Check what users exist
+      const allUsers = await User.find({}).select('_id uid email fullName').limit(5);
+      console.log('🔍 Available users:', allUsers.map(u => ({ _id: u._id, uid: u.uid, email: u.email, fullName: u.fullName })));
+      
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
@@ -785,32 +805,42 @@ const pingPresence = async (req, res) => {
     let updated = null;
     
     // Try by userId first
+    console.log('🔍 NurseTalk: Looking for nurse by userId:', currentUser._id);
     updated = await Nurse.findOneAndUpdate(
       { userId: currentUser._id },
       update,
       { new: true }
     );
+    console.log('🔍 NurseTalk: Found by userId:', updated ? 'Yes' : 'No');
     
     // Try by uid if not found
     if (!updated) {
+      console.log('🔍 NurseTalk: Looking for nurse by uid:', currentUser.uid);
       updated = await Nurse.findOneAndUpdate(
         { uid: currentUser.uid }, 
         update, 
         { new: true }
       );
+      console.log('🔍 NurseTalk: Found by uid:', updated ? 'Yes' : 'No');
     }
     
     // Try by email if still not found
     if (!updated && currentUser.email) {
+      console.log('🔍 NurseTalk: Looking for nurse by email:', currentUser.email);
       updated = await Nurse.findOneAndUpdate(
         { email: currentUser.email }, 
         update, 
         { new: true }
       );
+      console.log('🔍 NurseTalk: Found by email:', updated ? 'Yes' : 'No');
     }
     
     // If still not found, create a minimal nurse profile
     if (!updated) {
+      // Debug: Check what nurses exist
+      const allNurses = await Nurse.find({}).select('_id uid email fullName userId lastSeen').limit(5);
+      console.log('🔍 Available nurses:', allNurses.map(n => ({ _id: n._id, uid: n.uid, email: n.email, fullName: n.fullName, userId: n.userId, lastSeen: n.lastSeen })));
+      
       try {
         updated = await Nurse.create({
           uid: currentUser.uid,
@@ -823,7 +853,12 @@ const pingPresence = async (req, res) => {
           lastSeen: new Date(),
           createdAt: new Date()
         });
-        console.log('✅ NurseTalk: Created minimal nurse profile for presence');
+        console.log('✅ NurseTalk: Created minimal nurse profile for presence:', {
+          _id: updated._id,
+          uid: updated.uid,
+          email: updated.email,
+          lastSeen: updated.lastSeen
+        });
       } catch (createError) {
         console.log('⚠️ NurseTalk: Could not create nurse profile for presence:', createError.message);
       }
