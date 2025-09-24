@@ -86,13 +86,13 @@ const getHospitalNurses = async (req, res) => {
       hospitalNurses = await Nurse.find({
         isApproved: true,
         'affiliatedHospitals.hospitalId': hospitalIdFilter,
-      }).select('fullName email uid qualification affiliatedHospitals').lean();
+      }).select('fullName email uid qualification affiliatedHospitals lastSeen').lean();
     } else if (nurseProfile.hospitalAffiliation) {
       console.log('🔍 NurseTalk: Searching nurses by hospitalAffiliation:', nurseProfile.hospitalAffiliation);
       hospitalNurses = await Nurse.find({
         isApproved: true,
         hospitalAffiliation: nurseProfile.hospitalAffiliation,
-      }).select('fullName email uid qualification affiliatedHospitals').lean();
+      }).select('fullName email uid qualification affiliatedHospitals lastSeen').lean();
     } else {
       console.log('ℹ️ NurseTalk: No hospital context; returning empty list');
       return res.json({ success: true, data: [] });
@@ -166,6 +166,16 @@ const getHospitalNurses = async (req, res) => {
       });
 
     console.log('✅ NurseTalk: Returning nurses:', nurses.length);
+    console.log('🔍 Raw nurse data from database:');
+    hospitalNurses.forEach((nurse, index) => {
+      console.log(`  Nurse ${index + 1}:`, {
+        _id: nurse._id,
+        fullName: nurse.fullName,
+        email: nurse.email,
+        uid: nurse.uid,
+        lastSeen: nurse.lastSeen
+      });
+    });
     
     // Final safety check - ensure current user is not in the returned list
     const currentUserStillInList = nurses.find(n => 
