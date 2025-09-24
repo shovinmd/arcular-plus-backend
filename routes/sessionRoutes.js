@@ -26,6 +26,14 @@ router.post('/event', async (req, res) => {
         if (!email) return; // no recipient, skip silently
         const { sendSessionEmail } = require('../services/emailService');
         const attachments = [];
+        try {
+          const path = require('path');
+          const fs = require('fs');
+          const logoPath = path.join(__dirname, '..', 'assets', 'logo1.png');
+          if (fs.existsSync(logoPath)) {
+            attachments.push({ filename: 'logo1.png', path: logoPath, cid: 'brandlogo' });
+          }
+        } catch (_) {}
 
         const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
         const emailPromise = sendSessionEmail({

@@ -3,9 +3,24 @@ const nodemailer = require('nodemailer');
 // Email configuration
 const transporter = nodemailer.createTransport({
   service: 'gmail',
+  pool: true,
+  maxConnections: 2,
+  maxMessages: 50,
+  connectionTimeout: 10000, // 10s to establish
+  socketTimeout: 15000, // 15s to send
+  greetingTimeout: 7000,
   auth: {
     user: process.env.EMAIL_USER || 'shovinmicheldavid1285@gmail.com',
     pass: process.env.EMAIL_PASS || 'qybb pcvk fact dnly'
+  }
+});
+
+// Verify transporter once on startup (non-fatal)
+transporter.verify((err, success) => {
+  if (err) {
+    console.error('✉️  Email transporter verify failed:', err.message);
+  } else {
+    console.log('✉️  Email transporter ready');
   }
 });
 
@@ -328,7 +343,7 @@ const sendAppointmentEmail = async (data) => {
           <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #28a745;">
             <h3 style="color: #155724; margin-top: 0;">💰 Billing Information:</h3>
             <p style="color: #155724; font-size: 18px; font-weight: bold; margin: 10px 0;">
-              Amount to Pay: ${billAmount.toFixed(2)}
+              Amount to Pay: ₹${billAmount.toFixed(2)}
             </p>
             ${paymentOptions && paymentOptions.length > 0 ? `
             <p style="color: #155724; margin: 10px 0;"><strong>Payment Options Available:</strong></p>
