@@ -74,7 +74,10 @@ async function ensureHospitalSOSForRequest(
 
     const promises = nearbyHospitals.map(async (hospital) => {
       // Avoid duplicates
-      const exists = await HospitalSOS.findOne({ sosRequestId: sosRequest._id, hospitalId: hospital.uid });
+      const hospitalUid = hospital?.uid || (hospital?._id ? String(hospital._id) : undefined);
+      const exists = hospitalUid
+        ? await HospitalSOS.findOne({ sosRequestId: sosRequest._id, hospitalId: hospitalUid })
+        : null;
       if (exists) return exists;
 
       const hCoords = (Array.isArray(hospital?.location?.coordinates) && hospital.location.coordinates.length === 2)
@@ -84,40 +87,52 @@ async function ensureHospitalSOSForRequest(
           : (hospital.geoCoordinates && typeof hospital.geoCoordinates.lng === 'number' && typeof hospital.geoCoordinates.lat === 'number')
             ? [hospital.geoCoordinates.lng, hospital.geoCoordinates.lat]
             : null;
-      const hospitalSOS = new HospitalSOS({
-        sosRequestId: sosRequest._id,
-        hospitalId: hospital.uid,
-        hospitalName: hospital.hospitalName,
-        hospitalPhone: hospital.primaryPhone,
-        hospitalEmail: hospital.email,
-        hospitalLocation: {
-          type: 'Point',
-          coordinates: Array.isArray(hCoords) ? hCoords : [location.longitude, location.latitude]
-        },
-        hospitalAddress: hospital.address,
-        patientInfo: {
-          patientId: sosRequest.patientId,
-          patientName: sosRequest.patientName,
-          patientPhone: sosRequest.patientPhone,
-          patientEmail: sosRequest.patientEmail,
-          patientAge: sosRequest.patientAge,
-          patientGender: sosRequest.patientGender,
-          emergencyContact: sosRequest.emergencyContact
-        },
-        emergencyDetails: {
-          emergencyType: emergencyType || 'Medical',
-          description,
-          severity: severity || 'High',
-          location: {
-            address,
-            city,
-            state,
-            pincode,
-            coordinates: [location.longitude, location.latitude]
+      // Build safe fields with fallbacks to satisfy required schema
+      const safeHospitalId = hospitalUid || 'unknown-hospital';
+      const safeHospitalName = hospital.hospitalName || hospital.fullName || 'Unknown Hospital';
+      const safeHospitalPhone = hospital.primaryPhone || hospital.hospitalPhone || hospital.mobileNumber || 'N/A';
+      const safeHospitalEmail = hospital.hospitalEmail || hospital.email || '';
+      const safeHospitalAddress = hospital.hospitalAddress || hospital.address || 'Address not available';
+
+      try {
+        const hospitalSOS = new HospitalSOS({
+          sosRequestId: sosRequest._id,
+          hospitalId: safeHospitalId,
+          hospitalName: safeHospitalName,
+          hospitalPhone: safeHospitalPhone,
+          hospitalEmail: safeHospitalEmail,
+          hospitalLocation: {
+            type: 'Point',
+            coordinates: Array.isArray(hCoords) ? hCoords : [location.longitude, location.latitude]
+          },
+          hospitalAddress: safeHospitalAddress,
+          patientInfo: {
+            patientId: sosRequest.patientId,
+            patientName: sosRequest.patientName,
+            patientPhone: sosRequest.patientPhone,
+            patientEmail: sosRequest.patientEmail,
+            patientAge: sosRequest.patientAge,
+            patientGender: sosRequest.patientGender,
+            emergencyContact: sosRequest.emergencyContact
+          },
+          emergencyDetails: {
+            emergencyType: emergencyType || 'Medical',
+            description,
+            severity: severity || 'High',
+            location: {
+              address: address || 'Address not available',
+              city: city || 'Unknown City',
+              state: state || 'Unknown State',
+              pincode: pincode || '000000',
+              coordinates: [location.longitude, location.latitude]
+            }
           }
-        }
-      });
-      return hospitalSOS.save();
+        });
+        return await hospitalSOS.save();
+      } catch (saveErr) {
+        console.error('❌ Failed to create HospitalSOS for hospital:', safeHospitalName, '-', saveErr.message);
+        return null;
+      }
     });
     await Promise.all(promises);
   } catch (e) {
@@ -288,7 +303,27 @@ const getHospitalSOSRequests = async (req, res) => {
       });
     }
 
-    let query = { hospitalId };
+    // Resolve hospitalId to stored identifier in HospitalSOS (we store Hospital.uid)
+    let resolvedHospitalId = hospitalId;
+    try {
+      const hospitalDoc = await Hospital.findOne({ uid: hospitalId }).lean();
+      if (hospitalDoc) {
+        resolvedHospitalId = hospitalDoc.uid;
+      } else {
+        // Try treating hospitalId as MongoDB ObjectId
+        const mongoose = require('mongoose');
+        if (mongoose.isValidObjectId(hospitalId)) {
+          const byObjectId = await Hospital.findById(hospitalId).lean();
+          if (byObjectId && byObjectId.uid) {
+            resolvedHospitalId = byObjectId.uid;
+          }
+        }
+      }
+    } catch (resolveErr) {
+      console.error('❌ Error resolving hospitalId for SOS requests:', resolveErr.message);
+    }
+
+    let query = { hospitalId: resolvedHospitalId };
     if (status) {
       query.hospitalStatus = status;
     }

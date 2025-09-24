@@ -1364,14 +1364,18 @@ const completeAppointment = async (req, res) => {
       // Don't fail the entire operation for health record creation
     }
 
-    // Send completion email with payment details (non-blocking)
+    // Send completion email with payment details (fire-and-forget)
     try {
-      console.log('📧 Sending completion email...');
-      await sendAppointmentCompletionEmail(appointment, billAmount);
-      console.log('✅ Completion email sent successfully');
-    } catch (mailErr) {
-      console.error('❌ Complete: email send failed (non-blocking):', mailErr);
-    }
+      console.log('📧 Queueing completion email...');
+      setImmediate(async () => {
+        try {
+          await sendAppointmentCompletionEmail(appointment, billAmount);
+          console.log('✅ Completion email sent successfully');
+        } catch (e) {
+          console.error('❌ Complete: email send failed:', e.message);
+        }
+      });
+    } catch (_) {}
 
     // Send rating request emails for both doctor and hospital (non-blocking)
     try {
@@ -1379,14 +1383,22 @@ const completeAppointment = async (req, res) => {
       
       // Send doctor rating email if doctor exists
       if (appointment.doctorId && appointment.doctorName) {
-        await sendRatingRequestEmail(appointment, 'doctor');
-        console.log('✅ Doctor rating request email sent successfully');
+        setImmediate(async () => {
+          try {
+            await sendRatingRequestEmail(appointment, 'doctor');
+            console.log('✅ Doctor rating request email sent successfully');
+          } catch (e) { console.error('❌ Doctor rating email failed:', e.message); }
+        });
       }
       
       // Send hospital rating email if hospital exists
       if (appointment.hospitalId && appointment.hospitalName) {
-        await sendRatingRequestEmail(appointment, 'hospital');
-        console.log('✅ Hospital rating request email sent successfully');
+        setImmediate(async () => {
+          try {
+            await sendRatingRequestEmail(appointment, 'hospital');
+            console.log('✅ Hospital rating request email sent successfully');
+          } catch (e) { console.error('❌ Hospital rating email failed:', e.message); }
+        });
       }
       
     } catch (ratingMailErr) {
