@@ -9,30 +9,51 @@ router.post('/event', async (req, res) => {
       return res.status(400).json({ success: false, error: 'uid and type are required' });
     }
 
-    // Prepare email
-    const { sendSessionEmail } = require('../services/emailService');
-    const to = email || null; // require explicit recipient from payload
-    const attachments = [];
+    // Respond immediately; send email in background if recipient provided
+    res.status(204).send();
 
-    if (!to) {
-      return res.status(400).json({ success: false, error: 'recipient email is required' });
-    }
+    process.nextTick(async () => {
+      try {
+        const to = email || null;
+        console.log('SESSION_EMAIL: queued', {
+          uid,
+          role,
+          type,
+          email: !!to,
+          platform,
+          ts: timestamp,
+        });
+        if (!to) return;
 
-    await sendSessionEmail({
-      to,
-      subject: `Arcular+ ${type === 'logout' ? 'Logout' : 'Login'} Activity`,
-      action: type,
-      device: platform,
-      ip: req.headers['x-forwarded-for'] || req.socket.remoteAddress,
-      location,
-      timestamp,
-      attachments,
+        const { sendSessionEmail } = require('../services/emailService');
+        const attachments = [];
+        try {
+          const path = require('path');
+          const fs = require('fs');
+          const logoPath = path.join(__dirname, '..', 'assets', 'logo1.png');
+          if (fs.existsSync(logoPath)) {
+            attachments.push({ filename: 'logo1.png', path: logoPath, cid: 'brandlogo' });
+          }
+        } catch (_) {}
+
+        const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+        await sendSessionEmail({
+          to,
+          subject: `Arcular+ ${type === 'logout' ? 'Logout' : 'Login'} Activity`,
+          action: type,
+          device: platform,
+          ip: ipAddress,
+          location,
+          timestamp,
+          attachments,
+        });
+        console.log('SESSION_EMAIL: sent', { uid, type, to });
+      } catch (err) {
+        console.error('SESSION_EMAIL: failed', { error: err.message });
+      }
     });
-
-    return res.status(204).send();
   } catch (e) {
     console.error('Session event error:', e);
-    return res.status(500).json({ success: false });
   }
 });
 
