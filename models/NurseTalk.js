@@ -23,8 +23,11 @@ const nurseTalkSchema = new mongoose.Schema({
   // Hospital context
   hospitalId: { 
     type: mongoose.Schema.Types.ObjectId, 
-    ref: 'Hospital', 
-    required: true 
+    ref: 'Hospital'
+  },
+  hospitalAffiliation: { 
+    type: String, 
+    index: true 
   },
   
   // Patient reference (optional)
@@ -56,8 +59,10 @@ const nurseTalkSchema = new mongoose.Schema({
 
 // Indexes for better query performance
 nurseTalkSchema.index({ hospitalId: 1, createdAt: -1 });
+nurseTalkSchema.index({ hospitalAffiliation: 1, createdAt: -1 });
 nurseTalkSchema.index({ senderId: 1, receiverId: 1, createdAt: -1 });
 nurseTalkSchema.index({ messageType: 1, hospitalId: 1 });
+nurseTalkSchema.index({ messageType: 1, hospitalAffiliation: 1 });
 nurseTalkSchema.index({ patientArcId: 1, createdAt: -1 });
 
 // Virtual for formatted handover date

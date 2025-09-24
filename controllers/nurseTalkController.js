@@ -206,9 +206,28 @@ const sendMessage = async (req, res) => {
       console.log('⚠️ NurseTalk: Could not update user fullName:', nameErr.message);
     }
 
-    // Use hospitalAffiliation if hospitalId is not present
-    const resolvedHospitalId = nurseProfile?.hospitalId || nurseProfile?.affiliatedHospitals?.[0]?.hospitalId || null;
-    if (!nurseProfile || !resolvedHospitalId) {
+    // Determine hospital context for the message
+    let resolvedHospitalId = null;
+    let hospitalAffiliation = null;
+    
+    // Try to get hospital ID from affiliatedHospitals first
+    if (Array.isArray(nurseProfile.affiliatedHospitals) && nurseProfile.affiliatedHospitals.length > 0) {
+      const activeHospital = nurseProfile.affiliatedHospitals.find(h => h.isActive !== false) || nurseProfile.affiliatedHospitals[0];
+      resolvedHospitalId = activeHospital.hospitalId;
+    }
+    
+    // Fallback to hospitalAffiliation if no hospitalId found
+    if (!resolvedHospitalId && nurseProfile.hospitalAffiliation) {
+      hospitalAffiliation = nurseProfile.hospitalAffiliation;
+      // Try to find hospital by name to get its ID
+      const Hospital = require('../models/Hospital');
+      const hospital = await Hospital.findOne({ name: nurseProfile.hospitalAffiliation });
+      if (hospital) {
+        resolvedHospitalId = hospital._id;
+      }
+    }
+    
+    if (!nurseProfile || (!resolvedHospitalId && !hospitalAffiliation)) {
       return res.status(404).json({ success: false, message: 'Nurse hospital not found' });
     }
 
@@ -218,6 +237,7 @@ const sendMessage = async (req, res) => {
       senderId: currentUser._id,
       receiverId,
       hospitalId: resolvedHospitalId,
+      hospitalAffiliation: hospitalAffiliation,
       patientArcId,
       patientName,
       status: 'sent',
@@ -346,19 +366,51 @@ const getHandoverNotes = async (req, res) => {
       }
     }
     
-    if (!nurseProfile.hospitalAffiliation) {
+    // Determine hospital context for filtering handover notes
+    let hospitalFilter = {};
+    
+    // Try to get hospital ID from affiliatedHospitals first
+    if (Array.isArray(nurseProfile.affiliatedHospitals) && nurseProfile.affiliatedHospitals.length > 0) {
+      const activeHospital = nurseProfile.affiliatedHospitals.find(h => h.isActive !== false) || nurseProfile.affiliatedHospitals[0];
+      if (activeHospital.hospitalId) {
+        hospitalFilter.hospitalId = activeHospital.hospitalId;
+        console.log('🏥 NurseTalk: Filtering handover by hospitalId:', activeHospital.hospitalId);
+      }
+    }
+    
+    // Fallback to hospitalAffiliation if no hospitalId found
+    if (!hospitalFilter.hospitalId && nurseProfile.hospitalAffiliation) {
+      // Find hospital by name to get its ID
+      const Hospital = require('../models/Hospital');
+      const hospital = await Hospital.findOne({ name: nurseProfile.hospitalAffiliation });
+      if (hospital) {
+        hospitalFilter.hospitalId = hospital._id;
+        console.log('🏥 NurseTalk: Filtering handover by hospital name:', nurseProfile.hospitalAffiliation, 'ID:', hospital._id);
+      } else {
+        // If hospital not found by name, filter by hospitalAffiliation string
+        hospitalFilter.hospitalAffiliation = nurseProfile.hospitalAffiliation;
+        console.log('🏥 NurseTalk: Filtering handover by hospitalAffiliation string:', nurseProfile.hospitalAffiliation);
+      }
+    }
+    
+    if (!hospitalFilter.hospitalId && !hospitalFilter.hospitalAffiliation) {
+      console.log('❌ NurseTalk: No hospital context found for handover filtering');
       return res.status(404).json({ success: false, message: 'Nurse hospital not found' });
     }
 
-    // For now, get all handover notes since we don't have proper hospitalId mapping
+    // Get handover notes filtered by hospital context
     const handoverNotes = await NurseTalk.find({
-      messageType: 'handover'
+      messageType: 'handover',
+      ...hospitalFilter
     })
     .sort({ createdAt: -1 })
     .limit(20)
     .populate('senderId', 'fullName email')
-    .populate('receiverId', 'fullName email');
+    .populate('receiverId', 'fullName email')
+    .populate('hospitalId', 'name');
 
+    console.log('📝 NurseTalk: Found', handoverNotes.length, 'handover notes for hospital context');
+    
     res.json({ success: true, data: handoverNotes });
   } catch (error) {
     console.error('❌ Error fetching handover notes:', error);
