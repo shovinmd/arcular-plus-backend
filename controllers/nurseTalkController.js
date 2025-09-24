@@ -67,7 +67,7 @@ const getHospitalNurses = async (req, res) => {
           email: n.email,
           uid: n.uid,
           qualification: n.qualification,
-          isOnline: n.lastSeen ? (nowTs - new Date(n.lastSeen).getTime() < 2*60*1000) : false,
+          isOnline: n.lastSeen ? (nowTs - new Date(n.lastSeen).getTime() < 30*1000) : false,
           lastSeen: n.lastSeen || null,
         }));
       return res.json({ success: true, data: mapped });
@@ -238,7 +238,6 @@ const sendMessage = async (req, res) => {
     const mongoose = require('mongoose');
     let resolvedReceiverId = receiverId;
     
-    console.log('🔍 NurseTalk: Resolving receiverId for sending:', receiverId);
     
     // If it's already a valid ObjectId, try to find the corresponding User
     if (mongoose.Types.ObjectId.isValid(receiverId)) {
@@ -246,19 +245,16 @@ const sendMessage = async (req, res) => {
       let candidate = await User.findById(receiverId);
       if (candidate) {
         resolvedReceiverId = String(candidate._id);
-        console.log('✅ Found User by _id for sending:', resolvedReceiverId);
       } else {
         // Try to find User by Nurse model ID (if receiverId is a Nurse _id)
         const nurse = await Nurse.findById(receiverId);
         if (nurse) {
-          console.log('🔍 Found nurse record:', { _id: nurse._id, fullName: nurse.fullName, email: nurse.email, uid: nurse.uid, userId: nurse.userId });
           
           // Try multiple ways to find the corresponding User
           if (nurse.userId) {
             candidate = await User.findById(nurse.userId);
             if (candidate) {
               resolvedReceiverId = String(candidate._id);
-              console.log('✅ Found User via Nurse.userId for sending:', resolvedReceiverId);
             }
           }
           
@@ -267,7 +263,6 @@ const sendMessage = async (req, res) => {
             candidate = await User.findOne({ uid: nurse.uid });
             if (candidate) {
               resolvedReceiverId = String(candidate._id);
-              console.log('✅ Found User via Nurse.uid for sending:', resolvedReceiverId);
             }
           }
           
@@ -276,7 +271,6 @@ const sendMessage = async (req, res) => {
             candidate = await User.findOne({ email: nurse.email });
             if (candidate) {
               resolvedReceiverId = String(candidate._id);
-              console.log('✅ Found User via Nurse.email for sending:', resolvedReceiverId);
             }
           }
         }
@@ -290,29 +284,12 @@ const sendMessage = async (req, res) => {
           });
           if (candidate) {
             resolvedReceiverId = String(candidate._id);
-            console.log('✅ Found User by uid/email for sending:', resolvedReceiverId);
           }
         }
       }
       
       if (!candidate) {
-        console.log('❌ Could not resolve receiverId for sending:', receiverId);
-        console.log('🔍 Available User records for debugging:');
-        const allUsers = await User.find({}).select('_id fullName email uid').limit(5);
-        console.log('Users:', allUsers.map(u => ({ _id: u._id, fullName: u.fullName, email: u.email, uid: u.uid })));
-        
-        const allNurses = await Nurse.find({}).select('_id fullName email uid userId').limit(5);
-        console.log('Nurses:', allNurses.map(n => ({ _id: n._id, fullName: n.fullName, email: n.email, uid: n.uid, userId: n.userId })));
-        
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Valid receiver not found',
-          debug: {
-            receiverId,
-            userCount: allUsers.length,
-            nurseCount: allNurses.length
-          }
-        });
+        return res.status(400).json({ success: false, message: 'Valid receiver not found' });
       }
     } else {
       const candidate = await User.findOne({
@@ -324,9 +301,7 @@ const sendMessage = async (req, res) => {
       });
       if (candidate) {
         resolvedReceiverId = String(candidate._id);
-        console.log('✅ Resolved receiverId to:', resolvedReceiverId);
       } else {
-        console.log('❌ Could not resolve receiverId:', receiverId);
         return res.status(400).json({ success: false, message: 'Valid receiver not found' });
       }
     }
@@ -417,6 +392,17 @@ const sendMessage = async (req, res) => {
       { path: 'hospitalId', select: 'name' }
     ]);
 
+    // Update sender's presence after sending message
+    try {
+      await Nurse.findOneAndUpdate(
+        { uid: req.user.uid },
+        { lastSeen: new Date() },
+        { upsert: true }
+      );
+    } catch (presenceError) {
+      console.log('⚠️ Could not update presence after sending message:', presenceError.message);
+    }
+
     console.log('📤 NurseTalk: Message sent successfully from', nurseTalk.senderId?.fullName, 'to', nurseTalk.receiverId?.fullName);
     res.status(201).json({ success: true, data: nurseTalk });
   } catch (error) {
@@ -445,7 +431,6 @@ const getMessages = async (req, res) => {
     const mongoose = require('mongoose');
     let resolvedReceiverId = receiverId;
     
-    console.log('🔍 NurseTalk: Resolving receiverId for messages:', receiverId);
     
     // If it's already a valid ObjectId, try to find the corresponding User
     if (mongoose.Types.ObjectId.isValid(receiverId)) {
@@ -453,19 +438,16 @@ const getMessages = async (req, res) => {
       let candidate = await User.findById(receiverId);
       if (candidate) {
         resolvedReceiverId = String(candidate._id);
-        console.log('✅ Found User by _id:', resolvedReceiverId);
       } else {
         // Try to find User by Nurse model ID (if receiverId is a Nurse _id)
         const nurse = await Nurse.findById(receiverId);
         if (nurse) {
-          console.log('🔍 Found nurse record:', { _id: nurse._id, fullName: nurse.fullName, email: nurse.email, uid: nurse.uid, userId: nurse.userId });
           
           // Try multiple ways to find the corresponding User
           if (nurse.userId) {
             candidate = await User.findById(nurse.userId);
             if (candidate) {
               resolvedReceiverId = String(candidate._id);
-              console.log('✅ Found User via Nurse.userId:', resolvedReceiverId);
             }
           }
           
@@ -474,7 +456,6 @@ const getMessages = async (req, res) => {
             candidate = await User.findOne({ uid: nurse.uid });
             if (candidate) {
               resolvedReceiverId = String(candidate._id);
-              console.log('✅ Found User via Nurse.uid:', resolvedReceiverId);
             }
           }
           
@@ -483,7 +464,6 @@ const getMessages = async (req, res) => {
             candidate = await User.findOne({ email: nurse.email });
             if (candidate) {
               resolvedReceiverId = String(candidate._id);
-              console.log('✅ Found User via Nurse.email:', resolvedReceiverId);
             }
           }
         }
@@ -497,29 +477,12 @@ const getMessages = async (req, res) => {
           });
           if (candidate) {
             resolvedReceiverId = String(candidate._id);
-            console.log('✅ Found User by uid/email:', resolvedReceiverId);
           }
         }
       }
       
       if (!candidate) {
-        console.log('❌ NurseTalk: Could not resolve receiverId:', receiverId);
-        console.log('🔍 Available User records for debugging:');
-        const allUsers = await User.find({}).select('_id fullName email uid').limit(5);
-        console.log('Users:', allUsers.map(u => ({ _id: u._id, fullName: u.fullName, email: u.email, uid: u.uid })));
-        
-        const allNurses = await Nurse.find({}).select('_id fullName email uid userId').limit(5);
-        console.log('Nurses:', allNurses.map(n => ({ _id: n._id, fullName: n.fullName, email: n.email, uid: n.uid, userId: n.userId })));
-        
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Receiver not found',
-          debug: {
-            receiverId,
-            userCount: allUsers.length,
-            nurseCount: allNurses.length
-          }
-        });
+        return res.status(400).json({ success: false, message: 'Receiver not found' });
       }
     } else {
       // Try to find by uid, email, or _id
@@ -532,9 +495,7 @@ const getMessages = async (req, res) => {
       });
       if (candidate) {
         resolvedReceiverId = String(candidate._id);
-        console.log('✅ NurseTalk: Resolved receiverId to:', resolvedReceiverId);
       } else {
-        console.log('❌ NurseTalk: Could not resolve receiverId:', receiverId);
         return res.status(400).json({ success: false, message: 'Receiver not found' });
       }
     }
@@ -629,7 +590,6 @@ const getMessages = async (req, res) => {
             email: senderUser.email,
             uid: senderUser.uid
           };
-          console.log('🔧 Manually populated sender:', senderUser.fullName);
         }
       }
       
@@ -643,14 +603,12 @@ const getMessages = async (req, res) => {
             email: receiverUser.email,
             uid: receiverUser.uid
           };
-          console.log('🔧 Manually populated receiver:', receiverUser.fullName);
         }
       }
       
       processedMessages.push(processedMsg);
     }
     
-    console.log('📤 NurseTalk: Returning', processedMessages.length, 'processed messages');
     res.json({ success: true, data: processedMessages });
   } catch (error) {
     console.error('❌ Error fetching messages:', error);
@@ -823,7 +781,6 @@ const pingPresence = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    console.log('👤 NurseTalk: Updating presence for user:', currentUser.fullName, 'ID:', currentUser._id);
 
     // Update nurse's lastSeen timestamp - try multiple approaches
     const update = { lastSeen: new Date() };
@@ -835,7 +792,6 @@ const pingPresence = async (req, res) => {
       update,
       { new: true }
     );
-    console.log('🏓 NurseTalk: Updated by userId:', updated ? 'Yes' : 'No');
     
     // Try by uid if not found
     if (!updated) {
@@ -844,7 +800,6 @@ const pingPresence = async (req, res) => {
         update, 
         { new: true }
       );
-      console.log('🏓 NurseTalk: Updated by uid:', updated ? 'Yes' : 'No');
     }
     
     // Try by email if still not found
@@ -854,12 +809,10 @@ const pingPresence = async (req, res) => {
         update, 
         { new: true }
       );
-      console.log('🏓 NurseTalk: Updated by email:', updated ? 'Yes' : 'No');
     }
     
     // If still not found, create a minimal nurse profile
     if (!updated) {
-      console.log('🏓 NurseTalk: Creating minimal nurse profile for presence');
       try {
         updated = await Nurse.create({
           uid: currentUser.uid,
