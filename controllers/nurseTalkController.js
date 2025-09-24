@@ -238,14 +238,45 @@ const sendMessage = async (req, res) => {
     const mongoose = require('mongoose');
     let resolvedReceiverId = receiverId;
     
-    console.log('🔍 NurseTalk: Resolving receiverId:', receiverId);
+    console.log('🔍 NurseTalk: Resolving receiverId for sending:', receiverId);
     
-    // If it's already a valid ObjectId, use it
+    // If it's already a valid ObjectId, try to find the corresponding User
     if (mongoose.Types.ObjectId.isValid(receiverId)) {
-      resolvedReceiverId = receiverId;
-      console.log('✅ ReceiverId is already valid ObjectId:', resolvedReceiverId);
+      // First try to find User by _id
+      let candidate = await User.findById(receiverId);
+      if (candidate) {
+        resolvedReceiverId = String(candidate._id);
+        console.log('✅ Found User by _id for sending:', resolvedReceiverId);
+      } else {
+        // Try to find User by Nurse model ID (if receiverId is a Nurse _id)
+        const nurse = await Nurse.findById(receiverId);
+        if (nurse && nurse.userId) {
+          candidate = await User.findById(nurse.userId);
+          if (candidate) {
+            resolvedReceiverId = String(candidate._id);
+            console.log('✅ Found User via Nurse model for sending:', resolvedReceiverId);
+          }
+        }
+        // If still not found, try by uid or email
+        if (!candidate) {
+          candidate = await User.findOne({
+            $or: [ 
+              { uid: receiverId }, 
+              { email: receiverId }
+            ]
+          });
+          if (candidate) {
+            resolvedReceiverId = String(candidate._id);
+            console.log('✅ Found User by uid/email for sending:', resolvedReceiverId);
+          }
+        }
+      }
+      
+      if (!candidate) {
+        console.log('❌ Could not resolve receiverId for sending:', receiverId);
+        return res.status(400).json({ success: false, message: 'Valid receiver not found' });
+      }
     } else {
-      // Try to find by uid, email, or _id
       const candidate = await User.findOne({
         $or: [ 
           { uid: receiverId }, 
@@ -327,6 +358,16 @@ const sendMessage = async (req, res) => {
       hospitalAffiliation,
       messageType
     });
+    console.log('💾 NurseTalk: Current user details for sending:', {
+      _id: currentUser._id,
+      fullName: currentUser.fullName,
+      email: currentUser.email,
+      uid: currentUser.uid
+    });
+    console.log('💾 NurseTalk: Receiver details for sending:', {
+      original: receiverId,
+      resolved: resolvedReceiverId
+    });
 
     await nurseTalk.save();
     console.log('✅ NurseTalk: Message saved with ID:', nurseTalk._id);
@@ -368,10 +409,42 @@ const getMessages = async (req, res) => {
     
     console.log('🔍 NurseTalk: Resolving receiverId for messages:', receiverId);
     
-    // If it's already a valid ObjectId, use it
+    // If it's already a valid ObjectId, try to find the corresponding User
     if (mongoose.Types.ObjectId.isValid(receiverId)) {
-      resolvedReceiverId = receiverId;
-      console.log('✅ ReceiverId is already valid ObjectId:', resolvedReceiverId);
+      // First try to find User by _id
+      let candidate = await User.findById(receiverId);
+      if (candidate) {
+        resolvedReceiverId = String(candidate._id);
+        console.log('✅ Found User by _id:', resolvedReceiverId);
+      } else {
+        // Try to find User by Nurse model ID (if receiverId is a Nurse _id)
+        const nurse = await Nurse.findById(receiverId);
+        if (nurse && nurse.userId) {
+          candidate = await User.findById(nurse.userId);
+          if (candidate) {
+            resolvedReceiverId = String(candidate._id);
+            console.log('✅ Found User via Nurse model:', resolvedReceiverId);
+          }
+        }
+        // If still not found, try by uid or email
+        if (!candidate) {
+          candidate = await User.findOne({
+            $or: [ 
+              { uid: receiverId }, 
+              { email: receiverId }
+            ]
+          });
+          if (candidate) {
+            resolvedReceiverId = String(candidate._id);
+            console.log('✅ Found User by uid/email:', resolvedReceiverId);
+          }
+        }
+      }
+      
+      if (!candidate) {
+        console.log('❌ NurseTalk: Could not resolve receiverId:', receiverId);
+        return res.status(400).json({ success: false, message: 'Receiver not found' });
+      }
     } else {
       // Try to find by uid, email, or _id
       const candidate = await User.findOne({
@@ -394,6 +467,18 @@ const getMessages = async (req, res) => {
     const receiverIdStr = String(resolvedReceiverId);
 
     console.log('💬 NurseTalk: Searching messages between:', currentIdStr, 'and', receiverIdStr);
+    console.log('💬 NurseTalk: Current user details:', {
+      _id: currentUser._id,
+      fullName: currentUser.fullName,
+      email: currentUser.email,
+      uid: currentUser.uid
+    });
+    console.log('💬 NurseTalk: Receiver ID details:', {
+      original: receiverId,
+      resolved: resolvedReceiverId,
+      currentIdStr: currentIdStr,
+      receiverIdStr: receiverIdStr
+    });
 
     // Only fetch direct chat messages here; handover is shown in its own tab
     const messages = await NurseTalk.find({
