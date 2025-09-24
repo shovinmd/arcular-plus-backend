@@ -28,6 +28,18 @@ const HospitalSchema = new mongoose.Schema({
   geoCoordinates: { lat: Number, lng: Number },
   longitude: { type: Number, required: false },
   latitude: { type: Number, required: false },
+  // GeoJSON location for spatial queries (used by SOS nearby search)
+  location: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point'
+    },
+    coordinates: {
+      type: [Number], // [longitude, latitude]
+      index: '2dsphere',
+    }
+  },
   
   // Operational Details
   numberOfBeds: { type: Number, required: true },
@@ -81,6 +93,16 @@ HospitalSchema.methods.getPublicProfile = function() {
 // Pre-save middleware
 HospitalSchema.pre('save', function(next) {
   this.updatedAt = new Date();
+  // Backfill GeoJSON location if longitude/latitude or geoCoordinates are present
+  const hasLonLat = typeof this.longitude === 'number' && typeof this.latitude === 'number';
+  const hasGeo = this.geoCoordinates && typeof this.geoCoordinates.lng === 'number' && typeof this.geoCoordinates.lat === 'number';
+  const lon = hasLonLat ? this.longitude : (hasGeo ? this.geoCoordinates.lng : undefined);
+  const lat = hasLonLat ? this.latitude : (hasGeo ? this.geoCoordinates.lat : undefined);
+  if (typeof lon === 'number' && typeof lat === 'number') {
+    this.location = this.location || {};
+    this.location.type = 'Point';
+    this.location.coordinates = [lon, lat];
+  }
   next();
 });
 

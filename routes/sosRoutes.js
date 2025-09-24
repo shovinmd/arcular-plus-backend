@@ -21,6 +21,9 @@ router.get('/patient/:patientId', verifyFirebaseToken, sosController.getPatientS
 // Cancel SOS request
 router.post('/cancel/:sosRequestId', verifyFirebaseToken, sosController.cancelSOSRequest);
 
+// Get SOS request by id (for polling)
+router.get('/request/:sosRequestId', verifyFirebaseToken, sosController.getSOSRequestById);
+
 // Get SOS statistics
 router.get('/statistics/:hospitalId', verifyFirebaseToken, sosController.getSOSStatistics);
 

@@ -445,6 +445,26 @@ const cancelSOSRequest = async (req, res) => {
   }
 };
 
+// Get SOS request by ID (for polling)
+const getSOSRequestById = async (req, res) => {
+  try {
+    const { sosRequestId } = req.params;
+    if (!sosRequestId) {
+      return res.status(400).json({ success: false, message: 'sosRequestId is required' });
+    }
+
+    const sosRequest = await SOSRequest.findById(sosRequestId);
+    if (!sosRequest) {
+      return res.status(404).json({ success: false, message: 'SOS request not found' });
+    }
+
+    return res.status(200).json({ success: true, data: sosRequest });
+  } catch (error) {
+    console.error('Error fetching SOS request by id:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch SOS request', error: error.message });
+  }
+};
+
 // Get SOS statistics
 const getSOSStatistics = async (req, res) => {
   try {
@@ -495,5 +515,6 @@ module.exports = {
   markPatientAdmitted,
   getPatientSOSHistory,
   cancelSOSRequest,
-  getSOSStatistics
+  getSOSStatistics,
+  getSOSRequestById
 };
