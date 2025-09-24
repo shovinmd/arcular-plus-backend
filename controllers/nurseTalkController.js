@@ -105,9 +105,37 @@ const getHospitalNurses = async (req, res) => {
     const now = Date.now();
     console.log('🔍 NurseTalk: Current user details for filtering:');
     console.log('  - req.user.uid:', req.user.uid);
+    console.log('  - req.user.email:', req.user.email);
     console.log('  - currentUser._id:', currentUser._id);
     console.log('  - currentUser.email:', currentUser.email);
     console.log('🔍 NurseTalk: Hospital nurses before filtering:', hospitalNurses.length);
+    
+    // Log all hospital nurses for debugging
+    hospitalNurses.forEach((nurse, index) => {
+      console.log(`🔍 Hospital Nurse ${index + 1}:`, {
+        _id: nurse._id,
+        userId: nurse.userId,
+        fullName: nurse.fullName,
+        email: nurse.email,
+        uid: nurse.uid
+      });
+    });
+    
+    // Also check if current user exists in the hospital nurses list
+    const currentUserInList = hospitalNurses.find(n => 
+      String(n.uid) === String(req.user.uid) || 
+      String(n.email || '').toLowerCase() === String(req.user.email || '').toLowerCase()
+    );
+    if (currentUserInList) {
+      console.log('⚠️ NurseTalk: Current user found in hospital nurses list!', {
+        _id: currentUserInList._id,
+        fullName: currentUserInList.fullName,
+        email: currentUserInList.email,
+        uid: currentUserInList.uid
+      });
+    } else {
+      console.log('✅ NurseTalk: Current user not found in hospital nurses list (good)');
+    }
     
     const nurses = hospitalNurses
       .filter(n => {
@@ -116,12 +144,16 @@ const getHospitalNurses = async (req, res) => {
         const isSameEmail = String(n.email || '').toLowerCase() === String(currentUser.email || '').toLowerCase();
         const isSameUserId = String(n.userId || n._id) === String(currentUser._id);
         
+        // Additional check: compare with req.user.email directly
+        const isSameReqEmail = String(n.email || '').toLowerCase() === String(req.user.email || '').toLowerCase();
+        
         // Check if this is the current user
-        const isCurrentUser = isSameUid || isSameEmail || isSameUserId;
+        const isCurrentUser = isSameUid || isSameEmail || isSameUserId || isSameReqEmail;
         
         console.log(`🔍 NurseTalk: Filtering nurse ${n.fullName}:`);
         console.log(`  - n.uid: ${n.uid} vs req.user.uid: ${req.user.uid} → isSameUid: ${isSameUid}`);
         console.log(`  - n.email: ${n.email} vs currentUser.email: ${currentUser.email} → isSameEmail: ${isSameEmail}`);
+        console.log(`  - n.email: ${n.email} vs req.user.email: ${req.user.email} → isSameReqEmail: ${isSameReqEmail}`);
         console.log(`  - n._id: ${n._id} vs currentUser._id: ${currentUser._id} → isSameUserId: ${isSameUserId}`);
         console.log(`  - isCurrentUser: ${isCurrentUser} → should exclude: ${isCurrentUser}`);
         
@@ -146,6 +178,27 @@ const getHospitalNurses = async (req, res) => {
       });
 
     console.log('✅ NurseTalk: Returning nurses:', nurses.length);
+    
+    // Final safety check - ensure current user is not in the returned list
+    const currentUserStillInList = nurses.find(n => 
+      String(n.uid) === String(req.user.uid) || 
+      String(n.email || '').toLowerCase() === String(req.user.email || '').toLowerCase()
+    );
+    if (currentUserStillInList) {
+      console.log('❌ NurseTalk: CRITICAL ERROR - Current user still in filtered list!', {
+        _id: currentUserStillInList.id,
+        name: currentUserStillInList.name,
+        email: currentUserStillInList.email,
+        uid: currentUserStillInList.uid
+      });
+      // Remove the current user from the list as a safety measure
+      const filteredNurses = nurses.filter(n => 
+        String(n.uid) !== String(req.user.uid) && 
+        String(n.email || '').toLowerCase() !== String(req.user.email || '').toLowerCase()
+      );
+      console.log('🔧 NurseTalk: Safety filtered nurses count:', filteredNurses.length);
+      return res.json({ success: true, data: filteredNurses });
+    }
     
     // If no nurses found, return empty array instead of error
     if (nurses.length === 0) {
