@@ -14,7 +14,7 @@ const transporter = nodemailer.createTransport({
   greetingTimeout: 7000,
   auth: {
     user: process.env.EMAIL_USER || 'shovinmicheldavid1285@gmail.com',
-    pass: process.env.EMAIL_PASS || 'fiau pzii vzgr jrkm'
+    pass: process.env.EMAIL_PASS || 'fiaupziivzgrjrkm'
   }
 });
 
@@ -60,7 +60,7 @@ async function sendMailSmart({ to, subject, html, text, attachments }) {
           greetingTimeout: 6000,
           auth: {
             user: process.env.EMAIL_USER || 'shovinmicheldavid1285@gmail.com',
-            pass: process.env.EMAIL_PASS || 'fiau pzii vzgr jrkm'
+            pass: process.env.EMAIL_PASS || 'fiaupziivzgrjrkm'
           },
           tls: {
             ciphers: 'TLSv1.2',
