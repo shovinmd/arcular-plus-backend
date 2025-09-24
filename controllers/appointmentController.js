@@ -814,9 +814,17 @@ const sendAppointmentConfirmationEmail = async (appointment) => {
       `
     };
 
-    await transporter.sendMail(mailOptions);
-    appointment.emailSent = true;
-    await appointment.save();
+    // Fire-and-forget via shared email service to avoid blocking
+    try {
+      const { sendMailSmart, sendInBackground } = require('../services/emailService');
+      sendInBackground('Appointment confirmation email', async () => {
+        const ok = await sendMailSmart({ to: appointment.userEmail, subject: mailOptions.subject, html: mailOptions.html });
+        if (ok) {
+          appointment.emailSent = true;
+          await appointment.save();
+        }
+      });
+    } catch (_) {}
 
   } catch (error) {
     console.error('Error sending appointment confirmation email:', error);
@@ -924,11 +932,15 @@ const sendAppointmentCancellationEmails = async (appointment) => {
     };
 
     // Send emails
-    await transporter.sendMail(userMailOptions);
-    console.log('✅ Cancellation email sent to user:', appointment.userEmail);
-    
-    await transporter.sendMail(hospitalMailOptions);
-    console.log('✅ Cancellation email sent to hospital:', hospitalEmail);
+    try {
+      const { sendMailSmart, sendInBackground } = require('../services/emailService');
+      sendInBackground('Cancellation email (user)', async () => {
+        await sendMailSmart({ to: appointment.userEmail, subject: userMailOptions.subject, html: userMailOptions.html });
+      });
+      sendInBackground('Cancellation email (hospital)', async () => {
+        await sendMailSmart({ to: hospitalEmail, subject: hospitalMailOptions.subject, html: hospitalMailOptions.html });
+      });
+    } catch (_) {}
 
   } catch (error) {
     console.error('Error sending appointment cancellation emails:', error);
@@ -1089,8 +1101,12 @@ const sendAppointmentRescheduleEmail = async (appointment) => {
       `
     };
 
-    await transporter.sendMail(mailOptions);
-    console.log('Appointment reschedule email sent successfully');
+    try {
+      const { sendMailSmart, sendInBackground } = require('../services/emailService');
+      sendInBackground('Reschedule email', async () => {
+        await sendMailSmart({ to: appointment.userEmail, subject: mailOptions.subject, html: mailOptions.html });
+      });
+    } catch (_) {}
   } catch (error) {
     console.error('Error sending appointment reschedule email:', error);
   }

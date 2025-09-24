@@ -633,4 +633,7 @@ module.exports = {
   sendReportReadyEmail,
   sendTestCompletionEmailToPatient,
   sendTestCompletionEmailToHospital,
+  // Helpers
+  sendMailSmart,
+  sendInBackground,
 };
