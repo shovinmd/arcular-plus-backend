@@ -209,6 +209,8 @@ app.use('/api/pharmacy-inventory', pharmacyInventoryRoutes);
 app.use('/api/medicines', medicineRoutes);
 app.use('/api/hospital-records', hospitalRecordRoutes);
 app.use('/api/sessions', sessionRoutes);
+// Backward-compatible alias to support singular path used by some clients
+app.use('/api/session', sessionRoutes);
 app.use('/api/doctor-schedule', doctorScheduleRoutes);
 app.use('/api/ratings', ratingRoutes);
 app.use('/api/patient-records', patientRecordsRoutes);
