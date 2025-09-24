@@ -103,12 +103,30 @@ const getHospitalNurses = async (req, res) => {
     // Get online status (simplified - in real app, use WebSocket or Redis)
     // Exclude the current nurse from the list
     const now = Date.now();
+    console.log('🔍 NurseTalk: Current user details for filtering:');
+    console.log('  - req.user.uid:', req.user.uid);
+    console.log('  - currentUser._id:', currentUser._id);
+    console.log('  - currentUser.email:', currentUser.email);
+    console.log('🔍 NurseTalk: Hospital nurses before filtering:', hospitalNurses.length);
+    
     const nurses = hospitalNurses
       .filter(n => {
-        const notSameUid = String(n.uid) !== String(req.user.uid);
-        const notSameEmail = String(n.email || '') !== String(currentUser.email || '');
-        const notSameUserId = String(n.userId || n._id) !== String(currentUser._id);
-        return notSameUid && notSameEmail && notSameUserId;
+        // Multiple ways to identify the same user
+        const isSameUid = String(n.uid) === String(req.user.uid);
+        const isSameEmail = String(n.email || '').toLowerCase() === String(currentUser.email || '').toLowerCase();
+        const isSameUserId = String(n.userId || n._id) === String(currentUser._id);
+        
+        // Check if this is the current user
+        const isCurrentUser = isSameUid || isSameEmail || isSameUserId;
+        
+        console.log(`🔍 NurseTalk: Filtering nurse ${n.fullName}:`);
+        console.log(`  - n.uid: ${n.uid} vs req.user.uid: ${req.user.uid} → isSameUid: ${isSameUid}`);
+        console.log(`  - n.email: ${n.email} vs currentUser.email: ${currentUser.email} → isSameEmail: ${isSameEmail}`);
+        console.log(`  - n._id: ${n._id} vs currentUser._id: ${currentUser._id} → isSameUserId: ${isSameUserId}`);
+        console.log(`  - isCurrentUser: ${isCurrentUser} → should exclude: ${isCurrentUser}`);
+        
+        // Exclude if this is the current user
+        return !isCurrentUser;
       })
       .map(nurse => {
         const lastSeenTs = nurse.lastSeen ? new Date(nurse.lastSeen).getTime() : 0;
