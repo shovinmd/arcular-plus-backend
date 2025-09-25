@@ -352,7 +352,8 @@ const getHospitalSOSRequests = async (req, res) => {
       console.error('❌ Error resolving hospitalId for SOS requests:', resolveErr.message);
     }
 
-    let query = { hospitalId: resolvedHospitalId };
+    // Match records saved with either Hospital.uid (preferred) or the raw provided id
+    let query = { hospitalId: { $in: [resolvedHospitalId, hospitalId] } };
     if (status) {
       query.hospitalStatus = status;
     }
