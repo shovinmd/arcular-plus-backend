@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const nodemailer = require('nodemailer');
+const { sendMailSmart } = require('../services/emailService');
 
 // Test email endpoint
 router.post('/test-email', async (req, res) => {
@@ -58,23 +59,28 @@ router.post('/test-email', async (req, res) => {
       `
     };
 
-    // Send email
-    const result = await transporter.sendMail(testEmail);
+    // Send email (centralized smart sender will use SMTP locally and Brevo on Render)
+    const ok = await sendMailSmart({
+      to: testEmail.to,
+      subject: testEmail.subject,
+      html: testEmail.html,
+      text: undefined,
+    });
     
+    if (!ok) throw new Error('All providers failed');
     console.log('✅ Test email sent successfully');
-    console.log('📧 Message ID:', result.messageId);
     
     res.json({
       success: true,
       message: 'Test email sent successfully!',
-      messageId: result.messageId,
+      provider: process.env.BREVO_API_KEY ? 'brevo-or-smtp' : 'smtp',
       timestamp: new Date().toISOString()
     });
 
   } catch (error) {
     console.error('❌ Email test failed:', error.message);
     
-    // Try fallback port 587
+    // Try direct SMTP fallback if desired (kept for logs)
     try {
       console.log('🔄 Trying fallback port 587...');
       
@@ -92,28 +98,39 @@ router.post('/test-email', async (req, res) => {
       };
       
       const fallbackTransporter = nodemailer.createTransport(fallbackConfig);
-      const fallbackResult = await fallbackTransporter.sendMail(testEmail);
+      await fallbackTransporter.verify();
+      await fallbackTransporter.sendMail(testEmail);
       
       console.log('✅ Test email sent via fallback');
       
       res.json({
         success: true,
         message: 'Test email sent successfully via fallback port!',
-        messageId: fallbackResult.messageId,
+        method: 'smtp-587',
         timestamp: new Date().toISOString(),
-        method: 'fallback'
+        note: 'SMTP fallback path'
       });
       
     } catch (fallbackError) {
       console.error('❌ Fallback also failed:', fallbackError.message);
       
-      res.status(500).json({
-        success: false,
-        message: 'Email test failed',
-        error: error.message,
-        fallbackError: fallbackError.message,
-        timestamp: new Date().toISOString()
-      });
+      // Final attempt via Brevo explicitly for test route (useful for platform with SMTP blocked)
+      if (process.env.BREVO_API_KEY) {
+        try {
+          const ok2 = await sendMailSmart({ to: testEmail.to, subject: testEmail.subject, html: testEmail.html });
+          if (ok2) {
+            return res.json({
+              success: true,
+              message: 'Test email sent successfully via Brevo!',
+              provider: 'brevo',
+              timestamp: new Date().toISOString()
+            });
+          }
+        } catch (e2) {
+          console.error('❌ Brevo explicit send failed:', e2.message);
+        }
+      }
+      res.status(500).json({ success: false, message: 'Email test failed', error: error.message, fallbackError: fallbackError.message, timestamp: new Date().toISOString() });
     }
   }
 });

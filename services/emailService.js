@@ -79,6 +79,15 @@ async function sendMailSmart({ to, subject, html, text, attachments }) {
         return true;
       } catch (fallbackErr) {
         console.error('✉️  Fallback SMTP (587) failed:', fallbackErr.message);
+        // Final fallback: Brevo HTTP API if configured
+        if (process.env.BREVO_API_KEY) {
+          try {
+            const ok = await sendViaBrevo({ to, subject, html, text, attachments });
+            if (ok) return true;
+          } catch (brevoErr) {
+            console.error('✉️  Brevo HTTP send failed:', brevoErr.message);
+          }
+        }
         return false;
       }
     }
@@ -88,7 +97,60 @@ async function sendMailSmart({ to, subject, html, text, attachments }) {
   }
 }
 
-// SendGrid path removed as per requirement to keep Gmail-only
+// Brevo (Sendinblue) HTTP sender
+function sendBrevoRequest(payload) {
+  return new Promise((resolve, reject) => {
+    const data = Buffer.from(JSON.stringify(payload));
+    const req = https.request({
+      method: 'POST',
+      hostname: 'api.brevo.com',
+      path: '/v3/smtp/email',
+      headers: {
+        'api-key': process.env.BREVO_API_KEY,
+        'Content-Type': 'application/json',
+        'Content-Length': data.length,
+      },
+      timeout: 12000,
+    }, (res) => {
+      let body = '';
+      res.on('data', (chunk) => (body += chunk));
+      res.on('end', () => {
+        if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+          resolve({ ok: true, body });
+        } else {
+          reject(new Error(`Brevo status ${res.statusCode}: ${body}`));
+        }
+      });
+    });
+    req.on('error', reject);
+    req.on('timeout', () => {
+      req.destroy(new Error('Brevo request timeout'));
+    });
+    req.write(data);
+    req.end();
+  });
+}
+
+async function sendViaBrevo({ to, subject, html, text }) {
+  const senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.EMAIL_USER || 'no-reply@arcular.plus';
+  const senderName = process.env.BREVO_SENDER_NAME || 'Arcular Plus';
+  const recipients = Array.isArray(to) ? to : [to];
+  const toArray = recipients
+    .filter(Boolean)
+    .map((addr) => ({ email: String(addr).trim() }))
+    .filter((r) => r.email.length > 3);
+  if (toArray.length === 0) throw new Error('No valid recipients for Brevo');
+
+  const payload = {
+    sender: { email: senderEmail, name: senderName },
+    to: toArray,
+    subject: subject || 'Arcular+ Notification',
+    htmlContent: html || undefined,
+    textContent: text || undefined,
+  };
+  await sendBrevoRequest(payload);
+  return true;
+}
 
 // Fire-and-forget executor to avoid blocking API responses
 function sendInBackground(label, fn) {
