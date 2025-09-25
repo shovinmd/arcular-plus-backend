@@ -36,7 +36,17 @@ async function sendMailSmart({ to, subject, html, text, attachments }) {
       return false;
     }
 
-    // Gmail-only send (nodemailer service: 'gmail')
+    // Prefer Brevo if API key is present (avoids SMTP egress issues on some hosts)
+    if (process.env.BREVO_API_KEY) {
+      try {
+        const ok = await sendViaBrevo({ to, subject, html, text, attachments });
+        if (ok) return true;
+      } catch (brevoPrimaryErr) {
+        console.warn('✉️  Brevo primary send failed, falling back to SMTP:', brevoPrimaryErr.message);
+      }
+    }
+
+    // Gmail SMTP send
     try {
       await transporter.sendMail({
         from: process.env.EMAIL_USER || 'shovinmicheldavid1285@gmail.com',

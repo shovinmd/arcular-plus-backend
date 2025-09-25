@@ -141,7 +141,8 @@ router.get('/health', (req, res) => {
     status: 'OK',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'production',
-    emailConfigured: !!(process.env.EMAIL_USER && process.env.EMAIL_PASS)
+    emailConfigured: !!(process.env.BREVO_API_KEY || (process.env.EMAIL_USER && process.env.EMAIL_PASS)),
+    provider: process.env.BREVO_API_KEY ? 'brevo' : (process.env.EMAIL_USER && process.env.EMAIL_PASS ? 'smtp' : 'none')
   });
 });
 
