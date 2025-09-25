@@ -19,14 +19,20 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-// Verify transporter once on startup (non-fatal)
-transporter.verify((err, success) => {
-  if (err) {
-    console.error('✉️  Email transporter verify failed:', err.message);
-  } else {
-    console.log('✉️  Email transporter ready');
-  }
-});
+// Startup provider notice: prefer Brevo if configured; verify SMTP only when used
+if (process.env.BREVO_API_KEY) {
+  console.log('✉️  Email provider: Brevo HTTP (primary)');
+} else if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+  transporter.verify((err) => {
+    if (err) {
+      console.error('✉️  SMTP verify failed:', err.message);
+    } else {
+      console.log('✉️  SMTP transporter ready');
+    }
+  });
+} else {
+  console.warn('✉️  No email provider configured (set BREVO_API_KEY or EMAIL_USER/PASS)');
+}
 
 // =============== Provider-agnostic send helper ===============
 async function sendMailSmart({ to, subject, html, text, attachments }) {
