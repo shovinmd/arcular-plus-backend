@@ -19,20 +19,14 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-// Startup provider notice: prefer Brevo if configured; verify SMTP only when used
-if (process.env.BREVO_API_KEY) {
-  console.log('✉️  Email provider: Brevo HTTP (primary)');
-} else if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-  transporter.verify((err) => {
-    if (err) {
-      console.error('✉️  SMTP verify failed:', err.message);
-    } else {
-      console.log('✉️  SMTP transporter ready');
-    }
-  });
-} else {
-  console.warn('✉️  No email provider configured (set BREVO_API_KEY or EMAIL_USER/PASS)');
-}
+// Verify transporter once on startup (non-fatal)
+transporter.verify((err, success) => {
+  if (err) {
+    console.error('✉️  Email transporter verify failed:', err.message);
+  } else {
+    console.log('✉️  Email transporter ready');
+  }
+});
 
 // =============== Provider-agnostic send helper ===============
 async function sendMailSmart({ to, subject, html, text, attachments }) {
@@ -42,17 +36,7 @@ async function sendMailSmart({ to, subject, html, text, attachments }) {
       return false;
     }
 
-    // Prefer Brevo if API key is present (avoids SMTP egress issues on some hosts)
-    if (process.env.BREVO_API_KEY) {
-      try {
-        const ok = await sendViaBrevo({ to, subject, html, text, attachments });
-        if (ok) return true;
-      } catch (brevoPrimaryErr) {
-        console.warn('✉️  Brevo primary send failed, falling back to SMTP:', brevoPrimaryErr.message);
-      }
-    }
-
-    // Gmail SMTP send
+    // Gmail-only send (nodemailer service: 'gmail')
     try {
       await transporter.sendMail({
         from: process.env.EMAIL_USER || 'shovinmicheldavid1285@gmail.com',
