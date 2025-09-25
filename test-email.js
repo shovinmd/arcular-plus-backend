@@ -7,7 +7,7 @@ const testEmailConfig = {
   secure: true,
   auth: {
     user: process.env.EMAIL_USER || 'shovinmicheldavid1285@gmail.com',
-    pass: process.env.EMAIL_PASS || 'fiau pzii vzgr jrkm'
+    pass: process.env.EMAIL_PASS || 'fiaupziivzgrjrkm'
   },
   connectionTimeout: 10000,
   greetingTimeout: 5000,
