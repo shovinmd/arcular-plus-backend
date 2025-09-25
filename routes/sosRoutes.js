@@ -15,6 +15,9 @@ router.post('/accept/:hospitalId', verifyFirebaseToken, sosController.acceptSOSR
 // Mark patient as admitted
 router.post('/admit/:hospitalId', verifyFirebaseToken, sosController.markPatientAdmitted);
 
+// Confirm patient admission (for users)
+router.post('/confirm-admission', verifyFirebaseToken, sosController.confirmPatientAdmission);
+
 // Get patient's SOS history
 router.get('/patient/:patientId', verifyFirebaseToken, sosController.getPatientSOSHistory);
 

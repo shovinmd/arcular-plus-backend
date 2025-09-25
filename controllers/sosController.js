@@ -683,11 +683,83 @@ const getSOSStatistics = async (req, res) => {
   }
 };
 
+// Confirm patient admission (for users)
+const confirmPatientAdmission = async (req, res) => {
+  try {
+    const { sosRequestId, hospitalId } = req.body;
+
+    console.log(`👤 User confirming admission for SOS ${sosRequestId} with hospital ${hospitalId}`);
+
+    // Find the SOS request
+    const sosRequest = await SOSRequest.findById(sosRequestId);
+    if (!sosRequest) {
+      return res.status(404).json({
+        success: false,
+        message: 'SOS request not found'
+      });
+    }
+
+    // Verify the hospital ID matches the accepted hospital
+    const hospitalSOS = await HospitalSOS.findOne({
+      sosRequestId: sosRequestId,
+      hospitalId: hospitalId,
+      hospitalStatus: 'admitted'
+    });
+
+    if (!hospitalSOS) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid hospital ID or patient not admitted to this hospital'
+      });
+    }
+
+    // Update SOS request status to confirmed admission
+    await SOSRequest.updateOne(
+      { _id: sosRequestId },
+      { 
+        status: 'admissionConfirmed',
+        admissionConfirmedAt: new Date(),
+        confirmedHospitalId: hospitalId
+      }
+    );
+
+    // Update hospital SOS status
+    await HospitalSOS.updateOne(
+      { sosRequestId: sosRequestId, hospitalId: hospitalId },
+      { 
+        hospitalStatus: 'admissionConfirmed',
+        admissionConfirmedAt: new Date()
+      }
+    );
+
+    console.log(`✅ Patient admission confirmed by user for hospital ${hospitalId}`);
+
+    res.json({
+      success: true,
+      message: 'Admission confirmed successfully',
+      data: {
+        sosRequestId: sosRequestId,
+        status: 'admissionConfirmed',
+        hospitalId: hospitalId
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error confirming admission:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createSOSRequest,
   getHospitalSOSRequests,
   acceptSOSRequest,
   markPatientAdmitted,
+  confirmPatientAdmission,
   getPatientSOSHistory,
   cancelSOSRequest,
   getSOSStatistics,
