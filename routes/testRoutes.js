@@ -4,11 +4,12 @@ const nodemailer = require('nodemailer');
 
 // Test email endpoint
 router.post('/test-email', async (req, res) => {
+  // Normalize password once for the entire handler so it's available in all blocks
+  const normalizedPass = (process.env.EMAIL_PASS || '').replace(/\s+/g, '');
   try {
     console.log('🧪 Email test endpoint called');
     
     // Email configuration
-    const normalizedPass = (process.env.EMAIL_PASS || '').replace(/\s+/g, '');
     const emailConfig = {
       host: 'smtp.gmail.com',
       port: 465,
