@@ -6,6 +6,8 @@ const nodemailer = require('nodemailer');
 router.post('/test-email', async (req, res) => {
   // Normalize password once for the entire handler so it's available in all blocks
   const normalizedPass = (process.env.EMAIL_PASS || '').replace(/\s+/g, '');
+  // Declare testEmail in outer scope so fallback can reuse it
+  let testEmail;
   try {
     console.log('🧪 Email test endpoint called');
     
@@ -27,7 +29,7 @@ router.post('/test-email', async (req, res) => {
     const transporter = nodemailer.createTransport(emailConfig);
 
     // Test email content
-    const testEmail = {
+    testEmail = {
       from: process.env.EMAIL_USER,
       to: req.body.testEmail || process.env.EMAIL_USER, // Allow custom test email
       subject: '🧪 Arcular Plus Email Test - ' + new Date().toLocaleString(),
