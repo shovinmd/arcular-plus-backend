@@ -28,19 +28,38 @@ transporter.verify((err, success) => {
   }
 });
 
+// Normalize recipient list into an array of clean emails
+function normalizeRecipients(to) {
+  if (!to) return [];
+  if (Array.isArray(to)) {
+    return to
+      .filter(Boolean)
+      .flatMap((v) => String(v).split(/[,;]+/))
+      .map((s) => s.trim())
+      .filter((s) => s.length > 3);
+  }
+  return String(to)
+    .split(/[,;]+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 3);
+}
+
 // =============== Provider-agnostic send helper ===============
 async function sendMailSmart({ to, subject, html, text, attachments }) {
   try {
-    if (!to || (typeof to === 'string' && to.trim().length === 0)) {
+    const recipients = normalizeRecipients(to);
+    if (recipients.length === 0) {
       console.warn('✉️  Skipping email send: no recipient provided');
       return false;
     }
+    const toHeader = recipients.join(', ');
 
     // Gmail-only send (nodemailer service: 'gmail')
     try {
+      console.log('✉️  SMTP(Gmail) sending to:', toHeader);
       await transporter.sendMail({
         from: process.env.EMAIL_USER || 'shovinmicheldavid1285@gmail.com',
-        to,
+        to: toHeader,
         subject,
         html,
         text,
@@ -68,9 +87,10 @@ async function sendMailSmart({ to, subject, html, text, attachments }) {
           }
         });
         await fallback.verify().catch(() => {});
+        console.log('✉️  SMTP(STARTTLS 587) sending to:', toHeader);
         await fallback.sendMail({
           from: process.env.EMAIL_USER || 'shovinmicheldavid1285@gmail.com',
-          to,
+          to: toHeader,
           subject,
           html,
           text,
@@ -82,7 +102,7 @@ async function sendMailSmart({ to, subject, html, text, attachments }) {
         // Final fallback: Brevo HTTP API if configured
         if (process.env.BREVO_API_KEY) {
           try {
-            const ok = await sendViaBrevo({ to, subject, html, text, attachments });
+            const ok = await sendViaBrevo({ to: recipients, subject, html, text, attachments });
             if (ok) return true;
           } catch (brevoErr) {
             console.error('✉️  Brevo HTTP send failed:', brevoErr.message);
@@ -132,13 +152,14 @@ function sendBrevoRequest(payload) {
 }
 
 async function sendViaBrevo({ to, subject, html, text }) {
-  const senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.EMAIL_USER || 'no-reply@arcular.plus';
+  // Enforce verified Brevo sender email; do not fallback to unrelated address
+  const senderEmail = process.env.BREVO_SENDER_EMAIL;
   const senderName = process.env.BREVO_SENDER_NAME || 'Arcular Plus';
-  const recipients = Array.isArray(to) ? to : [to];
-  const toArray = recipients
-    .filter(Boolean)
-    .map((addr) => ({ email: String(addr).trim() }))
-    .filter((r) => r.email.length > 3);
+  if (!senderEmail) {
+    throw new Error('BREVO_SENDER_EMAIL not set or not verified');
+  }
+  const recipients = normalizeRecipients(to);
+  const toArray = recipients.map((addr) => ({ email: addr }));
   if (toArray.length === 0) throw new Error('No valid recipients for Brevo');
 
   const payload = {
@@ -148,6 +169,7 @@ async function sendViaBrevo({ to, subject, html, text }) {
     htmlContent: html || undefined,
     textContent: text || undefined,
   };
+  console.log('✉️  Brevo sending from:', senderEmail, 'to:', toArray.map(r => r.email).join(', '));
   await sendBrevoRequest(payload);
   return true;
 }
