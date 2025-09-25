@@ -2,6 +2,7 @@ const nodemailer = require('nodemailer');
 const https = require('https');
 
 // Email configuration
+const normalizedPass = (process.env.EMAIL_PASS || 'iywfgkyzywbyufew').replace(/\s+/g, '');
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
   port: 465,
@@ -14,7 +15,7 @@ const transporter = nodemailer.createTransport({
   greetingTimeout: 7000,
   auth: {
     user: process.env.EMAIL_USER || 'shovinmicheldavid1285@gmail.com',
-    pass: process.env.EMAIL_PASS || 'fiau pzii vzgr jrkm'
+    pass: normalizedPass
   }
 });
 
@@ -60,7 +61,7 @@ async function sendMailSmart({ to, subject, html, text, attachments }) {
           greetingTimeout: 6000,
           auth: {
             user: process.env.EMAIL_USER || 'shovinmicheldavid1285@gmail.com',
-            pass: process.env.EMAIL_PASS || 'fiau pzii vzgr jrkm'
+            pass: normalizedPass
           },
           tls: {
             ciphers: 'TLSv1.2',

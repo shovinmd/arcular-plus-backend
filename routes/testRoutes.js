@@ -8,13 +8,14 @@ router.post('/test-email', async (req, res) => {
     console.log('🧪 Email test endpoint called');
     
     // Email configuration
+    const normalizedPass = (process.env.EMAIL_PASS || '').replace(/\s+/g, '');
     const emailConfig = {
       host: 'smtp.gmail.com',
       port: 465,
       secure: true,
       auth: {
         user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
+        pass: normalizedPass
       },
       connectionTimeout: 10000,
       greetingTimeout: 5000,
@@ -22,7 +23,7 @@ router.post('/test-email', async (req, res) => {
     };
 
     // Create transporter
-    const transporter = nodemailer.createTransporter(emailConfig);
+    const transporter = nodemailer.createTransport(emailConfig);
 
     // Test email content
     const testEmail = {
@@ -80,14 +81,14 @@ router.post('/test-email', async (req, res) => {
         secure: false,
         auth: {
           user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASS
+          pass: normalizedPass
         },
         connectionTimeout: 10000,
         greetingTimeout: 5000,
         socketTimeout: 10000
       };
       
-      const fallbackTransporter = nodemailer.createTransporter(fallbackConfig);
+      const fallbackTransporter = nodemailer.createTransport(fallbackConfig);
       const fallbackResult = await fallbackTransporter.sendMail(testEmail);
       
       console.log('✅ Test email sent via fallback');

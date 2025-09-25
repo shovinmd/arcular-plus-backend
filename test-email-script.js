@@ -4,7 +4,7 @@
 const https = require('https');
 
 const BACKEND_URL = 'https://arcular-plus-backend.onrender.com';
-const TEST_EMAIL = 'shovinmicheldavid1285@gmail.com'; // Change this to your email
+const TEST_EMAIL = 'shovinmaster1285@gmail.com'; // Change this to your email
 
 async function testEmailAPI() {
   console.log('🧪 Testing Arcular Plus Email Service');

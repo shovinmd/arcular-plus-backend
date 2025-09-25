@@ -1,13 +1,14 @@
 const nodemailer = require('nodemailer');
 
 // Test email configuration
+const normalizedPass = (process.env.EMAIL_PASS || 'iywf gkyz ywby ufew').replace(/\s+/g, '');
 const testEmailConfig = {
   host: 'smtp.gmail.com',
   port: 465,
   secure: true,
   auth: {
     user: process.env.EMAIL_USER || 'shovinmicheldavid1285@gmail.com',
-    pass: process.env.EMAIL_PASS || 'fiau pzii vzgr jrkm'
+    pass: normalizedPass
   },
   connectionTimeout: 10000,
   greetingTimeout: 5000,
@@ -15,7 +16,7 @@ const testEmailConfig = {
 };
 
 // Create transporter
-const transporter = nodemailer.createTransporter(testEmailConfig);
+const transporter = nodemailer.createTransport(testEmailConfig);
 
 async function testEmailConnection() {
   console.log('🧪 Testing email connection...');
@@ -69,7 +70,7 @@ async function testEmailConnection() {
         secure: false
       };
       
-      const fallbackTransporter = nodemailer.createTransporter(fallbackConfig);
+      const fallbackTransporter = nodemailer.createTransport(fallbackConfig);
       await fallbackTransporter.verify();
       console.log('✅ Fallback transporter verified successfully');
       
