@@ -245,9 +245,10 @@ const createSOSRequest = async (req, res) => {
     }
 
     // Check for duplicate active SOS requests from same patient
+    // Only check for truly active requests, not cancelled ones
     let existingRequest = await SOSRequest.findOne({
       patientId,
-      status: { $in: ['pending', 'accepted'] }
+      status: { $in: ['pending', 'accepted', 'hospitalReached', 'admitted'] }
     });
 
     if (existingRequest) {
