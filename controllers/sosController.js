@@ -800,12 +800,99 @@ const confirmPatientAdmission = async (req, res) => {
   }
 };
 
+// Confirm hospital reached (for users)
+const confirmHospitalReached = async (req, res) => {
+  try {
+    const { sosRequestId, hospitalId, doctorId } = req.body;
+
+    console.log(`🏥 User confirming hospital reached for SOS ${sosRequestId} with hospital ${hospitalId}${doctorId ? ` and doctor ${doctorId}` : ''}`);
+
+    // Find the SOS request
+    const sosRequest = await SOSRequest.findById(sosRequestId);
+    if (!sosRequest) {
+      return res.status(404).json({
+        success: false,
+        message: 'SOS request not found'
+      });
+    }
+
+    // Verify the hospital ID matches the accepted hospital
+    const hospitalSOS = await HospitalSOS.findOne({
+      sosRequestId: sosRequestId,
+      hospitalId: hospitalId,
+      hospitalStatus: 'accepted'
+    });
+
+    if (!hospitalSOS) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid hospital ID or hospital has not accepted this SOS request'
+      });
+    }
+
+    // Update SOS request status to hospital reached
+    await SOSRequest.updateOne(
+      { _id: sosRequestId },
+      { 
+        status: 'hospitalReached',
+        hospitalReachedAt: new Date(),
+        reachedHospitalId: hospitalId,
+        reachedDoctorId: doctorId || null
+      }
+    );
+
+    // Update hospital SOS status
+    await HospitalSOS.updateOne(
+      { sosRequestId: sosRequestId, hospitalId: hospitalId },
+      { 
+        hospitalStatus: 'hospitalReached',
+        hospitalReachedAt: new Date(),
+        reachedDoctorId: doctorId || null
+      }
+    );
+
+    // Update all other hospitals to "handledByOther"
+    await HospitalSOS.updateMany(
+      { 
+        sosRequestId: sosRequestId,
+        hospitalId: { $ne: hospitalId }
+      },
+      { 
+        hospitalStatus: 'handledByOther',
+        handledByOtherAt: new Date()
+      }
+    );
+
+    console.log(`✅ Hospital reached confirmed by user for hospital ${hospitalId}`);
+
+    res.json({
+      success: true,
+      message: 'Hospital reached confirmed successfully',
+      data: {
+        sosRequestId: sosRequestId,
+        status: 'hospitalReached',
+        hospitalId: hospitalId,
+        doctorId: doctorId
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error confirming hospital reached:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createSOSRequest,
   getHospitalSOSRequests,
   acceptSOSRequest,
   markPatientAdmitted,
   confirmPatientAdmission,
+  confirmHospitalReached,
   getPatientSOSHistory,
   cancelSOSRequest,
   getSOSStatistics,
