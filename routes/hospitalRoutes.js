@@ -20,6 +20,9 @@ router.get('/pending-approvals', firebaseAuthMiddleware, hospitalController.getP
 router.post('/:hospitalId/approve', firebaseAuthMiddleware, hospitalController.approveHospitalByStaff);
 router.post('/:hospitalId/reject', firebaseAuthMiddleware, hospitalController.rejectHospitalByStaff);
 
+// Get nearby hospitals for SOS - MUST BE BEFORE :id ROUTES
+router.get('/nearby', firebaseAuthMiddleware, hospitalController.getNearbyHospitals);
+
 // Get hospital by UID (for login) - MUST BE BEFORE GENERIC :id ROUTES
 router.get('/uid/:uid', firebaseAuthMiddleware, hospitalController.getHospitalProfile);
 router.put('/uid/:uid', firebaseAuthMiddleware, hospitalController.updateHospitalProfile);
@@ -118,9 +121,6 @@ router.get('/affiliation/approved', hospitalController.getApprovedHospitalsForAf
 
 // Search hospitals for affiliation (public - for registration)
 router.get('/affiliation/search', hospitalController.searchHospitalsForAffiliation);
-
-// Get nearby hospitals for SOS
-router.get('/nearby', firebaseAuthMiddleware, hospitalController.getNearbyHospitals);
 
 // Update hospital geo location (dashboard/app action)
 router.put('/:hospitalId/location', firebaseAuthMiddleware, hospitalLocationController.updateHospitalLocation);
