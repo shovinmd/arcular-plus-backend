@@ -28,6 +28,11 @@ async function ensureHospitalSOSForRequest(
 ) {
   try {
     let nearbyHospitals = [];
+    const lon = Number(location.longitude);
+    const lat = Number(location.latitude);
+    
+    console.log(`🔍 Finding hospitals within 15km of coordinates: ${lat}, ${lon}`);
+    
     try {
       // Try geo $near if index exists
       nearbyHospitals = await Hospital.find({
@@ -39,20 +44,30 @@ async function ensureHospitalSOSForRequest(
               type: 'Point',
               coordinates: [location.longitude, location.latitude]
             },
-            $maxDistance: 25000
+            $maxDistance: 15000 // Changed to 15km
           }
         }
       }).lean();
+      
+      console.log(`📍 Geo query found ${nearbyHospitals.length} hospitals`);
+      
       // Filter out any hospitals without usable coordinates (defensive)
       nearbyHospitals = nearbyHospitals.filter(h => Array.isArray(h?.location?.coordinates) && h.location.coordinates.length === 2);
+      
     } catch (geoError) {
-      // Fallback to Haversine filter over capped set
-      const candidates = await Hospital.find({ status: 'active', isApproved: true })
-        .select('uid hospitalName primaryPhone email address location geoCoordinates longitude latitude')
-        .limit(200)
+      console.log(`⚠️ Geo query failed, using Haversine calculation: ${geoError.message}`);
+      
+      // Improved fallback: Get ALL active hospitals and calculate distance
+      const candidates = await Hospital.find({ 
+        status: 'active', 
+        isApproved: true 
+      })
+        .select('uid hospitalName primaryPhone email address location geoCoordinates longitude latitude city hospitalCity')
+        .limit(500) // Increased limit to get more hospitals
         .lean();
-      const lon = Number(location.longitude);
-      const lat = Number(location.latitude);
+        
+      console.log(`🔍 Found ${candidates.length} total active hospitals to check`);
+      
       nearbyHospitals = candidates
         .map(h => {
           const hLon = h?.location?.coordinates?.[0] ?? h?.longitude ?? h?.geoCoordinates?.lng;
@@ -64,42 +79,73 @@ async function ensureHospitalSOSForRequest(
           return null;
         })
         .filter(Boolean)
-        .filter(h => h._distanceKm <= 25)
+        .filter(h => h._distanceKm <= 15) // Changed to 15km
         .sort((a, b) => a._distanceKm - b._distanceKm);
+        
+      console.log(`📍 Haversine calculation found ${nearbyHospitals.length} hospitals within 15km`);
     }
 
+    // If still no hospitals found, expand search to 30km
     if (!nearbyHospitals || nearbyHospitals.length === 0) {
-      // City-wide fallback: notify all approved+active hospitals in same city
+      console.log(`⚠️ No hospitals found within 15km, expanding to 30km`);
+      
       try {
-        const cityHospitals = await Hospital.find({
-          isApproved: true,
-          status: 'active',
-          $or: [
-            { city: { $regex: new RegExp(`^${city}$`, 'i') } },
-            { hospitalCity: { $regex: new RegExp(`^${city}$`, 'i') } },
-          ],
+        const expandedCandidates = await Hospital.find({ 
+          status: 'active', 
+          isApproved: true 
         })
-          .select('uid hospitalName primaryPhone email address location geoCoordinates longitude latitude')
-          .limit(200)
+          .select('uid hospitalName primaryPhone email address location geoCoordinates longitude latitude city hospitalCity')
+          .limit(500)
           .lean();
-        if (Array.isArray(cityHospitals) && cityHospitals.length > 0) {
-          nearbyHospitals = cityHospitals;
-        } else {
-          // Last resort: notify all approved+active hospitals (no city filter)
-          const all = await Hospital.find({ isApproved: true, status: 'active' })
-            .select('uid hospitalName primaryPhone email address location geoCoordinates longitude latitude')
-            .limit(200)
-            .lean();
-          nearbyHospitals = all || [];
-        }
-      } catch (fallbackErr) {
-        console.error('❌ City/all fallback failed:', fallbackErr.message);
+          
+        nearbyHospitals = expandedCandidates
+          .map(h => {
+            const hLon = h?.location?.coordinates?.[0] ?? h?.longitude ?? h?.geoCoordinates?.lng;
+            const hLat = h?.location?.coordinates?.[1] ?? h?.latitude ?? h?.geoCoordinates?.lat;
+            if (typeof hLon === 'number' && typeof hLat === 'number') {
+              const d = calculateDistance([lon, lat], [hLon, hLat]);
+              return { ...h, _distanceKm: d };
+            }
+            return null;
+          })
+          .filter(Boolean)
+          .filter(h => h._distanceKm <= 30) // Expanded to 30km
+          .sort((a, b) => a._distanceKm - b._distanceKm);
+          
+        console.log(`📍 Expanded search found ${nearbyHospitals.length} hospitals within 30km`);
+      } catch (expandedErr) {
+        console.error('❌ Expanded search failed:', expandedErr.message);
         nearbyHospitals = [];
       }
-      if (!nearbyHospitals || nearbyHospitals.length === 0) {
-        return;
+    }
+
+    // Last resort: Get all active hospitals if still none found
+    if (!nearbyHospitals || nearbyHospitals.length === 0) {
+      console.log(`⚠️ No hospitals found in radius, getting all active hospitals`);
+      
+      try {
+        const allHospitals = await Hospital.find({ 
+          isApproved: true, 
+          status: 'active' 
+        })
+          .select('uid hospitalName primaryPhone email address location geoCoordinates longitude latitude city hospitalCity')
+          .limit(100) // Limit to prevent too many notifications
+          .lean();
+          
+        nearbyHospitals = allHospitals || [];
+        console.log(`📍 Last resort: Found ${nearbyHospitals.length} total active hospitals`);
+      } catch (lastResortErr) {
+        console.error('❌ Last resort search failed:', lastResortErr.message);
+        nearbyHospitals = [];
       }
     }
+    
+    if (!nearbyHospitals || nearbyHospitals.length === 0) {
+      console.log(`❌ No hospitals found at all`);
+      return;
+    }
+    
+    console.log(`✅ Final result: ${nearbyHospitals.length} hospitals will be notified`);
 
     const promises = nearbyHospitals.map(async (hospital) => {
       // Avoid duplicates
@@ -765,3 +811,4 @@ module.exports = {
   getSOSStatistics,
   getSOSRequestById
 };
+
