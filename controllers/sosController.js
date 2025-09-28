@@ -762,7 +762,7 @@ const markPatientAdmitted = async (req, res) => {
     console.log('✅ SOS Request updated successfully');
 
     // Update HospitalSOS record
-    const hospitalSOS = await HospitalSOS.findOne({
+    let hospitalSOS = await HospitalSOS.findOne({
       sosRequestId,
       hospitalId
     });
