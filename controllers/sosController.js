@@ -1596,8 +1596,6 @@ const dischargePatient = async (req, res) => {
   }
 };
 
-};
-
 // Send alert to specific hospital
 const sendHospitalAlert = async (req, res) => {
   try {
