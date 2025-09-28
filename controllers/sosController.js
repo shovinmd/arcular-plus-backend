@@ -725,6 +725,14 @@ const markPatientAdmitted = async (req, res) => {
     console.log('🔍 SOS Status:', sosRequest.status);
     console.log('🔍 Accepted By:', sosRequest.acceptedBy);
 
+    // Debug the hospital ID comparison
+    console.log('🔍 Hospital ID comparison:');
+    console.log('  - SOS Request acceptedBy.hospitalId:', sosRequest.acceptedBy?.hospitalId);
+    console.log('  - Request hospitalId:', hospitalId);
+    console.log('  - Types:', typeof sosRequest.acceptedBy?.hospitalId, typeof hospitalId);
+    console.log('  - Strict equality:', sosRequest.acceptedBy?.hospitalId === hospitalId);
+    console.log('  - Loose equality:', sosRequest.acceptedBy?.hospitalId == hospitalId);
+
     if (sosRequest.acceptedBy.hospitalId !== hospitalId) {
       console.log('❌ Hospital ID mismatch:', sosRequest.acceptedBy.hospitalId, 'vs', hospitalId);
       return res.status(403).json({
@@ -763,6 +771,31 @@ const markPatientAdmitted = async (req, res) => {
     console.log('  - sosRequestId:', sosRequestId);
     console.log('  - hospitalId:', hospitalId);
     console.log('  - Found HospitalSOS:', hospitalSOS ? 'Yes' : 'No');
+
+    // Try to find HospitalSOS record with different hospital ID formats
+    if (!hospitalSOS) {
+      console.log('🔍 Trying alternative hospital ID formats...');
+      
+      // Try with just the hospitalId as string
+      const hospitalSOSString = await HospitalSOS.findOne({
+        sosRequestId,
+        hospitalId: hospitalId.toString()
+      });
+      
+      if (hospitalSOSString) {
+        console.log('✅ Found HospitalSOS with string hospitalId');
+        hospitalSOS = hospitalSOSString;
+      } else {
+        // Try to find by SOS request ID only
+        const hospitalSOSByRequest = await HospitalSOS.findOne({ sosRequestId });
+        if (hospitalSOSByRequest) {
+          console.log('✅ Found HospitalSOS by SOS request ID only');
+          console.log('  - Stored hospitalId:', hospitalSOSByRequest.hospitalId);
+          console.log('  - Requested hospitalId:', hospitalId);
+          hospitalSOS = hospitalSOSByRequest;
+        }
+      }
+    }
 
     if (hospitalSOS) {
       console.log('🔍 Current HospitalSOS status:', hospitalSOS.hospitalStatus);
