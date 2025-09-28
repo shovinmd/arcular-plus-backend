@@ -90,12 +90,12 @@ async function ensureHospitalSOSForRequest(
                 type: 'Point',
                 coordinates: [lon, lat] // [longitude, latitude] order - MongoDB preserves precision
               },
-              $maxDistance: 25000 // Primary: 25km radius
+              $maxDistance: 15000 // Primary: 15km radius
             }
           }
         }).lean();
         
-        console.log(`📍 Geo query found ${nearbyHospitals.length} hospitals within 25km`);
+        console.log(`📍 Geo query found ${nearbyHospitals.length} hospitals within 15km`);
         
         // Filter out any hospitals without usable coordinates (defensive)
         nearbyHospitals = nearbyHospitals.filter(h => Array.isArray(h?.location?.coordinates) && h.location.coordinates.length === 2);
@@ -125,10 +125,10 @@ async function ensureHospitalSOSForRequest(
             return null;
           })
           .filter(Boolean)
-          .filter(h => h._distanceKm <= 25) // Primary: 25km
+          .filter(h => h._distanceKm <= 15) // Primary: 15km
           .sort((a, b) => a._distanceKm - b._distanceKm);
           
-        console.log(`📍 Haversine calculation found ${nearbyHospitals.length} hospitals within 25km`);
+        console.log(`📍 Haversine calculation found ${nearbyHospitals.length} hospitals within 15km`);
         
         // Log some example distances for debugging
         if (nearbyHospitals.length > 0) {
@@ -136,9 +136,9 @@ async function ensureHospitalSOSForRequest(
         }
       }
 
-      // If still no hospitals found, expand search to 50km
+      // If still no hospitals found, expand search to 25km
       if (!nearbyHospitals || nearbyHospitals.length === 0) {
-        console.log(`⚠️ No hospitals found within 25km, expanding to 50km`);
+        console.log(`⚠️ No hospitals found within 15km, expanding to 25km`);
         
         try {
           const expandedCandidates = await Hospital.find({ 
@@ -160,12 +160,42 @@ async function ensureHospitalSOSForRequest(
               return null;
             })
             .filter(Boolean)
-            .filter(h => h._distanceKm <= 50) // Fallback: 50km
+            .filter(h => h._distanceKm <= 25) // Fallback: 25km
             .sort((a, b) => a._distanceKm - b._distanceKm);
             
-          console.log(`📍 Expanded search found ${nearbyHospitals.length} hospitals within 50km`);
+          console.log(`📍 Expanded search found ${nearbyHospitals.length} hospitals within 25km`);
         } catch (expandedErr) {
           console.error('❌ Expanded search failed:', expandedErr.message);
+          nearbyHospitals = [];
+        }
+      }
+
+      // Emergency fallback: If still no hospitals, search within 50km for critical cases
+      if (!nearbyHospitals || nearbyHospitals.length === 0) {
+        console.log(`🚨 Emergency fallback: No hospitals found, searching within 50km`);
+        
+        try {
+          const emergencyCandidates = await Hospital.find({ 
+            status: 'active', 
+            isApproved: true 
+          }).lean();
+          
+          const emergencyHospitals = emergencyCandidates
+            .map(h => {
+              if (h.geoCoordinates && h.geoCoordinates.lat && h.geoCoordinates.lng) {
+                const d = _calculateDistance(lat, lon, h.geoCoordinates.lat, h.geoCoordinates.lng);
+                return { ...h, _distanceKm: d };
+              }
+              return null;
+            })
+            .filter(Boolean)
+            .filter(h => h._distanceKm <= 50) // Emergency: 50km
+            .sort((a, b) => a._distanceKm - b._distanceKm);
+            
+          nearbyHospitals = emergencyHospitals;
+          console.log(`🚨 Emergency search found ${nearbyHospitals.length} hospitals within 50km`);
+        } catch (emergencyErr) {
+          console.error('❌ Emergency search failed:', emergencyErr.message);
           nearbyHospitals = [];
         }
       }

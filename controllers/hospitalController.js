@@ -801,6 +801,15 @@ const getNearbyHospitals = async (req, res) => {
         .where((hospital) => hospital != null && hospital.distance <= radiusKm)
         .sort((a, b) => a.distance - b.distance);
       
+      console.log(`📍 Sample hospital data:`, hospitalsWithDistance.slice(0, 2).map(h => ({
+        name: h.hospitalName,
+        geoCoordinates: h.geoCoordinates,
+        latitude: h.latitude,
+        longitude: h.longitude,
+        location: h.location,
+        distance: h.distance
+      })));
+      
       console.log(`✅ Found ${hospitalsWithDistance.length} hospitals within ${radiusKm}km`);
       
       res.json({
@@ -814,22 +823,50 @@ const getNearbyHospitals = async (req, res) => {
       if (pincode) query.pincode = pincode;
       
       const hospitals = await Hospital.find(query);
-      console.log(`✅ Found ${hospitals.length} hospitals by city/pincode`);
+      
+      // Calculate distances for city/pincode hospitals if coordinates are available
+      const hospitalsWithDistance = hospitals.map(hospital => {
+        const hospitalObj = hospital.toObject();
+        if (hospital.geoCoordinates && hospital.geoCoordinates.lat && hospital.geoCoordinates.lng) {
+          const distance = _calculateDistance(
+            lat || 0, lng || 0, 
+            hospital.geoCoordinates.lat, hospital.geoCoordinates.lng
+          );
+          hospitalObj.distance = distance;
+        }
+        return hospitalObj;
+      });
+      
+      console.log(`✅ Found ${hospitalsWithDistance.length} hospitals by city/pincode`);
       
       res.json({
         success: true,
-        data: hospitals,
-        count: hospitals.length
+        data: hospitalsWithDistance,
+        count: hospitalsWithDistance.length
       });
     } else {
       // Return all approved hospitals if no location specified
       const hospitals = await Hospital.find(query).limit(20);
-      console.log(`✅ Found ${hospitals.length} approved hospitals`);
+      
+      // Calculate distances for all hospitals if coordinates are available
+      const hospitalsWithDistance = hospitals.map(hospital => {
+        const hospitalObj = hospital.toObject();
+        if (hospital.geoCoordinates && hospital.geoCoordinates.lat && hospital.geoCoordinates.lng) {
+          const distance = _calculateDistance(
+            lat || 0, lng || 0, 
+            hospital.geoCoordinates.lat, hospital.geoCoordinates.lng
+          );
+          hospitalObj.distance = distance;
+        }
+        return hospitalObj;
+      });
+      
+      console.log(`✅ Found ${hospitalsWithDistance.length} approved hospitals`);
       
       res.json({
         success: true,
-        data: hospitals,
-        count: hospitals.length
+        data: hospitalsWithDistance,
+        count: hospitalsWithDistance.length
       });
     }
   } catch (error) {
