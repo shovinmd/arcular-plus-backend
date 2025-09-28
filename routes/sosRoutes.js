@@ -47,4 +47,7 @@ router.get('/statistics/:hospitalId', verifyFirebaseToken, sosController.getSOSS
 // Synchronize hospital coordinates
 router.post('/sync-hospital-coordinates', verifyFirebaseToken, sosController.synchronizeHospitalCoordinates);
 
+// Send alert to specific hospital
+router.post('/send-hospital-alert', verifyFirebaseToken, sosController.sendHospitalAlert);
+
 module.exports = router;

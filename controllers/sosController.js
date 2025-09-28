@@ -1,6 +1,7 @@
 const SOSRequest = require('../models/SOSRequest');
 const HospitalSOS = require('../models/HospitalSOS');
 const Hospital = require('../models/Hospital');
+const HospitalAlert = require('../models/HospitalAlert');
 
 // Helper function to calculate distance between two coordinates
 const calculateDistance = (coord1, coord2) => {
@@ -1595,6 +1596,86 @@ const dischargePatient = async (req, res) => {
   }
 };
 
+};
+
+// Send alert to specific hospital
+const sendHospitalAlert = async (req, res) => {
+  try {
+    const {
+      hospitalId,
+      hospitalName,
+      patientId,
+      patientName,
+      patientPhone,
+      location,
+      address,
+      alertType,
+      timestamp
+    } = req.body;
+
+    // Validate required fields
+    if (!hospitalId || !patientId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Hospital ID and Patient ID are required'
+      });
+    }
+
+    // Find the hospital
+    const hospital = await Hospital.findById(hospitalId);
+    if (!hospital) {
+      return res.status(404).json({
+        success: false,
+        message: 'Hospital not found'
+      });
+    }
+
+    // Create hospital alert record
+    const hospitalAlert = new HospitalAlert({
+      hospitalId,
+      hospitalName: hospitalName || hospital.hospitalName,
+      patientId,
+      patientName,
+      patientPhone,
+      location: {
+        type: 'Point',
+        coordinates: [location.longitude, location.latitude]
+      },
+      address,
+      alertType: alertType || 'direct_hospital_alert',
+      status: 'pending',
+      timestamp: new Date(timestamp),
+      createdAt: new Date()
+    });
+
+    await hospitalAlert.save();
+
+    // Send notification to hospital (you can implement FCM here)
+    // For now, we'll just log it
+    console.log(`🚨 Direct alert sent to hospital: ${hospital.hospitalName}`);
+    console.log(`📍 Patient: ${patientName} (${patientPhone})`);
+    console.log(`📍 Location: ${address}`);
+
+    res.json({
+      success: true,
+      message: 'Alert sent to hospital successfully',
+      data: {
+        alertId: hospitalAlert._id,
+        hospitalName: hospital.hospitalName,
+        timestamp: hospitalAlert.createdAt
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error sending hospital alert:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to send hospital alert',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createSOSRequest,
   getHospitalSOSRequests,
@@ -1612,5 +1693,6 @@ module.exports = {
   getCoordinationStatus,
   dischargePatient,
   synchronizeHospitalCoordinates,
+  sendHospitalAlert,
 };
 
