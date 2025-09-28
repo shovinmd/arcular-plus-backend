@@ -59,17 +59,22 @@ async function ensureHospitalSOSForRequest(
       console.log(`⚠️ Invalid coordinates detected: lat=${lat}, lon=${lon}`);
       console.log(`📍 Using fallback: Get ALL active hospitals`);
       
-      // If coordinates are invalid, get all hospitals
-      const allHospitals = await Hospital.find({ 
-        isApproved: true, 
-        status: 'active' 
-      })
-        .select('uid hospitalName primaryPhone email address location geoCoordinates longitude latitude city hospitalCity')
-        .limit(200) // Increased limit
-        .lean();
-        
-      nearbyHospitals = allHospitals || [];
-      console.log(`📍 Fallback: Found ${nearbyHospitals.length} total active hospitals`);
+            // If coordinates are invalid, get hospitals in same city and pincode
+            const cityHospitals = await Hospital.find({ 
+              isApproved: true, 
+              status: 'active',
+              $or: [
+                { city: city },
+                { hospitalCity: city },
+                { pincode: pincode }
+              ]
+            })
+              .select('uid hospitalName primaryPhone email address location geoCoordinates longitude latitude city hospitalCity pincode')
+              .limit(100)
+              .lean();
+              
+            nearbyHospitals = cityHospitals || [];
+            console.log(`📍 Fallback: Found ${nearbyHospitals.length} hospitals in city: ${city}, pincode: ${pincode}`);
     } else {
       // Log coordinate validation success
       console.log(`✅ Valid high-precision coordinates: lat=${lat.toFixed(15)}, lon=${lon.toFixed(15)}`);
@@ -165,23 +170,29 @@ async function ensureHospitalSOSForRequest(
         }
       }
 
-      // Last resort: Get all active hospitals if still none found
+      // Last resort: Get hospitals in same city and pincode if still none found
       if (!nearbyHospitals || nearbyHospitals.length === 0) {
-        console.log(`⚠️ No hospitals found in radius, getting all active hospitals`);
+        console.log(`⚠️ No hospitals found in radius, searching same city and pincode`);
         
         try {
-          const allHospitals = await Hospital.find({ 
+          // Search hospitals in same city and pincode
+          const cityHospitals = await Hospital.find({ 
             isApproved: true, 
-            status: 'active' 
+            status: 'active',
+            $or: [
+              { city: city },
+              { hospitalCity: city },
+              { pincode: pincode }
+            ]
           })
-            .select('uid hospitalName primaryPhone email address location geoCoordinates longitude latitude city hospitalCity')
-            .limit(200) // Increased limit
+            .select('uid hospitalName primaryPhone email address location geoCoordinates longitude latitude city hospitalCity pincode')
+            .limit(100)
             .lean();
             
-          nearbyHospitals = allHospitals || [];
-          console.log(`📍 Last resort: Found ${nearbyHospitals.length} total active hospitals`);
-        } catch (lastResortErr) {
-          console.error('❌ Last resort search failed:', lastResortErr.message);
+          nearbyHospitals = cityHospitals || [];
+          console.log(`📍 City/Pincode search: Found ${nearbyHospitals.length} hospitals in city: ${city}, pincode: ${pincode}`);
+        } catch (citySearchErr) {
+          console.error('❌ City/Pincode search failed:', citySearchErr.message);
           nearbyHospitals = [];
         }
       }
@@ -961,7 +972,7 @@ const handleSOSEscalation = async (req, res) => {
       });
     }
     
-    // Check if any hospital has accepted
+    // Check if any hospital has accepted or reached
     const acceptedHospital = await HospitalSOS.findOne({
       sosRequestId: sosRequestId,
       hospitalStatus: { $in: ['accepted', 'hospitalReached', 'admitted'] }
@@ -969,6 +980,30 @@ const handleSOSEscalation = async (req, res) => {
     
     if (acceptedHospital) {
       console.log(`✅ Hospital ${acceptedHospital.hospitalId} has already accepted SOS ${sosRequestId}`);
+      
+      // If hospital has reached, only call emergency contact (not 123)
+      if (acceptedHospital.hospitalStatus === 'hospitalReached') {
+        console.log(`🏥 Hospital has reached patient, only calling emergency contact`);
+        
+        let emergencyCalls = [];
+        if (sosRequest.emergencyContact && sosRequest.emergencyContact.phone) {
+          emergencyCalls.push({
+            number: sosRequest.emergencyContact.phone,
+            type: 'emergency_contact',
+            triggered: true,
+            reason: 'Hospital has reached patient - emergency contact notification'
+          });
+        }
+        
+        return res.status(200).json({
+          success: true,
+          message: 'Hospital has reached patient - emergency contact called',
+          action: 'emergency_contact_only',
+          emergencyCalls: emergencyCalls,
+          acceptedHospital: acceptedHospital.hospitalId
+        });
+      }
+      
       return res.status(200).json({
         success: true,
         message: 'Hospital has already accepted the SOS',
