@@ -48,7 +48,7 @@ const HospitalSOSSchema = new mongoose.Schema({
   // Hospital Status for this SOS
   hospitalStatus: {
     type: String,
-    enum: ['notified', 'accepted', 'handledByOther', 'cancelled'],
+    enum: ['notified', 'accepted', 'handledByOther', 'cancelled', 'admitted', 'discharged'],
     default: 'notified',
     index: true
   },
@@ -108,7 +108,7 @@ const HospitalSOSSchema = new mongoose.Schema({
   actions: [{
     action: {
       type: String,
-      enum: ['notified', 'accepted', 'called_patient', 'dispatched_ambulance', 'marked_admitted', 'cancelled']
+      enum: ['notified', 'accepted', 'called_patient', 'dispatched_ambulance', 'marked_admitted', 'marked_discharged', 'cancelled']
     },
     timestamp: {
       type: Date,
