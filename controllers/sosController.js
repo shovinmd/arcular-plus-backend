@@ -706,16 +706,27 @@ const markPatientAdmitted = async (req, res) => {
     const { hospitalId } = req.params;
     const { sosRequestId, admissionDetails } = req.body;
 
+    console.log('🏥 Marking patient as admitted:');
+    console.log('🔍 Hospital ID:', hospitalId);
+    console.log('🔍 SOS Request ID:', sosRequestId);
+    console.log('🔍 Admission Details:', admissionDetails);
+
     // Check if SOS request exists and is accepted by this hospital
     const sosRequest = await SOSRequest.findById(sosRequestId);
     if (!sosRequest) {
+      console.log('❌ SOS request not found:', sosRequestId);
       return res.status(404).json({
         success: false,
         message: 'SOS request not found'
       });
     }
 
+    console.log('🔍 SOS Request found:', sosRequest._id);
+    console.log('🔍 SOS Status:', sosRequest.status);
+    console.log('🔍 Accepted By:', sosRequest.acceptedBy);
+
     if (sosRequest.acceptedBy.hospitalId !== hospitalId) {
+      console.log('❌ Hospital ID mismatch:', sosRequest.acceptedBy.hospitalId, 'vs', hospitalId);
       return res.status(403).json({
         success: false,
         message: 'You are not authorized to update this SOS request'
@@ -723,6 +734,7 @@ const markPatientAdmitted = async (req, res) => {
     }
 
     if (sosRequest.status !== 'accepted') {
+      console.log('❌ SOS request not accepted:', sosRequest.status);
       return res.status(409).json({
         success: false,
         message: 'SOS request must be accepted before marking as admitted'
@@ -739,6 +751,7 @@ const markPatientAdmitted = async (req, res) => {
       notes: admissionDetails.notes
     };
     await sosRequest.save();
+    console.log('✅ SOS Request updated successfully');
 
     // Update HospitalSOS record
     const hospitalSOS = await HospitalSOS.findOne({
@@ -746,10 +759,27 @@ const markPatientAdmitted = async (req, res) => {
       hospitalId
     });
 
+    console.log('🔍 Looking for HospitalSOS record:');
+    console.log('  - sosRequestId:', sosRequestId);
+    console.log('  - hospitalId:', hospitalId);
+    console.log('  - Found HospitalSOS:', hospitalSOS ? 'Yes' : 'No');
+
     if (hospitalSOS) {
+      console.log('🔍 Current HospitalSOS status:', hospitalSOS.hospitalStatus);
       hospitalSOS.hospitalStatus = 'admitted';
       await hospitalSOS.addAction('marked_admitted', admissionDetails.staffInfo, admissionDetails.notes);
-      await hospitalSOS.save();
+      console.log('✅ HospitalSOS record updated successfully');
+      console.log('🔍 New HospitalSOS status:', hospitalSOS.hospitalStatus);
+    } else {
+      console.log('⚠️ HospitalSOS record not found');
+      console.log('🔍 Searching for any HospitalSOS records with this sosRequestId...');
+      const allHospitalSOS = await HospitalSOS.find({ sosRequestId });
+      console.log('🔍 Found HospitalSOS records:', allHospitalSOS.length);
+      for (const record of allHospitalSOS) {
+        console.log('  - HospitalSOS ID:', record._id);
+        console.log('  - Hospital ID:', record.hospitalId);
+        console.log('  - Status:', record.hospitalStatus);
+      }
     }
 
     res.json({
