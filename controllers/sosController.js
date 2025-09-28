@@ -30,7 +30,76 @@ const calculateDistance = (coord1, coord2) => {
   return distance;
 };
 
-// Helper to create HospitalSOS records for an SOSRequest
+// Utility function to synchronize hospital coordinates
+async function synchronizeHospitalCoordinates() {
+  try {
+    console.log('🔄 Synchronizing hospital coordinates...');
+    
+    const hospitals = await Hospital.find({}).lean();
+    let updatedCount = 0;
+    
+    for (const hospital of hospitals) {
+      let needsUpdate = false;
+      const updateData = {};
+      
+      // Check if coordinates need synchronization
+      const hasLonLat = typeof hospital.longitude === 'number' && typeof hospital.latitude === 'number';
+      const hasGeo = hospital.geoCoordinates && typeof hospital.geoCoordinates.lng === 'number' && typeof hospital.geoCoordinates.lat === 'number';
+      const hasLocation = hospital.location && Array.isArray(hospital.location.coordinates) && hospital.location.coordinates.length === 2;
+      
+      let lon, lat;
+      
+      // Determine source coordinates
+      if (hasLonLat) {
+        lon = hospital.longitude;
+        lat = hospital.latitude;
+      } else if (hasGeo) {
+        lon = hospital.geoCoordinates.lng;
+        lat = hospital.geoCoordinates.lat;
+      } else if (hasLocation) {
+        lon = hospital.location.coordinates[0];
+        lat = hospital.location.coordinates[1];
+      }
+      
+      // Update missing coordinate formats
+      if (typeof lon === 'number' && typeof lat === 'number') {
+        if (!hasLonLat) {
+          updateData.longitude = lon;
+          updateData.latitude = lat;
+          needsUpdate = true;
+        }
+        
+        if (!hasGeo) {
+          updateData.geoCoordinates = { lng: lon, lat: lat };
+          needsUpdate = true;
+        }
+        
+        if (!hasLocation) {
+          updateData.location = {
+            type: 'Point',
+            coordinates: [lon, lat]
+          };
+          needsUpdate = true;
+        }
+        
+        if (needsUpdate) {
+          await Hospital.updateOne(
+            { _id: hospital._id },
+            { $set: updateData }
+          );
+          updatedCount++;
+          console.log(`✅ Synchronized coordinates for: ${hospital.hospitalName || hospital.uid}`);
+        }
+      }
+    }
+    
+    console.log(`🎯 Synchronization complete: ${updatedCount} hospitals updated`);
+    return { success: true, updatedCount };
+  } catch (error) {
+    console.error('❌ Error synchronizing hospital coordinates:', error);
+    return { success: false, error: error.message };
+  }
+}
 async function ensureHospitalSOSForRequest(
   sosRequest,
   location,
@@ -182,8 +251,22 @@ async function ensureHospitalSOSForRequest(
           
           const emergencyHospitals = emergencyCandidates
             .map(h => {
+              // Try multiple coordinate formats
+              let hLat, hLng;
+              
               if (h.geoCoordinates && h.geoCoordinates.lat && h.geoCoordinates.lng) {
-                const d = _calculateDistance(lat, lon, h.geoCoordinates.lat, h.geoCoordinates.lng);
+                hLat = h.geoCoordinates.lat;
+                hLng = h.geoCoordinates.lng;
+              } else if (h.latitude && h.longitude) {
+                hLat = h.latitude;
+                hLng = h.longitude;
+              } else if (h.location && Array.isArray(h.location.coordinates) && h.location.coordinates.length === 2) {
+                hLng = h.location.coordinates[0]; // longitude
+                hLat = h.location.coordinates[1]; // latitude
+              }
+              
+              if (typeof hLat === 'number' && typeof hLng === 'number') {
+                const d = _calculateDistance(lat, lon, hLat, hLng);
                 return { ...h, _distanceKm: d };
               }
               return null;
@@ -1528,5 +1611,6 @@ module.exports = {
   handleEmergencyCoordination,
   getCoordinationStatus,
   dischargePatient,
+  synchronizeHospitalCoordinates,
 };
 

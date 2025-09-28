@@ -93,16 +93,49 @@ HospitalSchema.methods.getPublicProfile = function() {
 // Pre-save middleware
 HospitalSchema.pre('save', function(next) {
   this.updatedAt = new Date();
-  // Backfill GeoJSON location if longitude/latitude or geoCoordinates are present
+  
+  // Synchronize all coordinate formats
   const hasLonLat = typeof this.longitude === 'number' && typeof this.latitude === 'number';
   const hasGeo = this.geoCoordinates && typeof this.geoCoordinates.lng === 'number' && typeof this.geoCoordinates.lat === 'number';
-  const lon = hasLonLat ? this.longitude : (hasGeo ? this.geoCoordinates.lng : undefined);
-  const lat = hasLonLat ? this.latitude : (hasGeo ? this.geoCoordinates.lat : undefined);
+  const hasLocation = this.location && Array.isArray(this.location.coordinates) && this.location.coordinates.length === 2;
+  
+  let lon, lat;
+  
+  // Determine source coordinates
+  if (hasLonLat) {
+    lon = this.longitude;
+    lat = this.latitude;
+  } else if (hasGeo) {
+    lon = this.geoCoordinates.lng;
+    lat = this.geoCoordinates.lat;
+  } else if (hasLocation) {
+    lon = this.location.coordinates[0]; // longitude
+    lat = this.location.coordinates[1]; // latitude
+  }
+  
+  // Update all coordinate formats if we have valid coordinates
   if (typeof lon === 'number' && typeof lat === 'number') {
+    // Update GeoJSON location
     this.location = this.location || {};
     this.location.type = 'Point';
     this.location.coordinates = [lon, lat];
+    
+    // Update geoCoordinates if not present
+    if (!hasGeo) {
+      this.geoCoordinates = this.geoCoordinates || {};
+      this.geoCoordinates.lng = lon;
+      this.geoCoordinates.lat = lat;
+    }
+    
+    // Update longitude/latitude if not present
+    if (!hasLonLat) {
+      this.longitude = lon;
+      this.latitude = lat;
+    }
+    
+    console.log(`📍 Hospital coordinates synchronized: ${this.hospitalName || 'Unknown'} - lat: ${lat}, lng: ${lon}`);
   }
+  
   next();
 });
 
