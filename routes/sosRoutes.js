@@ -34,6 +34,10 @@ router.get('/request/:sosRequestId', verifyFirebaseToken, sosController.getSOSRe
 router.post('/escalate/:sosRequestId', verifyFirebaseToken, sosController.handleSOSEscalation);
 router.get('/escalation-status/:sosRequestId', verifyFirebaseToken, sosController.getSOSEscalationStatus);
 
+// Emergency Coordination System
+router.post('/coordinate/:sosRequestId', verifyFirebaseToken, sosController.handleEmergencyCoordination);
+router.get('/coordination-status/:sosRequestId', verifyFirebaseToken, sosController.getCoordinationStatus);
+
 // Get SOS statistics
 router.get('/statistics/:hospitalId', verifyFirebaseToken, sosController.getSOSStatistics);
 

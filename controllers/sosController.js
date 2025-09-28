@@ -1004,6 +1004,47 @@ const handleSOSEscalation = async (req, res) => {
         });
       }
       
+      // If hospital has accepted but not reached yet
+      if (acceptedHospital.hospitalStatus === 'accepted') {
+        console.log(`🏥 Hospital has accepted SOS, checking if emergency services were called`);
+        
+        // Check if emergency services (123) were already called
+        const emergencyServicesCalled = sosRequest.emergencyCallsTriggered?.some(call => 
+          call.number === '123' && call.type === 'emergency_services'
+        ) || false;
+        
+        if (emergencyServicesCalled) {
+          console.log(`🚨 Emergency services (123) were already called, need to coordinate`);
+          
+          // Update SOS request with coordination info
+          sosRequest.coordinationRequired = true;
+          sosRequest.coordinationReason = 'Hospital accepted after emergency services called';
+          sosRequest.coordinationStatus = 'pending';
+          await sosRequest.save();
+          
+          // Call emergency contact to inform about coordination
+          let emergencyCalls = [];
+          if (sosRequest.emergencyContact && sosRequest.emergencyContact.phone) {
+            emergencyCalls.push({
+              number: sosRequest.emergencyContact.phone,
+              type: 'emergency_contact',
+              triggered: true,
+              reason: 'Hospital accepted - coordinate with emergency services (123)'
+            });
+          }
+          
+          return res.status(200).json({
+            success: true,
+            message: 'Hospital accepted after emergency services called - coordination required',
+            action: 'coordination_required',
+            emergencyCalls: emergencyCalls,
+            acceptedHospital: acceptedHospital.hospitalId,
+            coordinationRequired: true,
+            coordinationReason: 'Hospital accepted after emergency services called'
+          });
+        }
+      }
+      
       return res.status(200).json({
         success: true,
         message: 'Hospital has already accepted the SOS',
@@ -1162,6 +1203,184 @@ const getSOSEscalationStatus = async (req, res) => {
   }
 };
 
+// Handle coordination between emergency services and hospitals
+const handleEmergencyCoordination = async (req, res) => {
+  try {
+    const { sosRequestId } = req.params;
+    const { coordinationAction, coordinationDetails } = req.body;
+    
+    console.log(`🤝 Handling emergency coordination for SOS: ${sosRequestId}`);
+    console.log(`📋 Coordination action: ${coordinationAction}`);
+    
+    // Find the SOS request
+    const sosRequest = await SOSRequest.findById(sosRequestId);
+    if (!sosRequest) {
+      return res.status(404).json({
+        success: false,
+        message: 'SOS request not found'
+      });
+    }
+    
+    // Check if coordination is required
+    if (!sosRequest.coordinationRequired) {
+      return res.status(400).json({
+        success: false,
+        message: 'No coordination required for this SOS request'
+      });
+    }
+    
+    // Handle different coordination actions
+    switch (coordinationAction) {
+      case 'emergency_services_cancelled':
+        console.log(`🚨 Emergency services (123) cancelled for SOS ${sosRequestId}`);
+        
+        // Update coordination status
+        sosRequest.coordinationStatus = 'emergency_services_cancelled';
+        sosRequest.coordinationDetails = {
+          action: coordinationAction,
+          details: coordinationDetails,
+          updatedAt: new Date()
+        };
+        await sosRequest.save();
+        
+        // Notify emergency contact about cancellation
+        let emergencyCalls = [];
+        if (sosRequest.emergencyContact && sosRequest.emergencyContact.phone) {
+          emergencyCalls.push({
+            number: sosRequest.emergencyContact.phone,
+            type: 'emergency_contact',
+            triggered: true,
+            reason: 'Hospital will handle - inform emergency services (123) if they arrive'
+          });
+        }
+        
+        res.status(200).json({
+          success: true,
+          message: 'Coordination handled - hospital will manage the case',
+          data: {
+            sosRequestId: sosRequestId,
+            coordinationStatus: sosRequest.coordinationStatus,
+            emergencyCalls: emergencyCalls,
+            message: 'Hospital will handle the case. If emergency services (123) arrive, inform them that hospital is already responding.'
+          }
+        });
+        break;
+        
+      case 'hospital_cancelled':
+        console.log(`🏥 Hospital cancelled for SOS ${sosRequestId}`);
+        
+        // Update coordination status
+        sosRequest.coordinationStatus = 'hospital_cancelled';
+        sosRequest.coordinationDetails = {
+          action: coordinationAction,
+          details: coordinationDetails,
+          updatedAt: new Date()
+        };
+        await sosRequest.save();
+        
+        // Emergency services (123) will continue handling
+        res.status(200).json({
+          success: true,
+          message: 'Hospital coordination handled',
+          data: {
+            sosRequestId: sosRequestId,
+            coordinationStatus: sosRequest.coordinationStatus,
+            message: 'Emergency services (123) will continue handling the case'
+          }
+        });
+        break;
+        
+      case 'both_responding':
+        console.log(`🤝 Both emergency services and hospital responding for SOS ${sosRequestId}`);
+        
+        // Update coordination status
+        sosRequest.coordinationStatus = 'both_responding';
+        sosRequest.coordinationDetails = {
+          action: coordinationAction,
+          details: coordinationDetails,
+          updatedAt: new Date()
+        };
+        await sosRequest.save();
+        
+        // Notify emergency contact about coordination
+        let coordinationCalls = [];
+        if (sosRequest.emergencyContact && sosRequest.emergencyContact.phone) {
+          coordinationCalls.push({
+            number: sosRequest.emergencyContact.phone,
+            type: 'emergency_contact',
+            triggered: true,
+            reason: 'Both emergency services (123) and hospital responding - coordinate when they arrive'
+          });
+        }
+        
+        res.status(200).json({
+          success: true,
+          message: 'Coordination handled - both services responding',
+          data: {
+            sosRequestId: sosRequestId,
+            coordinationStatus: sosRequest.coordinationStatus,
+            emergencyCalls: coordinationCalls,
+            message: 'Both emergency services (123) and hospital are responding. Coordinate when emergency services arrive.'
+          }
+        });
+        break;
+        
+      default:
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid coordination action'
+        });
+    }
+    
+  } catch (error) {
+    console.error('❌ Error handling emergency coordination:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to handle emergency coordination',
+      error: error.message
+    });
+  }
+};
+
+// Get coordination status
+const getCoordinationStatus = async (req, res) => {
+  try {
+    const { sosRequestId } = req.params;
+    
+    const sosRequest = await SOSRequest.findById(sosRequestId);
+    if (!sosRequest) {
+      return res.status(404).json({
+        success: false,
+        message: 'SOS request not found'
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        sosRequestId: sosRequestId,
+        coordinationRequired: sosRequest.coordinationRequired || false,
+        coordinationStatus: sosRequest.coordinationStatus || 'none',
+        coordinationReason: sosRequest.coordinationReason,
+        coordinationDetails: sosRequest.coordinationDetails,
+        emergencyCallsTriggered: sosRequest.emergencyCallsTriggered || [],
+        hasAcceptedHospital: !!await HospitalSOS.findOne({
+          sosRequestId: sosRequestId,
+          hospitalStatus: { $in: ['accepted', 'hospitalReached', 'admitted'] }
+        })
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error getting coordination status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get coordination status',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createSOSRequest,
   getHospitalSOSRequests,
@@ -1175,5 +1394,7 @@ module.exports = {
   getSOSRequestById,
   handleSOSEscalation,
   getSOSEscalationStatus,
+  handleEmergencyCoordination,
+  getCoordinationStatus,
 };
 
