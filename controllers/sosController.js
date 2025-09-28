@@ -633,6 +633,7 @@ const markPatientAdmitted = async (req, res) => {
     });
 
     if (hospitalSOS) {
+      hospitalSOS.hospitalStatus = 'admitted';
       await hospitalSOS.addAction('marked_admitted', admissionDetails.staffInfo, admissionDetails.notes);
       await hospitalSOS.save();
     }
