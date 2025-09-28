@@ -776,10 +776,16 @@ const getNearbyHospitals = async (req, res) => {
 
     let query = { isApproved: true, status: 'active' };
     
+    // Parse coordinates if provided
+    let lat = null;
+    let lng = null;
+    if (latitude && longitude) {
+      lat = parseFloat(latitude);
+      lng = parseFloat(longitude);
+    }
+    
     // If coordinates are provided, use them for proximity search
     if (latitude && longitude) {
-      const lat = parseFloat(latitude);
-      const lng = parseFloat(longitude);
       const radiusKm = parseFloat(radius);
       
       // Find hospitals within the specified radius
