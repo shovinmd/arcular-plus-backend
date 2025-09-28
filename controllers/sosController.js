@@ -5,13 +5,29 @@ const Hospital = require('../models/Hospital');
 // Helper function to calculate distance between two coordinates
 const calculateDistance = (coord1, coord2) => {
   const R = 6371; // Earth's radius in kilometers
-  const dLat = (coord2[1] - coord1[1]) * Math.PI / 180;
-  const dLon = (coord2[0] - coord1[0]) * Math.PI / 180;
+  
+  // Ensure coordinates are numbers and preserve precision
+  const lat1 = parseFloat(coord1[1]);
+  const lon1 = parseFloat(coord1[0]);
+  const lat2 = parseFloat(coord2[1]);
+  const lon2 = parseFloat(coord2[0]);
+  
+  // Convert to radians with high precision
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  
+  // Haversine formula with high precision
   const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(coord1[1] * Math.PI / 180) * Math.cos(coord2[1] * Math.PI / 180) *
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
     Math.sin(dLon/2) * Math.sin(dLon/2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  return R * c;
+  
+  const distance = R * c;
+  
+  // Log high-precision calculation for debugging
+  console.log(`📏 Distance calculation: (${lat1.toFixed(15)}, ${lon1.toFixed(15)}) to (${lat2.toFixed(15)}, ${lon2.toFixed(15)}) = ${distance.toFixed(6)}km`);
+  
+  return distance;
 };
 
 // Helper to create HospitalSOS records for an SOSRequest
@@ -28,115 +44,146 @@ async function ensureHospitalSOSForRequest(
 ) {
   try {
     let nearbyHospitals = [];
-    const lon = Number(location.longitude);
-    const lat = Number(location.latitude);
     
-    console.log(`🔍 Finding hospitals within 15km of coordinates: ${lat}, ${lon}`);
+    // Preserve full precision of coordinates
+    const lon = parseFloat(location.longitude);
+    const lat = parseFloat(location.latitude);
     
-    try {
-      // Try geo $near if index exists
-      nearbyHospitals = await Hospital.find({
-        status: 'active',
-        isApproved: true,
-        location: {
-          $near: {
-            $geometry: {
-              type: 'Point',
-              coordinates: [location.longitude, location.latitude]
-            },
-            $maxDistance: 15000 // Changed to 15km
-          }
-        }
-      }).lean();
+    console.log(`🔍 Finding hospitals near coordinates: ${lat}, ${lon}`);
+    console.log(`📍 Raw coordinates: lat=${location.latitude}, lon=${location.longitude}`);
+    console.log(`📍 Parsed coordinates: lat=${lat}, lon=${lon}`);
+    console.log(`📍 Coordinate precision: lat=${lat.toFixed(15)}, lon=${lon.toFixed(15)}`);
+    
+    // Validate coordinates with better precision handling
+    if (isNaN(lat) || isNaN(lon) || lat === 0 || lon === 0) {
+      console.log(`⚠️ Invalid coordinates detected: lat=${lat}, lon=${lon}`);
+      console.log(`📍 Using fallback: Get ALL active hospitals`);
       
-      console.log(`📍 Geo query found ${nearbyHospitals.length} hospitals`);
-      
-      // Filter out any hospitals without usable coordinates (defensive)
-      nearbyHospitals = nearbyHospitals.filter(h => Array.isArray(h?.location?.coordinates) && h.location.coordinates.length === 2);
-      
-    } catch (geoError) {
-      console.log(`⚠️ Geo query failed, using Haversine calculation: ${geoError.message}`);
-      
-      // Improved fallback: Get ALL active hospitals and calculate distance
-      const candidates = await Hospital.find({ 
-        status: 'active', 
-        isApproved: true 
+      // If coordinates are invalid, get all hospitals
+      const allHospitals = await Hospital.find({ 
+        isApproved: true, 
+        status: 'active' 
       })
         .select('uid hospitalName primaryPhone email address location geoCoordinates longitude latitude city hospitalCity')
-        .limit(500) // Increased limit to get more hospitals
+        .limit(200) // Increased limit
         .lean();
         
-      console.log(`🔍 Found ${candidates.length} total active hospitals to check`);
-      
-      nearbyHospitals = candidates
-        .map(h => {
-          const hLon = h?.location?.coordinates?.[0] ?? h?.longitude ?? h?.geoCoordinates?.lng;
-          const hLat = h?.location?.coordinates?.[1] ?? h?.latitude ?? h?.geoCoordinates?.lat;
-          if (typeof hLon === 'number' && typeof hLat === 'number') {
-            const d = calculateDistance([lon, lat], [hLon, hLat]);
-            return { ...h, _distanceKm: d };
-          }
-          return null;
-        })
-        .filter(Boolean)
-        .filter(h => h._distanceKm <= 15) // Changed to 15km
-        .sort((a, b) => a._distanceKm - b._distanceKm);
-        
-      console.log(`📍 Haversine calculation found ${nearbyHospitals.length} hospitals within 15km`);
-    }
-
-    // If still no hospitals found, expand search to 30km
-    if (!nearbyHospitals || nearbyHospitals.length === 0) {
-      console.log(`⚠️ No hospitals found within 15km, expanding to 30km`);
+      nearbyHospitals = allHospitals || [];
+      console.log(`📍 Fallback: Found ${nearbyHospitals.length} total active hospitals`);
+    } else {
+      // Log coordinate validation success
+      console.log(`✅ Valid high-precision coordinates: lat=${lat.toFixed(15)}, lon=${lon.toFixed(15)}`);
       
       try {
-        const expandedCandidates = await Hospital.find({ 
+        // Try geo $near if index exists - PRIMARY RADIUS 25KM
+        nearbyHospitals = await Hospital.find({
+          status: 'active',
+          isApproved: true,
+          location: {
+            $near: {
+              $geometry: {
+                type: 'Point',
+                coordinates: [lon, lat] // [longitude, latitude] order - MongoDB preserves precision
+              },
+              $maxDistance: 25000 // Primary: 25km radius
+            }
+          }
+        }).lean();
+        
+        console.log(`📍 Geo query found ${nearbyHospitals.length} hospitals within 25km`);
+        
+        // Filter out any hospitals without usable coordinates (defensive)
+        nearbyHospitals = nearbyHospitals.filter(h => Array.isArray(h?.location?.coordinates) && h.location.coordinates.length === 2);
+        
+      } catch (geoError) {
+        console.log(`⚠️ Geo query failed, using Haversine calculation: ${geoError.message}`);
+        
+        // Improved fallback: Get ALL active hospitals and calculate distance
+        const candidates = await Hospital.find({ 
           status: 'active', 
           isApproved: true 
         })
           .select('uid hospitalName primaryPhone email address location geoCoordinates longitude latitude city hospitalCity')
-          .limit(500)
+          .limit(1000) // Increased limit to get more hospitals
           .lean();
           
-        nearbyHospitals = expandedCandidates
+        console.log(`🔍 Found ${candidates.length} total active hospitals to check`);
+        
+        nearbyHospitals = candidates
           .map(h => {
             const hLon = h?.location?.coordinates?.[0] ?? h?.longitude ?? h?.geoCoordinates?.lng;
             const hLat = h?.location?.coordinates?.[1] ?? h?.latitude ?? h?.geoCoordinates?.lat;
-            if (typeof hLon === 'number' && typeof hLat === 'number') {
+            if (typeof hLon === 'number' && typeof hLat === 'number' && !isNaN(hLon) && !isNaN(hLat)) {
               const d = calculateDistance([lon, lat], [hLon, hLat]);
               return { ...h, _distanceKm: d };
             }
             return null;
           })
           .filter(Boolean)
-          .filter(h => h._distanceKm <= 30) // Expanded to 30km
+          .filter(h => h._distanceKm <= 25) // Primary: 25km
           .sort((a, b) => a._distanceKm - b._distanceKm);
           
-        console.log(`📍 Expanded search found ${nearbyHospitals.length} hospitals within 30km`);
-      } catch (expandedErr) {
-        console.error('❌ Expanded search failed:', expandedErr.message);
-        nearbyHospitals = [];
+        console.log(`📍 Haversine calculation found ${nearbyHospitals.length} hospitals within 25km`);
+        
+        // Log some example distances for debugging
+        if (nearbyHospitals.length > 0) {
+          console.log(`📍 Sample distances: ${nearbyHospitals.slice(0, 3).map(h => `${h.hospitalName}: ${h._distanceKm.toFixed(2)}km`).join(', ')}`);
+        }
       }
-    }
 
-    // Last resort: Get all active hospitals if still none found
-    if (!nearbyHospitals || nearbyHospitals.length === 0) {
-      console.log(`⚠️ No hospitals found in radius, getting all active hospitals`);
-      
-      try {
-        const allHospitals = await Hospital.find({ 
-          isApproved: true, 
-          status: 'active' 
-        })
-          .select('uid hospitalName primaryPhone email address location geoCoordinates longitude latitude city hospitalCity')
-          .limit(100) // Limit to prevent too many notifications
-          .lean();
-          
-        nearbyHospitals = allHospitals || [];
-        console.log(`📍 Last resort: Found ${nearbyHospitals.length} total active hospitals`);
-      } catch (lastResortErr) {
-        console.error('❌ Last resort search failed:', lastResortErr.message);
-        nearbyHospitals = [];
+      // If still no hospitals found, expand search to 50km
+      if (!nearbyHospitals || nearbyHospitals.length === 0) {
+        console.log(`⚠️ No hospitals found within 25km, expanding to 50km`);
+        
+        try {
+          const expandedCandidates = await Hospital.find({ 
+            status: 'active', 
+            isApproved: true 
+          })
+            .select('uid hospitalName primaryPhone email address location geoCoordinates longitude latitude city hospitalCity')
+            .limit(1000)
+            .lean();
+            
+          nearbyHospitals = expandedCandidates
+            .map(h => {
+              const hLon = h?.location?.coordinates?.[0] ?? h?.longitude ?? h?.geoCoordinates?.lng;
+              const hLat = h?.location?.coordinates?.[1] ?? h?.latitude ?? h?.geoCoordinates?.lat;
+              if (typeof hLon === 'number' && typeof hLat === 'number' && !isNaN(hLon) && !isNaN(hLat)) {
+                const d = calculateDistance([lon, lat], [hLon, hLat]);
+                return { ...h, _distanceKm: d };
+              }
+              return null;
+            })
+            .filter(Boolean)
+            .filter(h => h._distanceKm <= 50) // Fallback: 50km
+            .sort((a, b) => a._distanceKm - b._distanceKm);
+            
+          console.log(`📍 Expanded search found ${nearbyHospitals.length} hospitals within 50km`);
+        } catch (expandedErr) {
+          console.error('❌ Expanded search failed:', expandedErr.message);
+          nearbyHospitals = [];
+        }
+      }
+
+      // Last resort: Get all active hospitals if still none found
+      if (!nearbyHospitals || nearbyHospitals.length === 0) {
+        console.log(`⚠️ No hospitals found in radius, getting all active hospitals`);
+        
+        try {
+          const allHospitals = await Hospital.find({ 
+            isApproved: true, 
+            status: 'active' 
+          })
+            .select('uid hospitalName primaryPhone email address location geoCoordinates longitude latitude city hospitalCity')
+            .limit(200) // Increased limit
+            .lean();
+            
+          nearbyHospitals = allHospitals || [];
+          console.log(`📍 Last resort: Found ${nearbyHospitals.length} total active hospitals`);
+        } catch (lastResortErr) {
+          console.error('❌ Last resort search failed:', lastResortErr.message);
+          nearbyHospitals = [];
+        }
       }
     }
     
@@ -887,6 +934,199 @@ const confirmHospitalReached = async (req, res) => {
   }
 };
 
+// SOS Escalation System - Handle automatic emergency calls and retries
+const handleSOSEscalation = async (req, res) => {
+  try {
+    const { sosRequestId } = req.params;
+    
+    console.log(`🚨 Handling SOS escalation for request: ${sosRequestId}`);
+    
+    // Find the SOS request
+    const sosRequest = await SOSRequest.findById(sosRequestId);
+    if (!sosRequest) {
+      return res.status(404).json({
+        success: false,
+        message: 'SOS request not found'
+      });
+    }
+    
+    // Check if SOS is still active (not cancelled, not completed)
+    const activeStatuses = ['pending', 'accepted', 'hospitalReached'];
+    if (!activeStatuses.includes(sosRequest.status)) {
+      console.log(`⚠️ SOS request ${sosRequestId} is no longer active (status: ${sosRequest.status})`);
+      return res.status(200).json({
+        success: true,
+        message: 'SOS request is no longer active',
+        action: 'none'
+      });
+    }
+    
+    // Check if any hospital has accepted
+    const acceptedHospital = await HospitalSOS.findOne({
+      sosRequestId: sosRequestId,
+      hospitalStatus: { $in: ['accepted', 'hospitalReached', 'admitted'] }
+    });
+    
+    if (acceptedHospital) {
+      console.log(`✅ Hospital ${acceptedHospital.hospitalId} has already accepted SOS ${sosRequestId}`);
+      return res.status(200).json({
+        success: true,
+        message: 'Hospital has already accepted the SOS',
+        action: 'none',
+        acceptedHospital: acceptedHospital.hospitalId
+      });
+    }
+    
+    // Check timeout - if more than 2 minutes have passed
+    const now = new Date();
+    const timeSinceCreation = now - sosRequest.createdAt;
+    const twoMinutes = 2 * 60 * 1000; // 2 minutes in milliseconds
+    
+    let action = 'none';
+    let emergencyCalls = [];
+    
+    if (timeSinceCreation >= twoMinutes) {
+      console.log(`⏰ SOS ${sosRequestId} timeout reached (${Math.round(timeSinceCreation / 1000)}s)`);
+      
+      // Trigger emergency calls
+      action = 'emergency_calls';
+      emergencyCalls = [
+        {
+          number: '123',
+          type: 'emergency_services',
+          triggered: true,
+          reason: 'No hospital response within 2 minutes'
+        }
+      ];
+      
+      // Add emergency contact call if available
+      if (sosRequest.emergencyContact && sosRequest.emergencyContact.phone) {
+        emergencyCalls.push({
+          number: sosRequest.emergencyContact.phone,
+          type: 'emergency_contact',
+          triggered: true,
+          reason: 'Emergency contact notification'
+        });
+      }
+      
+      // Update SOS request with escalation info
+      sosRequest.escalationTriggered = true;
+      sosRequest.escalationTriggeredAt = now;
+      sosRequest.emergencyCallsTriggered = emergencyCalls;
+      await sosRequest.save();
+      
+      console.log(`🚨 Emergency calls triggered for SOS ${sosRequestId}:`, emergencyCalls);
+    }
+    
+    // Check if we should retry SOS request (every 5 minutes)
+    const lastRetry = sosRequest.lastRetryAt || sosRequest.createdAt;
+    const timeSinceLastRetry = now - lastRetry;
+    const fiveMinutes = 5 * 60 * 1000; // 5 minutes in milliseconds
+    
+    let shouldRetry = false;
+    if (timeSinceLastRetry >= fiveMinutes && !acceptedHospital) {
+      console.log(`🔄 Retrying SOS request ${sosRequestId} (${Math.round(timeSinceLastRetry / 1000)}s since last retry)`);
+      
+      // Retry by updating timeout and re-notifying hospitals
+      sosRequest.timeoutAt = new Date(now.getTime() + 2 * 60 * 1000); // Reset 2-minute timeout
+      sosRequest.lastRetryAt = now;
+      sosRequest.retryCount = (sosRequest.retryCount || 0) + 1;
+      await sosRequest.save();
+      
+      // Re-notify hospitals
+      await ensureHospitalSOSForRequest(
+        sosRequest,
+        { longitude: sosRequest.location.coordinates[0], latitude: sosRequest.location.coordinates[1] },
+        sosRequest.address,
+        sosRequest.city,
+        sosRequest.state,
+        sosRequest.pincode,
+        sosRequest.emergencyType,
+        sosRequest.description,
+        sosRequest.severity
+      );
+      
+      shouldRetry = true;
+      action = action === 'none' ? 'retry' : action + '_and_retry';
+      
+      console.log(`🔄 SOS request ${sosRequestId} retried (attempt ${sosRequest.retryCount})`);
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: 'SOS escalation handled',
+      data: {
+        sosRequestId: sosRequestId,
+        status: sosRequest.status,
+        action: action,
+        emergencyCalls: emergencyCalls,
+        shouldRetry: shouldRetry,
+        retryCount: sosRequest.retryCount || 0,
+        timeSinceCreation: Math.round(timeSinceCreation / 1000),
+        timeSinceLastRetry: Math.round(timeSinceLastRetry / 1000)
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error handling SOS escalation:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to handle SOS escalation',
+      error: error.message
+    });
+  }
+};
+
+// Get SOS escalation status
+const getSOSEscalationStatus = async (req, res) => {
+  try {
+    const { sosRequestId } = req.params;
+    
+    const sosRequest = await SOSRequest.findById(sosRequestId);
+    if (!sosRequest) {
+      return res.status(404).json({
+        success: false,
+        message: 'SOS request not found'
+      });
+    }
+    
+    const now = new Date();
+    const timeSinceCreation = now - sosRequest.createdAt;
+    const timeSinceLastRetry = sosRequest.lastRetryAt ? now - sosRequest.lastRetryAt : timeSinceCreation;
+    
+    // Check if any hospital has accepted
+    const acceptedHospital = await HospitalSOS.findOne({
+      sosRequestId: sosRequestId,
+      hospitalStatus: { $in: ['accepted', 'hospitalReached', 'admitted'] }
+    });
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        sosRequestId: sosRequestId,
+        status: sosRequest.status,
+        escalationTriggered: sosRequest.escalationTriggered || false,
+        escalationTriggeredAt: sosRequest.escalationTriggeredAt,
+        emergencyCallsTriggered: sosRequest.emergencyCallsTriggered || [],
+        retryCount: sosRequest.retryCount || 0,
+        lastRetryAt: sosRequest.lastRetryAt,
+        timeSinceCreation: Math.round(timeSinceCreation / 1000),
+        timeSinceLastRetry: Math.round(timeSinceLastRetry / 1000),
+        hasAcceptedHospital: !!acceptedHospital,
+        acceptedHospitalId: acceptedHospital?.hospitalId
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error getting SOS escalation status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get SOS escalation status',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createSOSRequest,
   getHospitalSOSRequests,
@@ -897,6 +1137,8 @@ module.exports = {
   getPatientSOSHistory,
   cancelSOSRequest,
   getSOSStatistics,
-  getSOSRequestById
+  getSOSRequestById,
+  handleSOSEscalation,
+  getSOSEscalationStatus,
 };
 

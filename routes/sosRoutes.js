@@ -30,6 +30,10 @@ router.post('/cancel/:sosRequestId', verifyFirebaseToken, sosController.cancelSO
 // Get SOS request by id (for polling)
 router.get('/request/:sosRequestId', verifyFirebaseToken, sosController.getSOSRequestById);
 
+// SOS Escalation System
+router.post('/escalate/:sosRequestId', verifyFirebaseToken, sosController.handleSOSEscalation);
+router.get('/escalation-status/:sosRequestId', verifyFirebaseToken, sosController.getSOSEscalationStatus);
+
 // Get SOS statistics
 router.get('/statistics/:hospitalId', verifyFirebaseToken, sosController.getSOSStatistics);
 
