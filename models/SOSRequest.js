@@ -83,7 +83,7 @@ const SOSRequestSchema = new mongoose.Schema({
   // Status Tracking
   status: {
     type: String,
-    enum: ['pending', 'accepted', 'admitted', 'cancelled', 'timeout'],
+    enum: ['pending', 'accepted', 'admitted', 'discharged', 'cancelled', 'timeout'],
     default: 'pending',
     index: true
   },
