@@ -389,10 +389,10 @@ const createSOSRequest = async (req, res) => {
     await ensureHospitalSOSForRequest(
       sosRequest,
       location,
-      address,
-      city,
-      state,
-      pincode,
+            address,
+            city,
+            state,
+            pincode,
       emergencyType,
       description,
       severity
@@ -1381,6 +1381,106 @@ const getCoordinationStatus = async (req, res) => {
   }
 };
 
+// Discharge patient from hospital
+const dischargePatient = async (req, res) => {
+  try {
+    const { hospitalId } = req.params;
+    const { sosRequestId, dischargeDetails } = req.body;
+    
+    console.log(`🏥 Discharging patient from hospital: ${hospitalId}`);
+    console.log(`📋 SOS Request ID: ${sosRequestId}`);
+    console.log(`📋 Discharge Details:`, dischargeDetails);
+    
+    // Find the SOS request
+    const sosRequest = await SOSRequest.findById(sosRequestId);
+    if (!sosRequest) {
+      return res.status(404).json({
+        success: false,
+        message: 'SOS request not found'
+      });
+    }
+    
+    // Find the hospital SOS record
+    const hospitalSOS = await HospitalSOS.findOne({
+      sosRequestId: sosRequestId,
+      hospitalId: hospitalId
+    });
+    
+    if (!hospitalSOS) {
+      return res.status(404).json({
+        success: false,
+        message: 'Hospital SOS record not found'
+      });
+    }
+    
+    // Check if patient is actually admitted
+    if (hospitalSOS.hospitalStatus !== 'admitted') {
+      return res.status(400).json({
+        success: false,
+        message: 'Patient is not admitted to this hospital'
+      });
+    }
+    
+    // Update hospital SOS status to discharged
+    hospitalSOS.hospitalStatus = 'discharged';
+    hospitalSOS.dischargeDetails = {
+      dischargedAt: new Date(),
+      dischargedBy: req.user.uid, // Hospital staff who discharged
+      dischargeReason: dischargeDetails.dischargeReason || 'Treatment completed',
+      dischargeNotes: dischargeDetails.dischargeNotes || '',
+      followUpRequired: dischargeDetails.followUpRequired || false,
+      followUpDate: dischargeDetails.followUpDate || null,
+      medications: dischargeDetails.medications || [],
+      instructions: dischargeDetails.instructions || ''
+    };
+    
+    await hospitalSOS.save();
+    
+    // Update main SOS request status
+    sosRequest.status = 'discharged';
+    sosRequest.dischargedAt = new Date();
+    sosRequest.dischargedBy = hospitalId;
+    await sosRequest.save();
+    
+    // Update all other hospitals to show patient discharged
+    await HospitalSOS.updateMany(
+      {
+        sosRequestId: sosRequestId,
+        hospitalId: { $ne: hospitalId }
+      },
+      {
+        $set: {
+          hospitalStatus: 'patientDischarged',
+          patientDischargedAt: new Date(),
+          dischargedByHospital: hospitalId
+        }
+      }
+    );
+    
+    console.log(`✅ Patient successfully discharged from hospital ${hospitalId}`);
+    
+    res.status(200).json({
+      success: true,
+      message: 'Patient discharged successfully',
+      data: {
+        sosRequestId: sosRequestId,
+        hospitalId: hospitalId,
+        dischargeDetails: hospitalSOS.dischargeDetails,
+        dischargedAt: hospitalSOS.dischargeDetails.dischargedAt,
+        status: 'discharged'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error discharging patient:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to discharge patient',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createSOSRequest,
   getHospitalSOSRequests,
@@ -1396,5 +1496,6 @@ module.exports = {
   getSOSEscalationStatus,
   handleEmergencyCoordination,
   getCoordinationStatus,
+  dischargePatient,
 };
 
