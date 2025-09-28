@@ -789,16 +789,46 @@ const getNearbyHospitals = async (req, res) => {
       // Filter hospitals by distance
       const hospitalsWithDistance = hospitals
         .map(hospital => {
-          if (hospital.geoCoordinates && hospital.geoCoordinates.lat && hospital.geoCoordinates.lng) {
-            const distance = _calculateDistance(
-              lat, lng, 
-              hospital.geoCoordinates.lat, hospital.geoCoordinates.lng
-            );
+          // Try different coordinate formats
+          let hospitalLat, hospitalLng;
+          
+          if (hospital.geoCoordinates) {
+            // Format 1: geoCoordinates.lat/lng
+            if (hospital.geoCoordinates.lat && hospital.geoCoordinates.lng) {
+              hospitalLat = hospital.geoCoordinates.lat;
+              hospitalLng = hospital.geoCoordinates.lng;
+            }
+            // Format 2: geoCoordinates.latitude/longitude
+            else if (hospital.geoCoordinates.latitude && hospital.geoCoordinates.longitude) {
+              hospitalLat = hospital.geoCoordinates.latitude;
+              hospitalLng = hospital.geoCoordinates.longitude;
+            }
+          }
+          
+          // Format 3: Direct latitude/longitude fields
+          if (!hospitalLat && !hospitalLng) {
+            if (hospital.latitude && hospital.longitude) {
+              hospitalLat = hospital.latitude;
+              hospitalLng = hospital.longitude;
+            }
+          }
+          
+          // Format 4: location.coordinates [lng, lat]
+          if (!hospitalLat && !hospitalLng && hospital.location && hospital.location.coordinates) {
+            const coords = hospital.location.coordinates;
+            if (Array.isArray(coords) && coords.length === 2) {
+              hospitalLng = coords[0];
+              hospitalLat = coords[1];
+            }
+          }
+          
+          if (hospitalLat && hospitalLng) {
+            const distance = _calculateDistance(lat, lng, hospitalLat, hospitalLng);
             return { ...hospital.toObject(), distance };
           }
           return null;
         })
-        .where((hospital) => hospital != null && hospital.distance <= radiusKm)
+        .filter((hospital) => hospital != null && hospital.distance <= radiusKm)
         .sort((a, b) => a.distance - b.distance);
       
       console.log(`📍 Sample hospital data:`, hospitalsWithDistance.slice(0, 2).map(h => ({
@@ -827,11 +857,42 @@ const getNearbyHospitals = async (req, res) => {
       // Calculate distances for city/pincode hospitals if coordinates are available
       const hospitalsWithDistance = hospitals.map(hospital => {
         const hospitalObj = hospital.toObject();
-        if (hospital.geoCoordinates && hospital.geoCoordinates.lat && hospital.geoCoordinates.lng) {
-          const distance = _calculateDistance(
-            lat || 0, lng || 0, 
-            hospital.geoCoordinates.lat, hospital.geoCoordinates.lng
-          );
+        
+        // Try different coordinate formats
+        let hospitalLat, hospitalLng;
+        
+        if (hospital.geoCoordinates) {
+          // Format 1: geoCoordinates.lat/lng
+          if (hospital.geoCoordinates.lat && hospital.geoCoordinates.lng) {
+            hospitalLat = hospital.geoCoordinates.lat;
+            hospitalLng = hospital.geoCoordinates.lng;
+          }
+          // Format 2: geoCoordinates.latitude/longitude
+          else if (hospital.geoCoordinates.latitude && hospital.geoCoordinates.longitude) {
+            hospitalLat = hospital.geoCoordinates.latitude;
+            hospitalLng = hospital.geoCoordinates.longitude;
+          }
+        }
+        
+        // Format 3: Direct latitude/longitude fields
+        if (!hospitalLat && !hospitalLng) {
+          if (hospital.latitude && hospital.longitude) {
+            hospitalLat = hospital.latitude;
+            hospitalLng = hospital.longitude;
+          }
+        }
+        
+        // Format 4: location.coordinates [lng, lat]
+        if (!hospitalLat && !hospitalLng && hospital.location && hospital.location.coordinates) {
+          const coords = hospital.location.coordinates;
+          if (Array.isArray(coords) && coords.length === 2) {
+            hospitalLng = coords[0];
+            hospitalLat = coords[1];
+          }
+        }
+        
+        if (hospitalLat && hospitalLng && lat && lng) {
+          const distance = _calculateDistance(lat, lng, hospitalLat, hospitalLng);
           hospitalObj.distance = distance;
         }
         return hospitalObj;
@@ -851,11 +912,42 @@ const getNearbyHospitals = async (req, res) => {
       // Calculate distances for all hospitals if coordinates are available
       const hospitalsWithDistance = hospitals.map(hospital => {
         const hospitalObj = hospital.toObject();
-        if (hospital.geoCoordinates && hospital.geoCoordinates.lat && hospital.geoCoordinates.lng) {
-          const distance = _calculateDistance(
-            lat || 0, lng || 0, 
-            hospital.geoCoordinates.lat, hospital.geoCoordinates.lng
-          );
+        
+        // Try different coordinate formats
+        let hospitalLat, hospitalLng;
+        
+        if (hospital.geoCoordinates) {
+          // Format 1: geoCoordinates.lat/lng
+          if (hospital.geoCoordinates.lat && hospital.geoCoordinates.lng) {
+            hospitalLat = hospital.geoCoordinates.lat;
+            hospitalLng = hospital.geoCoordinates.lng;
+          }
+          // Format 2: geoCoordinates.latitude/longitude
+          else if (hospital.geoCoordinates.latitude && hospital.geoCoordinates.longitude) {
+            hospitalLat = hospital.geoCoordinates.latitude;
+            hospitalLng = hospital.geoCoordinates.longitude;
+          }
+        }
+        
+        // Format 3: Direct latitude/longitude fields
+        if (!hospitalLat && !hospitalLng) {
+          if (hospital.latitude && hospital.longitude) {
+            hospitalLat = hospital.latitude;
+            hospitalLng = hospital.longitude;
+          }
+        }
+        
+        // Format 4: location.coordinates [lng, lat]
+        if (!hospitalLat && !hospitalLng && hospital.location && hospital.location.coordinates) {
+          const coords = hospital.location.coordinates;
+          if (Array.isArray(coords) && coords.length === 2) {
+            hospitalLng = coords[0];
+            hospitalLat = coords[1];
+          }
+        }
+        
+        if (hospitalLat && hospitalLng && lat && lng) {
+          const distance = _calculateDistance(lat, lng, hospitalLat, hospitalLng);
           hospitalObj.distance = distance;
         }
         return hospitalObj;
