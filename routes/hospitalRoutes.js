@@ -3,6 +3,7 @@ const { authenticateToken } = require('../middleware/auth');
 const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
 const hospitalController = require('../controllers/hospitalController');
 const hospitalLocationController = require('../controllers/hospitalLocationController');
+const sosController = require('../controllers/sosController');
 const router = express.Router();
 
 // Public route to get all approved hospitals (for appointment booking)
@@ -22,6 +23,16 @@ router.post('/:hospitalId/reject', firebaseAuthMiddleware, hospitalController.re
 
 // Get nearby hospitals for SOS - MUST BE BEFORE :id ROUTES
 router.get('/nearby', firebaseAuthMiddleware, hospitalController.getNearbyHospitals);
+
+// Admin/Staff: synchronize hospital coordinates across fields (debug/maintenance)
+router.post('/sync-coordinates', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    const result = await sosController.synchronizeHospitalCoordinates();
+    return res.status(200).json({ success: true, ...result });
+  } catch (e) {
+    return res.status(500).json({ success: false, error: e.message });
+  }
+});
 
 // Get hospital by UID (for login) - MUST BE BEFORE GENERIC :id ROUTES
 router.get('/uid/:uid', firebaseAuthMiddleware, hospitalController.getHospitalProfile);
