@@ -761,7 +761,7 @@ const rejectHospitalByStaff = async (req, res) => {
 // Get nearby hospitals for SOS based on location
 const getNearbyHospitals = async (req, res) => {
   try {
-    const { latitude, longitude, city, pincode, radius = 10 } = req.query;
+    const { latitude, longitude, city, pincode, radius = 15 } = req.query;
     const firebaseUser = req.user;
     
     if (!firebaseUser || !firebaseUser.uid) {
@@ -847,11 +847,58 @@ const getNearbyHospitals = async (req, res) => {
       })));
       
       console.log(`✅ Found ${hospitalsWithDistance.length} hospitals within ${radiusKm}km`);
-      
-      res.json({
+
+      // Fallback: if none found within provided radius (default 15km), expand to 25km
+      if (hospitalsWithDistance.length === 0 && (isNaN(radiusKm) || radiusKm <= 15)) {
+        const fallbackKm = 25;
+        const hospitals25 = hospitals
+          .map(hospital => {
+            let hospitalLat, hospitalLng;
+            if (hospital.geoCoordinates) {
+              if (hospital.geoCoordinates.lat && hospital.geoCoordinates.lng) {
+                hospitalLat = hospital.geoCoordinates.lat;
+                hospitalLng = hospital.geoCoordinates.lng;
+              } else if (hospital.geoCoordinates.latitude && hospital.geoCoordinates.longitude) {
+                hospitalLat = hospital.geoCoordinates.latitude;
+                hospitalLng = hospital.geoCoordinates.longitude;
+              }
+            }
+            if (!hospitalLat && !hospitalLng) {
+              if (hospital.latitude && hospital.longitude) {
+                hospitalLat = hospital.latitude;
+                hospitalLng = hospital.longitude;
+              }
+            }
+            if (!hospitalLat && !hospitalLng && hospital.location && hospital.location.coordinates) {
+              const coords = hospital.location.coordinates;
+              if (Array.isArray(coords) && coords.length === 2) {
+                hospitalLng = coords[0];
+                hospitalLat = coords[1];
+              }
+            }
+            if (hospitalLat && hospitalLng) {
+              const distance = _calculateDistance(lat, lng, hospitalLat, hospitalLng);
+              return { ...hospital.toObject(), distance };
+            }
+            return null;
+          })
+          .filter((h) => h != null && h.distance <= fallbackKm)
+          .sort((a, b) => a.distance - b.distance);
+
+        console.log(`📍 Fallback 25km found ${hospitals25.length} hospitals`);
+        return res.json({
+          success: true,
+          data: hospitals25,
+          count: hospitals25.length,
+          radiusUsedKm: hospitals25.length > 0 ? fallbackKm : radiusKm
+        });
+      }
+
+      return res.json({
         success: true,
         data: hospitalsWithDistance,
-        count: hospitalsWithDistance.length
+        count: hospitalsWithDistance.length,
+        radiusUsedKm: radiusKm
       });
     } else if (city || pincode) {
       // Fallback to city/pincode search
@@ -1346,13 +1393,28 @@ const getAllApprovedHospitals = async (req, res) => {
       isApproved: true,
       status: 'active'
     }).select(
-      'uid hospitalName hospitalType address city state pincode numberOfBeds departments specialFacilities hasPharmacy hasLab averageRating totalRatings'
+      'uid hospitalName hospitalType address city state pincode numberOfBeds departments specialFacilities hasPharmacy hasLab averageRating totalRatings longitude latitude geoCoordinates location'
     ).lean();
 
     console.log(`✅ Found ${hospitals.length} approved hospitals`);
 
     // Transform data for frontend
-    const transformedHospitals = hospitals.map(hospital => ({
+    const transformedHospitals = hospitals.map(hospital => {
+      // Resolve coordinates from any supported format
+      let lat = undefined;
+      let lng = undefined;
+      if (hospital.geoCoordinates && typeof hospital.geoCoordinates.lat === 'number' && typeof hospital.geoCoordinates.lng === 'number') {
+        lat = hospital.geoCoordinates.lat;
+        lng = hospital.geoCoordinates.lng;
+      } else if (typeof hospital.latitude === 'number' && typeof hospital.longitude === 'number') {
+        lat = hospital.latitude;
+        lng = hospital.longitude;
+      } else if (hospital.location && Array.isArray(hospital.location.coordinates) && hospital.location.coordinates.length === 2) {
+        lng = hospital.location.coordinates[0];
+        lat = hospital.location.coordinates[1];
+      }
+
+      return ({
       uid: hospital.uid,
       fullName: hospital.hospitalName,
       hospitalName: hospital.hospitalName,
@@ -1369,8 +1431,10 @@ const getAllApprovedHospitals = async (req, res) => {
       averageRating: hospital.averageRating || 0,
       totalRatings: hospital.totalRatings || 0,
       // Add location info for easy access
-      location: `${hospital.address}, ${hospital.city}, ${hospital.state} - ${hospital.pincode}`
-    }));
+      location: `${hospital.address}, ${hospital.city}, ${hospital.state} - ${hospital.pincode}`,
+      coordinates: lat !== undefined && lng !== undefined ? { latitude: lat, longitude: lng } : undefined,
+    });
+    });
 
     res.json({
       success: true,

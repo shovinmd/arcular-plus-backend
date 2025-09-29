@@ -150,7 +150,7 @@ async function ensureHospitalSOSForRequest(
       console.log(`✅ Valid high-precision coordinates: lat=${lat.toFixed(15)}, lon=${lon.toFixed(15)}`);
       
       try {
-        // Try geo $near if index exists - PRIMARY RADIUS 25KM
+        // Try geo $near if index exists - PRIMARY RADIUS 15KM
         nearbyHospitals = await Hospital.find({
           status: 'active',
           isApproved: true,
