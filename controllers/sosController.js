@@ -699,14 +699,26 @@ const acceptSOSRequest = async (req, res) => {
       await hospitalSOS.save();
     }
 
-    // Update all other hospitals to "handledByOther"
+    // Update all other hospitals to "handledByOther" and attach acceptance info
+    const acceptanceInfo = {
+      acceptedByHospitalId: hospitalId,
+      acceptedByHospitalName: staffInfo.hospitalName,
+      acceptedByStaff: staffInfo,
+      acceptedAt: new Date(),
+      patientName: sosRequest.patientName,
+      patientPhone: sosRequest.patientPhone,
+      emergencyType: sosRequest.emergencyType || sosRequest.description || 'Medical',
+    };
     await HospitalSOS.updateMany(
       {
         sosRequestId,
         hospitalId: { $ne: hospitalId }
       },
       {
-        $set: { hospitalStatus: 'handledByOther' }
+        $set: { 
+          hospitalStatus: 'handledByOther',
+          handledByOtherDetails: acceptanceInfo
+        }
       }
     );
 

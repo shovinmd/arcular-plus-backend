@@ -96,6 +96,18 @@ router.get('/:id/qr-records', firebaseAuthMiddleware, hospitalController.getQrRe
 router.get('/qr/:identifier', hospitalController.getHospitalByQr);
 router.get('/qr/uid/:uid', hospitalController.getHospitalByUid);
 
+// Add: fetch hospital SOS log (recent actions and handledByOther details)
+router.get('/:hospitalId/sos-log', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    const { hospitalId } = req.params;
+    const { limit } = req.query;
+    const result = await sosController.getHospitalSOSLog(req, res);
+    return result;
+  } catch (e) {
+    return res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 
 // Analytics
 router.get('/:id/analytics', firebaseAuthMiddleware, hospitalController.getAnalytics);
