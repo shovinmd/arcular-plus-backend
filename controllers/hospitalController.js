@@ -6,6 +6,7 @@ const {
   sendApprovalEmail, 
   sendWelcomeEmail 
 } = require('../services/emailService');
+const fetch = require('node-fetch');
 
 // --- Coordinate utilities (normalize and write in all formats)
 function normalizeLonLat(rawLon, rawLat, hints) {
@@ -818,7 +819,7 @@ const rejectHospitalByStaff = async (req, res) => {
 // Get nearby hospitals for SOS based on location
 const getNearbyHospitals = async (req, res) => {
   try {
-    const { latitude, longitude, city, pincode, radius = 15 } = req.query;
+    const { latitude, longitude, city, pincode, radius = 15, distanceMode } = req.query;
     const firebaseUser = req.user;
     
     if (!firebaseUser || !firebaseUser.uid) {
@@ -850,7 +851,7 @@ const getNearbyHospitals = async (req, res) => {
       const hospitals = await Hospital.find(query);
       
       // Filter hospitals by distance with coordinate normalization
-      const hospitalsWithDistance = hospitals
+      let hospitalsWithDistance = hospitals
         .map(hospital => {
           // Try different coordinate formats
           let hospitalLat, hospitalLng;
@@ -899,12 +900,43 @@ const getNearbyHospitals = async (req, res) => {
         distance: h.distance
       })));
       
-      console.log(`✅ Found ${hospitalsWithDistance.length} hospitals within ${radiusKm}km`);
+      // Optional: replace straight-line with driving distance via Google Distance Matrix
+      if (distanceMode === 'driving' && process.env.GOOGLE_MAPS_API_KEY && hospitalsWithDistance.length > 0) {
+        try {
+          const key = process.env.GOOGLE_MAPS_API_KEY;
+          const origins = `${lat},${lng}`;
+          // Join first 25 destinations per request (API limit). For simplicity, handle up to 25.
+          const top = hospitalsWithDistance.slice(0, 25);
+          const destinations = top.map(h => `${h.location?.coordinates?.[1] ?? h.latitude},${h.location?.coordinates?.[0] ?? h.longitude}`).join('|');
+          const url = `https://maps.googleapis.com/maps/api/distancematrix/json?units=metric&origins=${encodeURIComponent(origins)}&destinations=${encodeURIComponent(destinations)}&mode=driving&key=${key}`;
+          const resp = await fetch(url);
+          const data = await resp.json();
+          if (data.status === 'OK' && data.rows && data.rows[0] && Array.isArray(data.rows[0].elements)) {
+            data.rows[0].elements.forEach((el, idx) => {
+              if (el.status === 'OK') {
+                top[idx].drivingDistanceKm = (el.distance.value || 0) / 1000;
+                top[idx].drivingDurationSec = (el.duration.value || 0);
+              }
+            });
+            // Merge enriched entries back
+            hospitalsWithDistance = top
+              .filter(h => typeof h.drivingDistanceKm === 'number')
+              .filter(h => h.drivingDistanceKm <= radiusKm)
+              .sort((a, b) => a.drivingDistanceKm - b.drivingDistanceKm);
+          } else {
+            console.log('⚠️ Distance Matrix returned non-OK status, using straight-line distances');
+          }
+        } catch (gErr) {
+          console.log('⚠️ Driving distance fetch failed, using straight-line distances:', gErr.message);
+        }
+      }
+
+      console.log(`✅ Found ${hospitalsWithDistance.length} hospitals within ${radiusKm}km (${distanceMode === 'driving' ? 'driving' : 'air'})`);
 
       // Fallback: if none found within provided radius (default 15km), expand to 25km
       if (hospitalsWithDistance.length === 0 && (isNaN(radiusKm) || radiusKm <= 15)) {
         const fallbackKm = 25;
-        const hospitals25 = hospitals
+        let hospitals25 = hospitals
           .map(hospital => {
             let hospitalLat, hospitalLng;
             if (hospital.geoCoordinates) {
@@ -937,6 +969,32 @@ const getNearbyHospitals = async (req, res) => {
           })
           .filter((h) => h != null && h.distance <= fallbackKm)
           .sort((a, b) => a.distance - b.distance);
+
+        if (distanceMode === 'driving' && process.env.GOOGLE_MAPS_API_KEY && hospitals25.length > 0) {
+          try {
+            const key = process.env.GOOGLE_MAPS_API_KEY;
+            const origins = `${lat},${lng}`;
+            const top = hospitals25.slice(0, 25);
+            const destinations = top.map(h => `${h.location?.coordinates?.[1] ?? h.latitude},${h.location?.coordinates?.[0] ?? h.longitude}`).join('|');
+            const url = `https://maps.googleapis.com/maps/api/distancematrix/json?units=metric&origins=${encodeURIComponent(origins)}&destinations=${encodeURIComponent(destinations)}&mode=driving&key=${key}`;
+            const resp = await fetch(url);
+            const data = await resp.json();
+            if (data.status === 'OK' && data.rows && data.rows[0] && Array.isArray(data.rows[0].elements)) {
+              data.rows[0].elements.forEach((el, idx) => {
+                if (el.status === 'OK') {
+                  top[idx].drivingDistanceKm = (el.distance.value || 0) / 1000;
+                  top[idx].drivingDurationSec = (el.duration.value || 0);
+                }
+              });
+              hospitals25 = top
+                .filter(h => typeof h.drivingDistanceKm === 'number')
+                .filter(h => h.drivingDistanceKm <= fallbackKm)
+                .sort((a, b) => a.drivingDistanceKm - b.drivingDistanceKm);
+            }
+          } catch (e) {
+            console.log('⚠️ Driving distance fallback fetch failed:', e.message);
+          }
+        }
 
         console.log(`📍 Fallback 25km found ${hospitals25.length} hospitals`);
         return res.json({
