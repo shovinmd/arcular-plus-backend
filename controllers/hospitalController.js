@@ -7,6 +7,45 @@ const {
   sendWelcomeEmail 
 } = require('../services/emailService');
 
+// --- Coordinate utilities (normalize and write in all formats)
+function normalizeLonLat(rawLon, rawLat, hints) {
+  const toNum = (v) => (typeof v === 'string' ? parseFloat(v) : v);
+  let lon = toNum(rawLon);
+  let lat = toNum(rawLat);
+  const isValidLat = (v) => typeof v === 'number' && !isNaN(v) && Math.abs(v) <= 90;
+  const isValidLon = (v) => typeof v === 'number' && !isNaN(v) && Math.abs(v) <= 180;
+  if (isValidLon(lon) && isValidLat(lat)) return { lon, lat };
+  if (isValidLon(lat) && isValidLat(lon)) return { lon: lat, lat: lon };
+  if (hints && isValidLon(hints.lng) && isValidLat(hints.lat)) return { lon: hints.lng, lat: hints.lat };
+  return { lon: undefined, lat: undefined };
+}
+
+function extractAndNormalizeFromBody(body) {
+  const geo = body.geoCoordinates || {};
+  // Accept multiple naming variants
+  const candidates = [
+    { lon: body.longitude, lat: body.latitude },
+    { lon: geo.lng, lat: geo.lat },
+    { lon: geo.longitude, lat: geo.latitude },
+    Array.isArray(body.location?.coordinates) && body.location.coordinates.length === 2
+      ? { lon: body.location.coordinates[0], lat: body.location.coordinates[1] }
+      : null,
+  ].filter(Boolean);
+  let normalized = { lon: undefined, lat: undefined };
+  for (const c of candidates) {
+    normalized = normalizeLonLat(c.lon, c.lat, { lng: geo.lng, lat: geo.lat });
+    if (normalized.lon !== undefined && normalized.lat !== undefined) break;
+  }
+  return normalized;
+}
+
+function writeAllCoordFormats(target, lon, lat) {
+  target.longitude = lon;
+  target.latitude = lat;
+  target.geoCoordinates = { lng: lon, lat: lat };
+  target.location = { type: 'Point', coordinates: [lon, lat] };
+}
+
 const REQUIRED_HOSPITAL_FIELDS = [
   'hospitalOwnerName', 'email', 'mobileNumber', 'hospitalName', 'registrationNumber', 'hospitalType', 'address', 'city', 'state', 'pincode', 'numberOfBeds', 'departments', 'licenseDocumentUrl'
 ];
@@ -133,6 +172,9 @@ const registerHospital = async (req, res) => {
       // Generate QR code (using Arc ID)
       const qrCode = await QRCode.toDataURL(arcId);
       
+      // Normalize incoming coordinates and write to all formats
+      const norm = extractAndNormalizeFromBody(req.body);
+
       hospital = new Hospital({
         uid: firebaseUser.uid,
         ...req.body,
@@ -143,13 +185,22 @@ const registerHospital = async (req, res) => {
         approvalStatus: 'pending',
         createdAt: new Date(),
       });
+      if (norm.lon !== undefined && norm.lat !== undefined) {
+        writeAllCoordFormats(hospital, norm.lon, norm.lat);
+      }
       await hospital.save();
       console.log('✅ New hospital created:', hospital.hospitalName);
       console.log('🔑 Hospital UID stored:', hospital.uid);
       console.log('📧 Hospital email stored:', hospital.email);
       console.log('🌍 Stored coordinates - Longitude:', hospital.longitude, 'Latitude:', hospital.latitude);
     } else {
+      // Normalize incoming coordinates and write to all formats
+      const norm = extractAndNormalizeFromBody(req.body);
+
       Object.assign(hospital, req.body);
+      if (norm.lon !== undefined && norm.lat !== undefined) {
+        writeAllCoordFormats(hospital, norm.lon, norm.lat);
+      }
       hospital.status = 'pending';
       hospital.isApproved = false;
       hospital.approvalStatus = 'pending';
@@ -462,6 +513,12 @@ const updateHospitalProfile = async (req, res) => {
         hospital[key] = updateData[key];
       }
     });
+
+    // If coordinates provided in update, normalize and write to all formats
+    const norm = extractAndNormalizeFromBody(updateData);
+    if (norm.lon !== undefined && norm.lat !== undefined) {
+      writeAllCoordFormats(hospital, norm.lon, norm.lat);
+    }
     
     if (!hospital.arcId) {
       hospital.arcId = 'ARC-' + uuidv4().slice(0, 8).toUpperCase();

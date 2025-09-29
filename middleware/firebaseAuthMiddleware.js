@@ -10,6 +10,10 @@ module.exports = async function (req, res, next) {
   }
   const idToken = authHeader.split('Bearer ')[1];
   console.log('🔑 Token received, length:', idToken ? idToken.length : 0);
+  // DEV ONLY: print token if explicitly enabled via env flag
+  if (process.env.DEBUG_PRINT_TOKENS === 'true') {
+    console.log('🔑 Bearer token (DEV):', idToken);
+  }
   
   try {
     const decodedToken = await admin.auth().verifyIdToken(idToken);
