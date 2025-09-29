@@ -849,45 +849,41 @@ const getNearbyHospitals = async (req, res) => {
       // Note: This is a simplified approach. For production, consider using MongoDB's $geoNear
       const hospitals = await Hospital.find(query);
       
-      // Filter hospitals by distance
+      // Filter hospitals by distance with coordinate normalization
       const hospitalsWithDistance = hospitals
         .map(hospital => {
           // Try different coordinate formats
           let hospitalLat, hospitalLng;
-          
           if (hospital.geoCoordinates) {
-            // Format 1: geoCoordinates.lat/lng
             if (hospital.geoCoordinates.lat && hospital.geoCoordinates.lng) {
               hospitalLat = hospital.geoCoordinates.lat;
               hospitalLng = hospital.geoCoordinates.lng;
-            }
-            // Format 2: geoCoordinates.latitude/longitude
-            else if (hospital.geoCoordinates.latitude && hospital.geoCoordinates.longitude) {
+            } else if (hospital.geoCoordinates.latitude && hospital.geoCoordinates.longitude) {
               hospitalLat = hospital.geoCoordinates.latitude;
               hospitalLng = hospital.geoCoordinates.longitude;
             }
           }
-          
-          // Format 3: Direct latitude/longitude fields
-          if (!hospitalLat && !hospitalLng) {
+          if (hospitalLat === undefined && hospitalLng === undefined) {
             if (hospital.latitude && hospital.longitude) {
               hospitalLat = hospital.latitude;
               hospitalLng = hospital.longitude;
             }
           }
-          
-          // Format 4: location.coordinates [lng, lat]
-          if (!hospitalLat && !hospitalLng && hospital.location && hospital.location.coordinates) {
+          if (hospitalLat === undefined && hospitalLng === undefined && hospital.location && hospital.location.coordinates) {
             const coords = hospital.location.coordinates;
             if (Array.isArray(coords) && coords.length === 2) {
               hospitalLng = coords[0];
               hospitalLat = coords[1];
             }
           }
-          
-          if (hospitalLat && hospitalLng) {
-            const distance = _calculateDistance(lat, lng, hospitalLat, hospitalLng);
-            return { ...hospital.toObject(), distance };
+
+          // Normalize and validate
+          const norm = normalizeLonLat(hospitalLng, hospitalLat);
+          if (norm.lon !== undefined && norm.lat !== undefined) {
+            const distance = _calculateDistance(lat, lng, norm.lat, norm.lon);
+            if (Number.isFinite(distance)) {
+              return { ...hospital.toObject(), distance };
+            }
           }
           return null;
         })
@@ -985,7 +981,7 @@ const getNearbyHospitals = async (req, res) => {
         }
         
         // Format 3: Direct latitude/longitude fields
-        if (!hospitalLat && !hospitalLng) {
+        if (hospitalLat === undefined && hospitalLng === undefined) {
           if (hospital.latitude && hospital.longitude) {
             hospitalLat = hospital.latitude;
             hospitalLng = hospital.longitude;
@@ -993,7 +989,7 @@ const getNearbyHospitals = async (req, res) => {
         }
         
         // Format 4: location.coordinates [lng, lat]
-        if (!hospitalLat && !hospitalLng && hospital.location && hospital.location.coordinates) {
+        if (hospitalLat === undefined && hospitalLng === undefined && hospital.location && hospital.location.coordinates) {
           const coords = hospital.location.coordinates;
           if (Array.isArray(coords) && coords.length === 2) {
             hospitalLng = coords[0];
@@ -1001,8 +997,9 @@ const getNearbyHospitals = async (req, res) => {
           }
         }
         
-        if (hospitalLat && hospitalLng && lat && lng) {
-          const distance = _calculateDistance(lat, lng, hospitalLat, hospitalLng);
+        const norm = normalizeLonLat(hospitalLng, hospitalLat);
+        if (norm.lon !== undefined && norm.lat !== undefined && lat && lng) {
+          const distance = _calculateDistance(lat, lng, norm.lat, norm.lon);
           hospitalObj.distance = distance;
         }
         return hospitalObj;
