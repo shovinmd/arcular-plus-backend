@@ -31,6 +31,28 @@ const calculateDistance = (coord1, coord2) => {
   return distance;
 };
 
+// Utility: validate and normalize a pair of coordinates, auto-fixing swapped lat/lng when detected
+function normalizeLonLat(rawLon, rawLat, hints) {
+  const isValidLat = (v) => typeof v === 'number' && !isNaN(v) && Math.abs(v) <= 90;
+  const isValidLon = (v) => typeof v === 'number' && !isNaN(v) && Math.abs(v) <= 180;
+
+  let lon = typeof rawLon === 'string' ? parseFloat(rawLon) : rawLon;
+  let lat = typeof rawLat === 'string' ? parseFloat(rawLat) : rawLat;
+
+  // If both valid in their roles, keep
+  if (isValidLon(lon) && isValidLat(lat)) return { lon, lat, swapped: false };
+
+  // If swapped (common mistake), flip when that makes them valid
+  if (isValidLon(lat) && isValidLat(lon)) return { lon: lat, lat: lon, swapped: true };
+
+  // Use hints if provided (geoCoordinates preferred)
+  if (hints && isValidLon(hints.lng) && isValidLat(hints.lat)) {
+    return { lon: hints.lng, lat: hints.lat, swapped: true };
+  }
+
+  return { lon: undefined, lat: undefined, swapped: false };
+}
+
 // Utility function to synchronize hospital coordinates
 async function synchronizeHospitalCoordinates() {
   try {
@@ -50,32 +72,40 @@ async function synchronizeHospitalCoordinates() {
       
       let lon, lat;
       
-      // Determine source coordinates
+      // Determine source coordinates from any available format
+      let candidateLon, candidateLat;
       if (hasLonLat) {
-        lon = hospital.longitude;
-        lat = hospital.latitude;
-      } else if (hasGeo) {
-        lon = hospital.geoCoordinates.lng;
-        lat = hospital.geoCoordinates.lat;
-      } else if (hasLocation) {
-        lon = hospital.location.coordinates[0];
-        lat = hospital.location.coordinates[1];
+        candidateLon = hospital.longitude;
+        candidateLat = hospital.latitude;
       }
+      if (candidateLon === undefined && hasGeo) {
+        candidateLon = hospital.geoCoordinates.lng;
+        candidateLat = hospital.geoCoordinates.lat;
+      }
+      if (candidateLon === undefined && hasLocation) {
+        candidateLon = hospital.location.coordinates[0];
+        candidateLat = hospital.location.coordinates[1];
+      }
+
+      // Normalize, fixing swapped values automatically
+      const normalized = normalizeLonLat(candidateLon, candidateLat, hasGeo ? { lng: hospital.geoCoordinates.lng, lat: hospital.geoCoordinates.lat } : undefined);
+      lon = normalized.lon;
+      lat = normalized.lat;
       
       // Update missing coordinate formats
       if (typeof lon === 'number' && typeof lat === 'number') {
-        if (!hasLonLat) {
+        if (!hasLonLat || normalized.swapped) {
           updateData.longitude = lon;
           updateData.latitude = lat;
           needsUpdate = true;
         }
         
-        if (!hasGeo) {
+        if (!hasGeo || normalized.swapped) {
           updateData.geoCoordinates = { lng: lon, lat: lat };
           needsUpdate = true;
         }
         
-        if (!hasLocation) {
+        if (!hasLocation || normalized.swapped) {
           updateData.location = {
             type: 'Point',
             coordinates: [lon, lat]
