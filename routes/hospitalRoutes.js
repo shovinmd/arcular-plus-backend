@@ -43,6 +43,71 @@ router.post('/alert', firebaseAuthMiddleware, async (req, res) => {
   }
 });
 
+// Get direct alerts for hospital
+router.get('/:hospitalId/direct-alerts', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    const { hospitalId } = req.params;
+    const { status, limit = 50 } = req.query;
+    
+    const HospitalAlert = require('../models/HospitalAlert');
+    
+    let query = { hospitalId: hospitalId };
+    if (status) {
+      query.status = status;
+    }
+    
+    const alerts = await HospitalAlert.find(query)
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit))
+      .lean();
+    
+    res.json({
+      success: true,
+      data: alerts,
+      count: alerts.length
+    });
+  } catch (e) {
+    console.error('❌ Error fetching direct alerts:', e);
+    return res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Acknowledge direct alert
+router.post('/:hospitalId/direct-alerts/:alertId/acknowledge', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    const { hospitalId, alertId } = req.params;
+    const { responseDetails } = req.body;
+    
+    const HospitalAlert = require('../models/HospitalAlert');
+    
+    const alert = await HospitalAlert.findOneAndUpdate(
+      { _id: alertId, hospitalId: hospitalId },
+      { 
+        status: 'acknowledged',
+        acknowledgedAt: new Date(),
+        responseDetails: responseDetails || 'Alert acknowledged by hospital'
+      },
+      { new: true }
+    );
+    
+    if (!alert) {
+      return res.status(404).json({
+        success: false,
+        message: 'Alert not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Alert acknowledged successfully',
+      data: alert
+    });
+  } catch (e) {
+    console.error('❌ Error acknowledging alert:', e);
+    return res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // Get hospital by UID (for login) - MUST BE BEFORE GENERIC :id ROUTES
 router.get('/uid/:uid', firebaseAuthMiddleware, hospitalController.getHospitalProfile);
 router.put('/uid/:uid', firebaseAuthMiddleware, hospitalController.updateHospitalProfile);
