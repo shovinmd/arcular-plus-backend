@@ -34,6 +34,15 @@ router.post('/sync-coordinates', firebaseAuthMiddleware, async (req, res) => {
   }
 });
 
+// Send direct alert to hospital (from user app)
+router.post('/alert', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    await sosController.sendHospitalAlert(req, res);
+  } catch (e) {
+    return res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // Get hospital by UID (for login) - MUST BE BEFORE GENERIC :id ROUTES
 router.get('/uid/:uid', firebaseAuthMiddleware, hospitalController.getHospitalProfile);
 router.put('/uid/:uid', firebaseAuthMiddleware, hospitalController.updateHospitalProfile);
