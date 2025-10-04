@@ -517,7 +517,26 @@ router.get('/:hospitalId/inpatients', firebaseAuthMiddleware, async (req, res) =
         
         console.log('🔍 All hospital-created patients:', allHospitalUsers.length);
         for (let user of allHospitalUsers) {
-          console.log('👤 User:', user.fullName, 'associatedHospitalId:', user.associatedHospitalId, 'associatedHospital:', user.associatedHospital, 'createdByHospitalId:', user.createdByHospitalId);
+          console.log('👤 User:', user.fullName, 'ARC ID:', user.arcId, 'associatedHospitalId:', user.associatedHospitalId, 'associatedHospital:', user.associatedHospital, 'createdByHospitalId:', user.createdByHospitalId);
+        }
+        
+        // If we still have no results, try a broader search
+        if (inpatients.length === 0) {
+          console.log('🔍 Trying broader search - looking for any patients with this hospital in any field...');
+          
+          // Try searching by hospital name
+          inpatients = await User.find({
+            associatedHospitalName: hospital.hospitalName,
+            createdByHospital: true,
+            type: 'patient'
+          })
+          .sort({ createdAt: -1 })
+          .limit(parseInt(limit))
+          .skip(parseInt(offset))
+          .select('fullName email mobileNumber arcId createdAt status gender dateOfBirth address')
+          .lean();
+          
+          console.log('🔍 Query 4 - by hospital name:', hospital.hospitalName, 'Found:', inpatients.length);
         }
       }
     }
@@ -542,6 +561,91 @@ router.get('/:hospitalId/inpatients', firebaseAuthMiddleware, async (req, res) =
     });
   } catch (e) {
     console.error('❌ Error fetching inpatients:', e);
+    return res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Search inpatients by ARC ID (fallback method)
+router.get('/:hospitalId/inpatients/search/:arcId', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    const { hospitalId, arcId } = req.params;
+    
+    const User = require('../models/User');
+    const Hospital = require('../models/Hospital');
+    
+    // Find the hospital to get the correct MongoDB _id
+    let hospital;
+    
+    // Check if hospitalId looks like a Firebase UID (not MongoDB ObjectId)
+    if (!hospitalId.match(/^[0-9a-fA-F]{24}$/)) {
+      hospital = await Hospital.findOne({ uid: hospitalId });
+    } else {
+      hospital = await Hospital.findById(hospitalId);
+    }
+    
+    if (!hospital) {
+      return res.status(404).json({
+        success: false,
+        message: 'Hospital not found'
+      });
+    }
+    
+    console.log('🔍 Searching for ARC ID:', arcId, 'in hospital:', hospital.hospitalName);
+    
+    // Search for patient by ARC ID
+    const patient = await User.findOne({
+      arcId: arcId,
+      createdByHospital: true,
+      type: 'patient'
+    })
+    .select('fullName email mobileNumber arcId createdAt status gender dateOfBirth address associatedHospitalId associatedHospital createdByHospitalId associatedHospitalName')
+    .lean();
+    
+    if (patient) {
+      console.log('✅ Found patient by ARC ID:', patient.fullName, 'ARC:', patient.arcId);
+      console.log('🔍 Patient hospital fields:', {
+        associatedHospitalId: patient.associatedHospitalId,
+        associatedHospital: patient.associatedHospital,
+        createdByHospitalId: patient.createdByHospitalId,
+        associatedHospitalName: patient.associatedHospitalName
+      });
+      
+      // Check if this patient belongs to the requesting hospital
+      const belongsToHospital = (
+        patient.associatedHospitalId === hospital._id.toString() ||
+        patient.associatedHospital === hospital._id.toString() ||
+        patient.createdByHospitalId === hospital._id.toString() ||
+        patient.associatedHospitalName === hospital.hospitalName
+      );
+      
+      if (belongsToHospital) {
+        res.json({
+          success: true,
+          data: [patient],
+          count: 1,
+          totalCount: 1,
+          foundBy: 'ARC ID search'
+        });
+      } else {
+        res.json({
+          success: true,
+          data: [],
+          count: 0,
+          totalCount: 0,
+          message: 'Patient found but does not belong to this hospital'
+        });
+      }
+    } else {
+      res.json({
+        success: true,
+        data: [],
+        count: 0,
+        totalCount: 0,
+        message: 'No patient found with this ARC ID'
+      });
+    }
+  } catch (e) {
+    console.error('❌ Error searching inpatient by ARC ID:', e);
     return res.status(500).json({ success: false, error: e.message });
   }
 });
