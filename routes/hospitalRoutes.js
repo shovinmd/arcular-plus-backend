@@ -251,16 +251,26 @@ router.post('/:hospitalId/inpatients', firebaseAuthMiddleware, async (req, res) 
     } = req.body;
 
     // Validate required fields
-    if (!fullName || !email || !mobileNumber || !password) {
+    if (!fullName || !mobileNumber) {
       return res.status(400).json({
         success: false,
-        message: 'Full name, email, mobile number, and password are required'
+        message: 'Full name and mobile number are required'
       });
     }
 
-    // Check if hospital exists
+    // Check if hospital exists - handle both Firebase UID and MongoDB _id
     const Hospital = require('../models/Hospital');
-    const hospital = await Hospital.findById(hospitalId);
+    let hospital;
+    
+    // Check if hospitalId looks like a Firebase UID (not MongoDB ObjectId)
+    if (!hospitalId.match(/^[0-9a-fA-F]{24}$/)) {
+      console.log('🔍 hospitalId is Firebase UID, looking up hospital...');
+      hospital = await Hospital.findOne({ uid: hospitalId });
+    } else {
+      console.log('🔍 hospitalId is MongoDB _id, looking up hospital...');
+      hospital = await Hospital.findById(hospitalId);
+    }
+    
     if (!hospital) {
       return res.status(404).json({
         success: false,
@@ -268,14 +278,22 @@ router.post('/:hospitalId/inpatients', firebaseAuthMiddleware, async (req, res) 
       });
     }
 
-    // Check if user already exists with this email or phone
+    // Check if user already exists with this email or phone (only if email provided)
     const User = require('../models/User');
-    const existingUser = await User.findOne({
-      $or: [
-        { email: email },
-        { mobileNumber: mobileNumber }
-      ]
-    });
+    let existingUser;
+    
+    if (email) {
+      existingUser = await User.findOne({
+        $or: [
+          { email: email },
+          { mobileNumber: mobileNumber }
+        ]
+      });
+    } else {
+      existingUser = await User.findOne({
+        mobileNumber: mobileNumber
+      });
+    }
 
     if (existingUser) {
       return res.status(400).json({
@@ -292,23 +310,29 @@ router.post('/:hospitalId/inpatients', firebaseAuthMiddleware, async (req, res) 
     const QRCode = require('qrcode');
     const qrCode = await QRCode.toDataURL(arcId);
 
-    // Create Firebase user account
+    // Create Firebase user account (only if email and password provided)
     const admin = require('firebase-admin');
     let firebaseUid;
-    try {
-      const userRecord = await admin.auth().createUser({
-        email: email,
-        password: password,
-        phoneNumber: mobileNumber.startsWith('+') ? mobileNumber : `+91${mobileNumber}`,
-        displayName: fullName
-      });
-      firebaseUid = userRecord.uid;
-    } catch (firebaseError) {
-      console.error('❌ Firebase user creation error:', firebaseError);
-      return res.status(400).json({
-        success: false,
-        message: 'Failed to create user account: ' + firebaseError.message
-      });
+    
+    if (email && password) {
+      try {
+        const userRecord = await admin.auth().createUser({
+          email: email,
+          password: password,
+          phoneNumber: mobileNumber.startsWith('+') ? mobileNumber : `+91${mobileNumber}`,
+          displayName: fullName
+        });
+        firebaseUid = userRecord.uid;
+      } catch (firebaseError) {
+        console.error('❌ Firebase user creation error:', firebaseError);
+        return res.status(400).json({
+          success: false,
+          message: 'Failed to create user account: ' + firebaseError.message
+        });
+      }
+    } else {
+      // Generate a temporary UID for users without Firebase account
+      firebaseUid = 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     }
 
     // Create user in MongoDB
@@ -352,20 +376,22 @@ router.post('/:hospitalId/inpatients', firebaseAuthMiddleware, async (req, res) 
       hospital: hospital.hospitalName
     });
 
-    // Send welcome email with login credentials to the patient
-    try {
-      const { sendInpatientAccountEmail } = require('../services/emailService');
-      await sendInpatientAccountEmail(
-        email,
-        fullName,
-        password,
-        hospital.hospitalName,
-        arcId
-      );
-      console.log('✅ Inpatient welcome email sent to:', email);
-    } catch (emailError) {
-      console.error('❌ Failed to send inpatient welcome email:', emailError);
-      // Don't fail the account creation if email fails
+    // Send welcome email with login credentials to the patient (only if email provided)
+    if (email) {
+      try {
+        const { sendInpatientAccountEmail } = require('../services/emailService');
+        await sendInpatientAccountEmail(
+          email,
+          fullName,
+          password || 'No password set',
+          hospital.hospitalName,
+          arcId
+        );
+        console.log('✅ Inpatient welcome email sent to:', email);
+      } catch (emailError) {
+        console.error('❌ Failed to send inpatient welcome email:', emailError);
+        // Don't fail the account creation if email fails
+      }
     }
 
     res.status(201).json({
