@@ -413,6 +413,52 @@ router.get('/:hospitalId/sos-log', firebaseAuthMiddleware, async (req, res) => {
 // Get hospital profile by UID
 router.get('/uid/:uid', firebaseAuthMiddleware, hospitalController.getHospitalByUid);
 
+// Debug endpoint to check hospital data (temporary)
+router.get('/debug/:uid', async (req, res) => {
+  try {
+    const { uid } = req.params;
+    console.log('🔍 Debug: Checking hospital data for UID:', uid);
+    
+    const Hospital = require('../models/Hospital');
+    const hospital = await Hospital.findOne({ uid: uid });
+    
+    if (!hospital) {
+      return res.status(404).json({
+        success: false,
+        message: 'Hospital not found'
+      });
+    }
+    
+    console.log('🔍 Debug: Hospital found:', {
+      name: hospital.hospitalName,
+      email: hospital.email,
+      isApproved: hospital.isApproved,
+      approvalStatus: hospital.approvalStatus,
+      status: hospital.status
+    });
+    
+    res.json({
+      success: true,
+      data: {
+        hospitalName: hospital.hospitalName,
+        email: hospital.email,
+        isApproved: hospital.isApproved,
+        approvalStatus: hospital.approvalStatus,
+        status: hospital.status,
+        createdAt: hospital.createdAt,
+        approvedAt: hospital.approvedAt,
+        approvedBy: hospital.approvedBy
+      }
+    });
+  } catch (e) {
+    console.error('❌ Debug error:', e);
+    return res.status(500).json({
+      success: false,
+      error: e.message
+    });
+  }
+});
+
 // Get hospital approval status by UID (no auth required for login check)
 router.get('/:uid/approval-status', async (req, res) => {
   try {
@@ -430,16 +476,20 @@ router.get('/:uid/approval-status', async (req, res) => {
       });
     }
     
-    console.log('✅ Hospital found:', hospital.hospitalName, 'Approval:', hospital.approvalStatus);
+    console.log('✅ Hospital found:', hospital.hospitalName, 'Approval:', hospital.approvalStatus, 'isApproved:', hospital.isApproved);
+    
+    const responseData = {
+      isApproved: hospital.isApproved || false,
+      approvalStatus: hospital.approvalStatus || 'pending',
+      hospitalName: hospital.hospitalName,
+      email: hospital.email
+    };
+    
+    console.log('📤 Sending approval status response:', responseData);
     
     res.json({
       success: true,
-      data: {
-        isApproved: hospital.isApproved || false,
-        approvalStatus: hospital.approvalStatus || 'pending',
-        hospitalName: hospital.hospitalName,
-        email: hospital.email
-      }
+      data: responseData
     });
   } catch (e) {
     console.error('❌ Error checking hospital approval status:', e);
