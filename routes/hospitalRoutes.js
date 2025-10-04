@@ -413,6 +413,38 @@ router.get('/:hospitalId/sos-log', firebaseAuthMiddleware, async (req, res) => {
 // Get hospital profile by UID
 router.get('/uid/:uid', firebaseAuthMiddleware, hospitalController.getHospitalByUid);
 
+// Login endpoint for service providers (no auth required)
+router.get('/login-email/:email', async (req, res) => {
+  try {
+    const { email } = req.params;
+    console.log('🔍 Hospital login check for email:', email);
+    
+    const Hospital = require('../models/Hospital');
+    const hospital = await Hospital.findOne({ email: email });
+    
+    if (!hospital) {
+      console.log('❌ Hospital not found for email:', email);
+      return res.status(404).json({
+        success: false,
+        message: 'Hospital not found'
+      });
+    }
+    
+    console.log('✅ Hospital found:', hospital.hospitalName);
+    
+    res.json({
+      success: true,
+      data: hospital
+    });
+  } catch (e) {
+    console.error('❌ Error checking hospital login:', e);
+    return res.status(500).json({
+      success: false,
+      error: e.message
+    });
+  }
+});
+
 // Get hospital profile by ID
 router.get('/:hospitalId', firebaseAuthMiddleware, hospitalController.getHospitalProfile);
 
