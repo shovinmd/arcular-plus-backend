@@ -430,9 +430,31 @@ router.get('/:hospitalId/inpatients', firebaseAuthMiddleware, async (req, res) =
     const { limit = 50, offset = 0 } = req.query;
     
     const User = require('../models/User');
+    const Hospital = require('../models/Hospital');
+    
+    // Find the hospital to get the correct MongoDB _id
+    let hospital;
+    
+    // Check if hospitalId looks like a Firebase UID (not MongoDB ObjectId)
+    if (!hospitalId.match(/^[0-9a-fA-F]{24}$/)) {
+      console.log('🔍 hospitalId is Firebase UID, looking up hospital...');
+      hospital = await Hospital.findOne({ uid: hospitalId });
+    } else {
+      console.log('🔍 hospitalId is MongoDB _id, looking up hospital...');
+      hospital = await Hospital.findById(hospitalId);
+    }
+    
+    if (!hospital) {
+      return res.status(404).json({
+        success: false,
+        message: 'Hospital not found'
+      });
+    }
+    
+    console.log('🔍 Fetching inpatients for hospital:', hospital.hospitalName, 'MongoDB _id:', hospital._id);
     
     const inpatients = await User.find({
-      associatedHospitalId: hospitalId,
+      associatedHospitalId: hospital._id.toString(),
       createdByHospital: true,
       type: 'patient'
     })
@@ -443,10 +465,12 @@ router.get('/:hospitalId/inpatients', firebaseAuthMiddleware, async (req, res) =
     .lean();
     
     const totalCount = await User.countDocuments({
-      associatedHospitalId: hospitalId,
+      associatedHospitalId: hospital._id.toString(),
       createdByHospital: true,
       type: 'patient'
     });
+    
+    console.log('✅ Found', inpatients.length, 'inpatients for hospital', hospital.hospitalName);
     
     res.json({
       success: true,
