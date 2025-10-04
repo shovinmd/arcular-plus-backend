@@ -3,44 +3,6 @@ const router = express.Router();
 const sosController = require('../controllers/sosController');
 const { verifyFirebaseToken } = require('../middleware/firebaseAuth');
 
-// Debug endpoint to check hospitals (temporary)
-router.get('/debug/hospitals', async (req, res) => {
-  try {
-    const Hospital = require('../models/Hospital');
-    
-    const totalHospitals = await Hospital.countDocuments();
-    const activeHospitals = await Hospital.countDocuments({ status: 'active' });
-    const approvedHospitals = await Hospital.countDocuments({ isApproved: true });
-    const activeApprovedHospitals = await Hospital.countDocuments({ 
-      status: 'active', 
-      isApproved: true 
-    });
-    
-    console.log('🔍 Hospital counts:', {
-      total: totalHospitals,
-      active: activeHospitals,
-      approved: approvedHospitals,
-      activeApproved: activeApprovedHospitals
-    });
-    
-    res.json({
-      success: true,
-      data: {
-        totalHospitals,
-        activeHospitals,
-        approvedHospitals,
-        activeApprovedHospitals
-      }
-    });
-  } catch (e) {
-    console.error('❌ Debug hospitals error:', e);
-    res.status(500).json({
-      success: false,
-      error: e.message
-    });
-  }
-});
-
 // Create new SOS request
 router.post('/create', verifyFirebaseToken, sosController.createSOSRequest);
 

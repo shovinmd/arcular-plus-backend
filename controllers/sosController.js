@@ -414,17 +414,6 @@ async function ensureHospitalSOSForRequest(
     await Promise.all(promises);
   } catch (e) {
     console.error('❌ ensureHospitalSOSForRequest error:', e);
-    console.error('❌ Error stack:', e.stack);
-    console.error('❌ SOS Request ID:', sosRequest?._id);
-    console.error('❌ Location:', location);
-    
-    // Check if it's a database connection error
-    if (e.name === 'MongoNetworkError' || e.name === 'MongoServerError') {
-      console.error('❌ Database connection error in ensureHospitalSOSForRequest');
-    }
-    
-    // Don't throw the error, just log it and continue
-    // This prevents the entire SOS creation from failing
   }
 }
 
@@ -567,20 +556,11 @@ const createSOSRequest = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Error creating SOS request:', error);
-    console.error('❌ Error stack:', error.stack);
-    console.error('❌ Request body:', req.body);
-    
-    // Check if it's a database connection error
-    if (error.name === 'MongoNetworkError' || error.name === 'MongoServerError') {
-      console.error('❌ Database connection error detected');
-    }
-    
+    console.error('Error creating SOS request:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to create SOS request',
-      error: error.message,
-      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      error: error.message
     });
   }
 };

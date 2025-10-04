@@ -50,40 +50,16 @@ router.get('/:hospitalId/direct-alerts', firebaseAuthMiddleware, async (req, res
     const { status, limit = 50 } = req.query;
     
     const HospitalAlert = require('../models/HospitalAlert');
-    const Hospital = require('../models/Hospital');
     
-    // First, try to find the hospital by Firebase UID to get MongoDB _id
-    let actualHospitalId = hospitalId;
-    
-    // Check if hospitalId looks like a Firebase UID (not MongoDB ObjectId)
-    if (!hospitalId.match(/^[0-9a-fA-F]{24}$/)) {
-      console.log('🔍 hospitalId is Firebase UID, looking up MongoDB _id...');
-      const hospital = await Hospital.findOne({ uid: hospitalId });
-      if (hospital) {
-        actualHospitalId = hospital._id.toString();
-        console.log('✅ Found hospital MongoDB _id:', actualHospitalId);
-      } else {
-        console.log('❌ Hospital not found for UID:', hospitalId);
-        return res.status(404).json({
-          success: false,
-          message: 'Hospital not found'
-        });
-      }
-    }
-    
-    let query = { hospitalId: actualHospitalId };
+    let query = { hospitalId: hospitalId };
     if (status) {
       query.status = status;
     }
-    
-    console.log('🔍 Querying HospitalAlert with:', query);
     
     const alerts = await HospitalAlert.find(query)
       .sort({ createdAt: -1 })
       .limit(parseInt(limit))
       .lean();
-    
-    console.log('✅ Found', alerts.length, 'direct alerts');
     
     res.json({
       success: true,
@@ -103,29 +79,9 @@ router.post('/:hospitalId/direct-alerts/:alertId/acknowledge', firebaseAuthMiddl
     const { responseDetails } = req.body;
     
     const HospitalAlert = require('../models/HospitalAlert');
-    const Hospital = require('../models/Hospital');
-    
-    // First, try to find the hospital by Firebase UID to get MongoDB _id
-    let actualHospitalId = hospitalId;
-    
-    // Check if hospitalId looks like a Firebase UID (not MongoDB ObjectId)
-    if (!hospitalId.match(/^[0-9a-fA-F]{24}$/)) {
-      console.log('🔍 hospitalId is Firebase UID, looking up MongoDB _id...');
-      const hospital = await Hospital.findOne({ uid: hospitalId });
-      if (hospital) {
-        actualHospitalId = hospital._id.toString();
-        console.log('✅ Found hospital MongoDB _id:', actualHospitalId);
-      } else {
-        console.log('❌ Hospital not found for UID:', hospitalId);
-        return res.status(404).json({
-          success: false,
-          message: 'Hospital not found'
-        });
-      }
-    }
     
     const alert = await HospitalAlert.findOneAndUpdate(
-      { _id: alertId, hospitalId: actualHospitalId },
+      { _id: alertId, hospitalId: hospitalId },
       { 
         status: 'acknowledged',
         acknowledgedAt: new Date(),
@@ -152,391 +108,116 @@ router.post('/:hospitalId/direct-alerts/:alertId/acknowledge', firebaseAuthMiddl
   }
 });
 
-// Create inpatient account
-router.post('/:hospitalId/inpatients', firebaseAuthMiddleware, async (req, res) => {
-  try {
-    const { hospitalId } = req.params;
-    const {
-      fullName,
-      email,
-      mobileNumber,
-      password,
-      gender,
-      dateOfBirth,
-      address,
-      pincode,
-      city,
-      state,
-      emergencyContactName,
-      emergencyContactNumber,
-      emergencyContactRelation,
-      knownAllergies,
-      chronicConditions,
-      bloodGroup,
-      height,
-      weight
-    } = req.body;
+// Get hospital by UID (for login) - MUST BE BEFORE GENERIC :id ROUTES
+router.get('/uid/:uid', firebaseAuthMiddleware, hospitalController.getHospitalProfile);
+router.put('/uid/:uid', firebaseAuthMiddleware, hospitalController.updateHospitalProfile);
 
-    // Validate required fields
-    if (!fullName || !email || !mobileNumber || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Full name, email, mobile number, and password are required'
-      });
-    }
+// Search hospitals by name MUST BE BEFORE GENERIC ":id" ROUTES
+router.get('/search', firebaseAuthMiddleware, hospitalController.searchHospitalsByName);
 
-    // Check if hospital exists - handle both Firebase UID and MongoDB _id
-    const Hospital = require('../models/Hospital');
-    let hospital;
-    
-    // Check if hospitalId looks like a Firebase UID (not MongoDB ObjectId)
-    if (!hospitalId.match(/^[0-9a-fA-F]{24}$/)) {
-      console.log('🔍 hospitalId is Firebase UID, looking up hospital...');
-      hospital = await Hospital.findOne({ uid: hospitalId });
-    } else {
-      console.log('🔍 hospitalId is MongoDB _id, looking up hospital...');
-      hospital = await Hospital.findById(hospitalId);
-    }
-    
-    if (!hospital) {
-      return res.status(404).json({
-        success: false,
-        message: 'Hospital not found'
-      });
-    }
+// Get hospital by email (for login verification)
+router.get('/email/:email', firebaseAuthMiddleware, hospitalController.getHospitalByEmail);
 
-    // Check if user already exists with this email or phone
-    const User = require('../models/User');
-    const existingUser = await User.findOne({
-      $or: [
-        { email: email },
-        { mobileNumber: mobileNumber }
-      ]
-    });
+// Get hospital by email (for login verification - unprotected)
+router.get('/login-email/:email', hospitalController.getHospitalByEmail);
 
-    if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        message: 'User already exists with this email or phone number'
-      });
-    }
+// Hospital approval status check
+router.get('/:uid/approval-status', firebaseAuthMiddleware, hospitalController.getHospitalApprovalStatus);
 
-    // Generate unique ARC ID
-    const { v4: uuidv4 } = require('uuid');
-    const arcId = 'ARC-' + uuidv4().slice(0, 8).toUpperCase();
+// Profile
+router.get('/:id', firebaseAuthMiddleware, hospitalController.getHospitalProfile);
+router.put('/:id', firebaseAuthMiddleware, hospitalController.updateHospitalProfile);
 
-    // Generate QR code
-    const QRCode = require('qrcode');
-    const qrCode = await QRCode.toDataURL(arcId);
+// Doctors
+router.get('/:id/doctors', firebaseAuthMiddleware, hospitalController.getDoctors);
+router.post('/:id/doctors', firebaseAuthMiddleware, hospitalController.addDoctor);
+router.delete('/:id/doctors/:doctorId', firebaseAuthMiddleware, hospitalController.removeDoctor);
 
-    // Create Firebase user account
-    const admin = require('firebase-admin');
-    let firebaseUid;
-    try {
-      const userRecord = await admin.auth().createUser({
-        email: email,
-        password: password,
-        phoneNumber: mobileNumber.startsWith('+') ? mobileNumber : `+91${mobileNumber}`,
-        displayName: fullName
-      });
-      firebaseUid = userRecord.uid;
-    } catch (firebaseError) {
-      console.error('❌ Firebase user creation error:', firebaseError);
-      return res.status(400).json({
-        success: false,
-        message: 'Failed to create user account: ' + firebaseError.message
-      });
-    }
+// Departments
+router.get('/:id/departments', firebaseAuthMiddleware, hospitalController.getDepartments);
+router.post('/:id/departments', firebaseAuthMiddleware, hospitalController.addDepartment);
+router.delete('/:id/departments/:deptName', firebaseAuthMiddleware, hospitalController.removeDepartment);
 
-    // Create user in MongoDB
-    const user = new User({
-      uid: firebaseUid,
-      fullName,
-      email,
-      mobileNumber,
-      gender,
-      dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
-      address,
-      pincode,
-      city,
-      state,
-      emergencyContactName,
-      emergencyContactNumber,
-      emergencyContactRelation,
-      knownAllergies: knownAllergies || [],
-      chronicConditions: chronicConditions || [],
-      bloodGroup,
-      height,
-      weight,
-      type: 'patient',
-      arcId,
-      qrCode,
-      status: 'active',
-      createdAt: new Date(),
-      // Hospital association
-      associatedHospital: hospital._id.toString(),
-      associatedHospitalName: hospital.hospitalName,
-      createdByHospital: true,
-      createdByHospitalId: hospital._id.toString()
-    });
+// Appointments
+router.get('/:id/appointments', firebaseAuthMiddleware, hospitalController.getAppointments);
+router.post('/:id/appointments', firebaseAuthMiddleware, hospitalController.createAppointment);
+router.put('/:id/appointments/:appointmentId', firebaseAuthMiddleware, hospitalController.updateAppointment);
 
-    await user.save();
+// Back-compat alias for booking via singular action
+router.post('/:id/appointments/book', firebaseAuthMiddleware, hospitalController.createAppointment);
 
-    console.log('✅ Inpatient account created:', {
-      name: fullName,
-      email: email,
-      arcId: arcId,
-      hospital: hospital.hospitalName
-    });
+// Admissions
+router.get('/:id/admissions', firebaseAuthMiddleware, hospitalController.getAdmissions);
+router.post('/:id/admissions', firebaseAuthMiddleware, hospitalController.admitPatient);
+router.put('/:id/admissions/:admissionId', firebaseAuthMiddleware, hospitalController.updateAdmission);
 
-    // Send welcome email with login credentials to the patient
-    try {
-      const { sendInpatientAccountEmail } = require('../services/emailService');
-      await sendInpatientAccountEmail(
-        email,
-        fullName,
-        password,
-        hospital.hospitalName,
-        arcId
-      );
-      console.log('✅ Inpatient welcome email sent to:', email);
-    } catch (emailError) {
-      console.error('❌ Failed to send inpatient welcome email:', emailError);
-      // Don't fail the account creation if email fails
-    }
+// Pharmacy
+router.get('/:id/pharmacy', firebaseAuthMiddleware, hospitalController.getPharmacyItems);
+router.post('/:id/pharmacy', firebaseAuthMiddleware, hospitalController.addPharmacyItem);
+router.put('/:id/pharmacy/:itemId', firebaseAuthMiddleware, hospitalController.updatePharmacyItem);
+router.delete('/:id/pharmacy/:itemId', firebaseAuthMiddleware, hospitalController.removePharmacyItem);
 
-    res.status(201).json({
-      success: true,
-      message: 'Inpatient account created successfully',
-      data: {
-        userId: user._id,
-        uid: firebaseUid,
-        arcId: arcId,
-        qrCode: qrCode,
-        fullName: fullName,
-        email: email,
-        mobileNumber: mobileNumber
-      }
-    });
+// Lab
+router.get('/:id/lab-tests', firebaseAuthMiddleware, hospitalController.getLabTests);
+router.post('/:id/lab-tests', firebaseAuthMiddleware, hospitalController.addLabTest);
+router.put('/:id/lab-tests/:testId', firebaseAuthMiddleware, hospitalController.updateLabTest);
+router.delete('/:id/lab-tests/:testId', firebaseAuthMiddleware, hospitalController.removeLabTest);
 
-  } catch (e) {
-    console.error('❌ Error creating inpatient account:', e);
-    return res.status(500).json({ 
-      success: false, 
-      error: e.message 
-    });
-  }
-});
+// QR Records
+router.get('/:id/qr-records', firebaseAuthMiddleware, hospitalController.getQrRecords);
 
-// Get hospital inpatients
-router.get('/:hospitalId/inpatients', firebaseAuthMiddleware, async (req, res) => {
-  try {
-    const { hospitalId } = req.params;
-    const { limit = 50, offset = 0 } = req.query;
-    
-    const User = require('../models/User');
-    const Hospital = require('../models/Hospital');
-    
-    // First, try to find the hospital by Firebase UID to get MongoDB _id
-    let actualHospitalId = hospitalId;
-    
-    // Check if hospitalId looks like a Firebase UID (not MongoDB ObjectId)
-    if (!hospitalId.match(/^[0-9a-fA-F]{24}$/)) {
-      console.log('🔍 hospitalId is Firebase UID, looking up MongoDB _id...');
-      const hospital = await Hospital.findOne({ uid: hospitalId });
-      if (hospital) {
-        actualHospitalId = hospital._id.toString();
-        console.log('✅ Found hospital MongoDB _id:', actualHospitalId);
-      } else {
-        console.log('❌ Hospital not found for UID:', hospitalId);
-        return res.status(404).json({
-          success: false,
-          message: 'Hospital not found'
-        });
-      }
-    }
-    
-    const inpatients = await User.find({
-      associatedHospitalId: actualHospitalId,
-      createdByHospital: true,
-      type: 'patient'
-    })
-    .sort({ createdAt: -1 })
-    .limit(parseInt(limit))
-    .skip(parseInt(offset))
-    .select('fullName email mobileNumber arcId createdAt status gender dateOfBirth address')
-    .lean();
-    
-    const totalCount = await User.countDocuments({
-      associatedHospitalId: actualHospitalId,
-      createdByHospital: true,
-      type: 'patient'
-    });
-    
-    res.json({
-      success: true,
-      data: inpatients,
-      count: inpatients.length,
-      totalCount: totalCount
-    });
-  } catch (e) {
-    console.error('❌ Error fetching inpatients:', e);
-    return res.status(500).json({ success: false, error: e.message });
-  }
-});
+// Public QR scanning endpoints
+router.get('/qr/:identifier', hospitalController.getHospitalByQr);
+router.get('/qr/uid/:uid', hospitalController.getHospitalByUid);
 
-// Get hospital SOS log
+// Add: fetch hospital SOS log (recent actions and handledByOther details)
 router.get('/:hospitalId/sos-log', firebaseAuthMiddleware, async (req, res) => {
   try {
     const { hospitalId } = req.params;
-    const { limit = 50 } = req.query;
-    
-    const HospitalSOS = require('../models/HospitalSOS');
-    
-    const sosLog = await HospitalSOS.find({ hospitalId: hospitalId })
-      .sort({ createdAt: -1 })
-      .limit(parseInt(limit))
-      .select('sosRequestId patientInfo emergencyDetails hospitalStatus createdAt handledByOtherDetails')
-      .lean();
-    
-    res.json({
-      success: true,
-      data: sosLog,
-      count: sosLog.length
-    });
+    const { limit } = req.query;
+    const result = await sosController.getHospitalSOSLog(req, res);
+    return result;
   } catch (e) {
-    console.error('❌ Error fetching SOS log:', e);
     return res.status(500).json({ success: false, error: e.message });
   }
 });
 
-// Get hospital profile by UID
-router.get('/uid/:uid', firebaseAuthMiddleware, hospitalController.getHospitalByUid);
 
-// Debug endpoint to check hospital data (temporary)
-router.get('/debug/:uid', async (req, res) => {
-  try {
-    const { uid } = req.params;
-    console.log('🔍 Debug: Checking hospital data for UID:', uid);
-    
-    const Hospital = require('../models/Hospital');
-    const hospital = await Hospital.findOne({ uid: uid });
-    
-    if (!hospital) {
-      return res.status(404).json({
-        success: false,
-        message: 'Hospital not found'
-      });
-    }
-    
-    console.log('🔍 Debug: Hospital found:', {
-      name: hospital.hospitalName,
-      email: hospital.email,
-      isApproved: hospital.isApproved,
-      approvalStatus: hospital.approvalStatus,
-      status: hospital.status
-    });
-    
-    res.json({
-      success: true,
-      data: {
-        hospitalName: hospital.hospitalName,
-        email: hospital.email,
-        isApproved: hospital.isApproved,
-        approvalStatus: hospital.approvalStatus,
-        status: hospital.status,
-        createdAt: hospital.createdAt,
-        approvedAt: hospital.approvedAt,
-        approvedBy: hospital.approvedBy
-      }
-    });
-  } catch (e) {
-    console.error('❌ Debug error:', e);
-    return res.status(500).json({
-      success: false,
-      error: e.message
-    });
-  }
-});
+// Analytics
+router.get('/:id/analytics', firebaseAuthMiddleware, hospitalController.getAnalytics);
 
-// Get hospital approval status by UID (no auth required for login check)
-router.get('/:uid/approval-status', async (req, res) => {
-  try {
-    const { uid } = req.params;
-    console.log('🔍 Checking hospital approval status for UID:', uid);
-    
-    const Hospital = require('../models/Hospital');
-    const hospital = await Hospital.findOne({ uid: uid });
-    
-    if (!hospital) {
-      console.log('❌ Hospital not found for UID:', uid);
-      return res.status(404).json({
-        success: false,
-        message: 'Hospital not found'
-      });
-    }
-    
-    console.log('✅ Hospital found:', hospital.hospitalName, 'Approval:', hospital.approvalStatus, 'isApproved:', hospital.isApproved);
-    
-    const responseData = {
-      isApproved: hospital.isApproved || false,
-      approvalStatus: hospital.approvalStatus || 'pending',
-      hospitalName: hospital.hospitalName,
-      email: hospital.email
-    };
-    
-    console.log('📤 Sending approval status response:', responseData);
-    
-    res.json({
-      success: true,
-      data: responseData
-    });
-  } catch (e) {
-    console.error('❌ Error checking hospital approval status:', e);
-    return res.status(500).json({
-      success: false,
-      error: e.message
-    });
-  }
-});
+// Reports
+router.get('/:id/reports', firebaseAuthMiddleware, hospitalController.getReports);
 
-// Login endpoint for service providers (no auth required)
-router.get('/login-email/:email', async (req, res) => {
-  try {
-    const { email } = req.params;
-    console.log('🔍 Hospital login check for email:', email);
-    
-    const Hospital = require('../models/Hospital');
-    const hospital = await Hospital.findOne({ email: email });
-    
-    if (!hospital) {
-      console.log('❌ Hospital not found for email:', email);
-      return res.status(404).json({
-        success: false,
-        message: 'Hospital not found'
-      });
-    }
-    
-    console.log('✅ Hospital found:', hospital.hospitalName);
-    
-    res.json({
-      success: true,
-      data: hospital
-    });
-  } catch (e) {
-    console.error('❌ Error checking hospital login:', e);
-    return res.status(500).json({
-      success: false,
-      error: e.message
-    });
-  }
-});
+// Chat
+router.get('/:id/chat', firebaseAuthMiddleware, hospitalController.getChatMessages);
+router.post('/:id/chat', firebaseAuthMiddleware, hospitalController.sendChatMessage);
 
-// Get hospital profile by ID
-router.get('/:hospitalId', firebaseAuthMiddleware, hospitalController.getHospitalProfile);
+// Shifts
+router.get('/:id/shifts', firebaseAuthMiddleware, hospitalController.getShifts);
+router.post('/:id/shifts', firebaseAuthMiddleware, hospitalController.createShift);
+router.put('/:id/shifts/:shiftId', firebaseAuthMiddleware, hospitalController.updateShift);
+router.delete('/:id/shifts/:shiftId', firebaseAuthMiddleware, hospitalController.deleteShift);
 
-// Update hospital profile
-router.put('/:hospitalId', firebaseAuthMiddleware, hospitalController.updateHospitalProfile);
+// Billing
+router.get('/:id/billing', firebaseAuthMiddleware, hospitalController.getBilling);
+router.post('/:id/billing', firebaseAuthMiddleware, hospitalController.createBillingEntry);
+
+// Documents
+router.get('/:id/documents', firebaseAuthMiddleware, hospitalController.getDocuments);
+router.post('/:id/documents', firebaseAuthMiddleware, hospitalController.uploadDocument);
+
+// Notifications
+router.get('/:id/notifications', firebaseAuthMiddleware, hospitalController.getNotifications);
+
+// Settings
+router.put('/:id/settings', firebaseAuthMiddleware, hospitalController.updateSettings);
+
+// Get approved hospitals for affiliation selection (public - for registration)
+router.get('/affiliation/approved', hospitalController.getApprovedHospitalsForAffiliation);
+
+// Search hospitals for affiliation (public - for registration)
+router.get('/affiliation/search', hospitalController.searchHospitalsForAffiliation);
 
 // Update hospital geo location (dashboard/app action)
 router.put('/:hospitalId/location', firebaseAuthMiddleware, hospitalLocationController.updateHospitalLocation);

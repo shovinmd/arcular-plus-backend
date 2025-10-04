@@ -651,76 +651,6 @@ const sendTestCompletionEmailToPatient = async (data) => {
 };
 
 // Send test completion email to hospital
-const sendInpatientAccountEmail = async (patientEmail, patientName, password, hospitalName, arcId) => {
-  try {
-    const subject = `Your Arcular Plus Patient Account - Login Credentials`;
-    const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #4caf50 0%, #81c784 100%); color: white; padding: 20px; text-align: center;">
-          <h1>Arcular Plus</h1>
-          <h2>Your Patient Account is Ready! 🏥</h2>
-        </div>
-        <div style="padding: 20px;">
-          <p>Dear ${patientName},</p>
-          <p>Your patient account has been created by <strong>${hospitalName}</strong> and is now ready for use!</p>
-          
-          <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 20px 0;">
-            <h3 style="color: #4caf50; margin-top: 0;">🔑 Your Login Credentials</h3>
-            <p><strong>Email:</strong> ${patientEmail}</p>
-            <p><strong>Password:</strong> ${password}</p>
-            <p><strong>ARC ID:</strong> ${arcId}</p>
-          </div>
-          
-          <p><strong>What you can do with your account:</strong></p>
-          <ul>
-            <li>📱 Access your personalized patient dashboard</li>
-            <li>📅 View and manage your appointments</li>
-            <li>💊 Track your medications and prescriptions</li>
-            <li>🔬 Access your lab reports and test results</li>
-            <li>🚨 Use emergency SOS services</li>
-            <li>📊 Monitor your health metrics</li>
-            <li>🤖 Chat with our AI health assistant</li>
-          </ul>
-          
-          <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin: 20px 0;">
-            <h4 style="color: #1976d2; margin-top: 0;">📱 How to Login:</h4>
-            <ol>
-              <li>Download the Arcular Plus app from your app store</li>
-              <li>Open the app and select "Patient" as your user type</li>
-              <li>Enter your email: <strong>${patientEmail}</strong></li>
-              <li>Enter your password: <strong>${password}</strong></li>
-              <li>Start exploring your dashboard!</li>
-            </ol>
-          </div>
-          
-          <div style="background: #fff3e0; padding: 15px; border-radius: 8px; margin: 20px 0;">
-            <h4 style="color: #f57c00; margin-top: 0;">🔒 Security Note:</h4>
-            <p>For your security, please change your password after your first login. You can do this in the app settings.</p>
-          </div>
-          
-          <p>If you have any questions or need assistance, please contact your hospital or our support team.</p>
-          <p>Welcome to Arcular Plus!</p>
-          <p>Best regards,<br>Arcular Plus Team</p>
-        </div>
-        <div style="background: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #666;">
-          <p>This email was sent by ${hospitalName} through Arcular Plus</p>
-        </div>
-      </div>
-    `;
-    
-    const ok = await sendMailSmart({ to: patientEmail, subject, html });
-    if (ok) {
-      console.log(`✅ Inpatient account email sent to: ${patientEmail}`);
-    } else {
-      console.log(`❌ Failed to send inpatient account email to: ${patientEmail}`);
-    }
-    return ok;
-  } catch (error) {
-    console.error('❌ Error sending inpatient account email:', error);
-    return false;
-  }
-};
-
 const sendTestCompletionEmailToHospital = async (data) => {
   try {
     const { hospitalEmail, hospitalName, patientName, patientArcId, labName, testName, requestId } = data;
@@ -766,7 +696,6 @@ module.exports = {
   sendApprovalEmail,
   sendDocumentReviewNotification,
   sendWelcomeEmail,
-  sendInpatientAccountEmail,
   sendSessionEmail,
   sendTestRequestEmail,
   sendTestAdmissionEmail,
