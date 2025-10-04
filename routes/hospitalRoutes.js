@@ -592,6 +592,19 @@ router.get('/:hospitalId/inpatients/search/:arcId', firebaseAuthMiddleware, asyn
     
     console.log('🔍 Searching for ARC ID:', arcId, 'in hospital:', hospital.hospitalName);
     
+    // First, let's see all patients with this ARC ID (regardless of hospital)
+    const allPatientsWithArcId = await User.find({
+      arcId: arcId,
+      type: 'patient'
+    })
+    .select('fullName email mobileNumber arcId createdAt status gender dateOfBirth address associatedHospitalId associatedHospital createdByHospitalId associatedHospitalName createdByHospital')
+    .lean();
+    
+    console.log('🔍 All patients with ARC ID', arcId, ':', allPatientsWithArcId.length);
+    for (let p of allPatientsWithArcId) {
+      console.log('👤 Patient:', p.fullName, 'ARC:', p.arcId, 'createdByHospital:', p.createdByHospital, 'associatedHospital:', p.associatedHospital, 'associatedHospitalId:', p.associatedHospitalId);
+    }
+    
     // Search for patient by ARC ID
     const patient = await User.findOne({
       arcId: arcId,
@@ -646,6 +659,48 @@ router.get('/:hospitalId/inpatients/search/:arcId', firebaseAuthMiddleware, asyn
     }
   } catch (e) {
     console.error('❌ Error searching inpatient by ARC ID:', e);
+    return res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Debug endpoint to show all patients in database
+router.get('/debug/all-patients', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    const User = require('../models/User');
+    
+    console.log('🔍 Debug: Fetching all patients in database...');
+    
+    const allPatients = await User.find({
+      type: 'patient'
+    })
+    .select('fullName email mobileNumber arcId createdAt status gender dateOfBirth address associatedHospitalId associatedHospital createdByHospitalId associatedHospitalName createdByHospital')
+    .lean();
+    
+    console.log('🔍 Total patients in database:', allPatients.length);
+    
+    const patientsWithArcId = allPatients.filter(p => p.arcId);
+    console.log('🔍 Patients with ARC ID:', patientsWithArcId.length);
+    
+    for (let p of patientsWithArcId) {
+      console.log('👤 Patient:', p.fullName, 'ARC:', p.arcId, 'createdByHospital:', p.createdByHospital, 'associatedHospital:', p.associatedHospital, 'associatedHospitalId:', p.associatedHospitalId);
+    }
+    
+    res.json({
+      success: true,
+      totalPatients: allPatients.length,
+      patientsWithArcId: patientsWithArcId.length,
+      patients: allPatients.map(p => ({
+        name: p.fullName,
+        arcId: p.arcId,
+        email: p.email,
+        createdByHospital: p.createdByHospital,
+        associatedHospital: p.associatedHospital,
+        associatedHospitalId: p.associatedHospitalId,
+        createdAt: p.createdAt
+      }))
+    });
+  } catch (e) {
+    console.error('❌ Error in debug endpoint:', e);
     return res.status(500).json({ success: false, error: e.message });
   }
 });
