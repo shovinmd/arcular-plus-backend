@@ -94,6 +94,12 @@ const UserSchema = new mongoose.Schema({
   labAddress: String,
   homeSampleCollection: Boolean,
   
+  // Inpatient management fields
+  createdByHospital: Boolean, // Flag to indicate if patient was created by a hospital
+  createdByHospitalId: String, // ID of the hospital that created this patient
+  associatedHospitalId: String, // Alternative field for hospital association
+  associatedHospitalName: String, // Name of the associated hospital
+  
   // Pharmacy-specific fields
   pharmacyName: String,
   pharmacyLicenseNumber: String,

@@ -663,6 +663,55 @@ router.get('/:hospitalId/inpatients/search/:arcId', firebaseAuthMiddleware, asyn
   }
 });
 
+// Migration endpoint to fix existing patients
+router.post('/migrate-patients', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    const User = require('../models/User');
+    
+    console.log('🔧 Starting patient migration...');
+    
+    // Find all patients with ARC IDs but missing createdByHospital field
+    const patientsToMigrate = await User.find({
+      type: 'patient',
+      arcId: { $exists: true },
+      $or: [
+        { createdByHospital: { $exists: false } },
+        { createdByHospital: null }
+      ]
+    });
+    
+    console.log('🔧 Found', patientsToMigrate.length, 'patients to migrate');
+    
+    let migratedCount = 0;
+    
+    for (let patient of patientsToMigrate) {
+      // Update the patient with the missing fields
+      await User.findByIdAndUpdate(patient._id, {
+        $set: {
+          createdByHospital: true,
+          createdByHospitalId: patient.associatedHospital || 'unknown',
+          associatedHospitalId: patient.associatedHospital || 'unknown',
+          associatedHospitalName: patient.associatedHospitalName || 'Unknown Hospital'
+        }
+      });
+      
+      migratedCount++;
+      console.log('✅ Migrated patient:', patient.fullName, 'ARC:', patient.arcId);
+    }
+    
+    console.log('🔧 Migration complete. Migrated', migratedCount, 'patients');
+    
+    res.json({
+      success: true,
+      message: `Successfully migrated ${migratedCount} patients`,
+      migratedCount: migratedCount
+    });
+  } catch (e) {
+    console.error('❌ Error in patient migration:', e);
+    return res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // Debug endpoint to show all patients in database
 router.get('/debug/all-patients', firebaseAuthMiddleware, async (req, res) => {
   try {
