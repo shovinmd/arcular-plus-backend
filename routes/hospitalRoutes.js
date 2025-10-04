@@ -251,10 +251,18 @@ router.post('/:hospitalId/inpatients', firebaseAuthMiddleware, async (req, res) 
     } = req.body;
 
     // Validate required fields
-    if (!fullName || !mobileNumber) {
+    if (!fullName || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Full name and mobile number are required'
+        message: 'Full name and password are required'
+      });
+    }
+
+    // At least one contact method is required
+    if (!email && !mobileNumber) {
+      return res.status(400).json({
+        success: false,
+        message: 'Either email or mobile number is required'
       });
     }
 
@@ -278,21 +286,24 @@ router.post('/:hospitalId/inpatients', firebaseAuthMiddleware, async (req, res) 
       });
     }
 
-    // Check if user already exists with this email or phone (only if email provided)
+    // Check if user already exists with this email or phone
     const User = require('../models/User');
     let existingUser;
     
-    if (email) {
+    if (email && mobileNumber) {
+      // Both email and phone provided - check both
       existingUser = await User.findOne({
         $or: [
           { email: email },
           { mobileNumber: mobileNumber }
         ]
       });
+    } else if (email) {
+      // Only email provided - check email
+      existingUser = await User.findOne({ email: email });
     } else {
-      existingUser = await User.findOne({
-        mobileNumber: mobileNumber
-      });
+      // Only phone provided - check phone
+      existingUser = await User.findOne({ mobileNumber: mobileNumber });
     }
 
     if (existingUser) {
@@ -310,29 +321,24 @@ router.post('/:hospitalId/inpatients', firebaseAuthMiddleware, async (req, res) 
     const QRCode = require('qrcode');
     const qrCode = await QRCode.toDataURL(arcId);
 
-    // Create Firebase user account (only if email and password provided)
+    // Create Firebase user account (password is always required now)
     const admin = require('firebase-admin');
     let firebaseUid;
     
-    if (email && password) {
-      try {
-        const userRecord = await admin.auth().createUser({
-          email: email,
-          password: password,
-          phoneNumber: mobileNumber.startsWith('+') ? mobileNumber : `+91${mobileNumber}`,
-          displayName: fullName
-        });
-        firebaseUid = userRecord.uid;
-      } catch (firebaseError) {
-        console.error('❌ Firebase user creation error:', firebaseError);
-        return res.status(400).json({
-          success: false,
-          message: 'Failed to create user account: ' + firebaseError.message
-        });
-      }
-    } else {
-      // Generate a temporary UID for users without Firebase account
-      firebaseUid = 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    try {
+      const userRecord = await admin.auth().createUser({
+        email: email || undefined, // Email might be null if only phone provided
+        password: password,
+        phoneNumber: mobileNumber ? (mobileNumber.startsWith('+') ? mobileNumber : `+91${mobileNumber}`) : undefined,
+        displayName: fullName
+      });
+      firebaseUid = userRecord.uid;
+    } catch (firebaseError) {
+      console.error('❌ Firebase user creation error:', firebaseError);
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to create user account: ' + firebaseError.message
+      });
     }
 
     // Create user in MongoDB
@@ -376,14 +382,14 @@ router.post('/:hospitalId/inpatients', firebaseAuthMiddleware, async (req, res) 
       hospital: hospital.hospitalName
     });
 
-    // Send welcome email with login credentials to the patient (only if email provided)
+    // Send welcome email with login credentials to the patient (if email provided)
     if (email) {
       try {
         const { sendInpatientAccountEmail } = require('../services/emailService');
         await sendInpatientAccountEmail(
           email,
           fullName,
-          password || 'No password set',
+          password,
           hospital.hospitalName,
           arcId
         );
