@@ -589,12 +589,6 @@ const sendSessionEmail = async ({ to, subject, action, device, ip, location, tim
             <tr><td style="padding:8px 0;color:#6b7280">IP</td><td>${ip || 'Unknown'}</td></tr>
             <tr><td style="padding:8px 0;color:#6b7280">Location</td><td>${loc}</td></tr>
           </table>
-
-          <div style="margin-top:20px">
-            <a href="#" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:10px 14px;border-radius:8px;font-weight:600">Review activity</a>
-          </div>
-
-          <div style="margin-top:18px;font-size:12px;color:#6b7280">If the button doesn’t work, please open the Arcular+ app and check your profile activity.</div>
         </td>
       </tr>
       <tr>
