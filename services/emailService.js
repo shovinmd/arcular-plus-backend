@@ -691,6 +691,55 @@ const sendTestCompletionEmailToHospital = async (data) => {
   }
 };
 
+// Send inpatient account creation email
+const sendInpatientAccountEmail = async (patientEmail, patientName, password, hospitalName, arcId) => {
+  try {
+    const subject = `Welcome to Arcular Plus - Your Inpatient Account`;
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #20bf6b 0%, #26a69a 100%); color: white; padding: 20px; text-align: center;">
+          <h1>Arcular Plus</h1>
+          <h2>Welcome to Your Inpatient Account</h2>
+        </div>
+        <div style="padding: 20px;">
+          <p>Dear ${patientName},</p>
+          <p>Welcome to Arcular Plus! Your inpatient account has been created by <strong>${hospitalName}</strong>.</p>
+          
+          <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="color: #333; margin-top: 0;">Your Account Details:</h3>
+            <p><strong>Name:</strong> ${patientName}</p>
+            <p><strong>Email:</strong> ${patientEmail}</p>
+            <p><strong>ARC ID:</strong> ${arcId}</p>
+            <p><strong>Password:</strong> ${password}</p>
+            <p><strong>Hospital:</strong> ${hospitalName}</p>
+          </div>
+          
+          <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #20bf6b;">
+            <h3 style="color: #20bf6b; margin-top: 0;">What's Next?</h3>
+            <ul style="margin: 0; padding-left: 20px;">
+              <li>Download the Arcular Plus mobile app</li>
+              <li>Login using your email and password</li>
+              <li>Complete your profile setup</li>
+              <li>Your ARC ID will help hospital staff identify you</li>
+            </ul>
+          </div>
+          
+          <p><strong>Important:</strong> Please keep your ARC ID safe and share it with hospital staff when needed.</p>
+          <p>If you have any questions, please contact your hospital or our support team.</p>
+          <p>Best regards,<br>Arcular Plus Team</p>
+        </div>
+      </div>
+    `;
+    
+    sendInBackground('Inpatient account email', async () => {
+      const ok = await sendMailSmart({ to: patientEmail, subject, html });
+      if (!ok) throw new Error('provider failed');
+    });
+  } catch (error) {
+    console.error('❌ Error sending inpatient account email:', error);
+  }
+};
+
 module.exports = {
   sendRegistrationConfirmation,
   sendApprovalEmail,
@@ -703,6 +752,7 @@ module.exports = {
   sendReportReadyEmail,
   sendTestCompletionEmailToPatient,
   sendTestCompletionEmailToHospital,
+  sendInpatientAccountEmail,
   // Helpers
   sendMailSmart,
   sendInBackground,
