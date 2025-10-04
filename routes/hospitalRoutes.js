@@ -379,7 +379,12 @@ router.post('/:hospitalId/inpatients', firebaseAuthMiddleware, async (req, res) 
       name: fullName,
       email: email,
       arcId: arcId,
-      hospital: hospital.hospitalName
+      hospital: hospital.hospitalName,
+      hospitalMongoId: hospital._id.toString(),
+      hospitalFirebaseUid: hospital.uid,
+      userAssociatedHospital: user.associatedHospital,
+      userAssociatedHospitalId: user.associatedHospitalId,
+      userCreatedByHospitalId: user.createdByHospitalId
     });
 
     // Send welcome email with login credentials to the patient (if email provided)
@@ -453,7 +458,8 @@ router.get('/:hospitalId/inpatients', firebaseAuthMiddleware, async (req, res) =
     
     console.log('🔍 Fetching inpatients for hospital:', hospital.hospitalName, 'MongoDB _id:', hospital._id);
     
-    const inpatients = await User.find({
+    // Try multiple query approaches to find inpatients
+    let inpatients = await User.find({
       associatedHospitalId: hospital._id.toString(),
       createdByHospital: true,
       type: 'patient'
@@ -464,8 +470,64 @@ router.get('/:hospitalId/inpatients', firebaseAuthMiddleware, async (req, res) =
     .select('fullName email mobileNumber arcId createdAt status gender dateOfBirth address')
     .lean();
     
+    console.log('🔍 Query 1 - associatedHospitalId:', hospital._id.toString(), 'Found:', inpatients.length);
+    
+    // If no results, try alternative queries
+    if (inpatients.length === 0) {
+      console.log('🔍 Trying alternative queries...');
+      
+      // Try with associatedHospital field
+      inpatients = await User.find({
+        associatedHospital: hospital._id.toString(),
+        createdByHospital: true,
+        type: 'patient'
+      })
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit))
+      .skip(parseInt(offset))
+      .select('fullName email mobileNumber arcId createdAt status gender dateOfBirth address')
+      .lean();
+      
+      console.log('🔍 Query 2 - associatedHospital:', hospital._id.toString(), 'Found:', inpatients.length);
+      
+      // Try with createdByHospitalId field
+      if (inpatients.length === 0) {
+        inpatients = await User.find({
+          createdByHospitalId: hospital._id.toString(),
+          createdByHospital: true,
+          type: 'patient'
+        })
+        .sort({ createdAt: -1 })
+        .limit(parseInt(limit))
+        .skip(parseInt(offset))
+        .select('fullName email mobileNumber arcId createdAt status gender dateOfBirth address')
+        .lean();
+        
+        console.log('🔍 Query 3 - createdByHospitalId:', hospital._id.toString(), 'Found:', inpatients.length);
+      }
+      
+      // Try finding any users created by this hospital
+      if (inpatients.length === 0) {
+        const allHospitalUsers = await User.find({
+          createdByHospital: true,
+          type: 'patient'
+        })
+        .select('fullName email mobileNumber arcId createdAt status gender dateOfBirth address associatedHospitalId associatedHospital createdByHospitalId')
+        .lean();
+        
+        console.log('🔍 All hospital-created patients:', allHospitalUsers.length);
+        for (let user of allHospitalUsers) {
+          console.log('👤 User:', user.fullName, 'associatedHospitalId:', user.associatedHospitalId, 'associatedHospital:', user.associatedHospital, 'createdByHospitalId:', user.createdByHospitalId);
+        }
+      }
+    }
+    
     const totalCount = await User.countDocuments({
-      associatedHospitalId: hospital._id.toString(),
+      $or: [
+        { associatedHospitalId: hospital._id.toString() },
+        { associatedHospital: hospital._id.toString() },
+        { createdByHospitalId: hospital._id.toString() }
+      ],
       createdByHospital: true,
       type: 'patient'
     });
