@@ -1118,21 +1118,40 @@ const getHospitalSOSLog = async (req, res) => {
     
     console.log(`📊 Found ${hospitalSOSRecords.length} hospital SOS records`);
     
+    // Debug: Log first few records
+    if (hospitalSOSRecords.length > 0) {
+      console.log('🔍 First hospital SOS record:', JSON.stringify(hospitalSOSRecords[0], null, 2));
+    }
+    
     const logItems = [];
     
     for (const hospitalSOS of hospitalSOSRecords) {
       const sosRequest = hospitalSOS.sosRequestId;
-      if (!sosRequest) continue;
+      if (!sosRequest) {
+        console.log('⚠️ Skipping record with no SOS request');
+        continue;
+      }
+      
+      console.log(`🔍 Processing SOS request: ${sosRequest._id}, Hospital status: ${hospitalSOS.hospitalStatus}`);
       
       // Get all hospitals involved in this SOS request
       const allHospitalSOS = await HospitalSOS.find({
         sosRequestId: sosRequest._id
       }).lean();
       
+      console.log(`🔍 Found ${allHospitalSOS.length} hospitals for SOS ${sosRequest._id}`);
+      allHospitalSOS.forEach((h, index) => {
+        console.log(`  Hospital ${index + 1}: ${h.hospitalId} - Status: ${h.hospitalStatus}`);
+      });
+      
       // Find which hospital accepted the request
       const acceptedHospital = allHospitalSOS.find(h => h.hospitalStatus === 'accepted');
       const admittedHospital = allHospitalSOS.find(h => h.hospitalStatus === 'admitted');
       const dischargedHospital = allHospitalSOS.find(h => h.hospitalStatus === 'discharged');
+      
+      console.log(`🔍 Accepted hospital: ${acceptedHospital ? acceptedHospital.hospitalId : 'None'}`);
+      console.log(`🔍 Admitted hospital: ${admittedHospital ? admittedHospital.hospitalId : 'None'}`);
+      console.log(`🔍 Discharged hospital: ${dischargedHospital ? dischargedHospital.hospitalId : 'None'}`);
       
       // Determine the final status and which hospital handled it
       let finalStatus = 'pending';
@@ -1198,6 +1217,12 @@ const getHospitalSOSLog = async (req, res) => {
           discharged: dischargedHospital?.dischargedAt,
         }
       };
+      
+      console.log(`🔍 Created log item for SOS ${sosRequest._id}:`);
+      console.log(`  - Hospital status: ${hospitalSOS.hospitalStatus}`);
+      console.log(`  - Final status: ${finalStatus}`);
+      console.log(`  - Handled by: ${handlingHospitalName}`);
+      console.log(`  - Is handled by other: ${logItem.handledByOtherDetails.isHandledByOther}`);
       
       logItems.push(logItem);
     }

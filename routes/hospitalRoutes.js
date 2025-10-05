@@ -195,6 +195,65 @@ router.get('/:id/qr-records', firebaseAuthMiddleware, hospitalController.getQrRe
 router.get('/qr/:identifier', hospitalController.getHospitalByQr);
 router.get('/qr/uid/:uid', hospitalController.getHospitalByUid);
 
+// Debug endpoint to check SOS data
+router.get('/:hospitalId/debug-sos', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    const { hospitalId } = req.params;
+    const HospitalSOS = require('../models/HospitalSOS');
+    const SOSRequest = require('../models/SOSRequest');
+    
+    console.log(`🔍 Debug: Checking SOS data for hospital: ${hospitalId}`);
+    
+    // Try to resolve hospitalId to MongoDB ObjectId
+    let mongoHospitalId = hospitalId;
+    
+    // If hospitalId looks like a Firebase UID (long string), find the MongoDB _id
+    if (hospitalId.length > 20) {
+      const Hospital = require('../models/Hospital');
+      const hospital = await Hospital.findOne({ firebaseUid: hospitalId });
+      if (hospital) {
+        mongoHospitalId = hospital._id;
+        console.log(`🔍 Resolved Firebase UID ${hospitalId} to MongoDB _id: ${mongoHospitalId}`);
+      }
+    }
+    
+    // Get all HospitalSOS records for this hospital
+    const hospitalSOSRecords = await HospitalSOS.find({
+      hospitalId: mongoHospitalId
+    }).lean();
+    
+    console.log(`📊 Found ${hospitalSOSRecords.length} HospitalSOS records`);
+    
+    // Get all SOS requests
+    const allSOSRequests = await SOSRequest.find({}).limit(5).lean();
+    console.log(`📊 Found ${allSOSRequests.length} SOS requests (showing first 5)`);
+    
+    // Get all HospitalSOS records (first 10)
+    const allHospitalSOS = await HospitalSOS.find({}).limit(10).lean();
+    console.log(`📊 Found ${allHospitalSOS.length} total HospitalSOS records (showing first 10)`);
+    
+    res.json({
+      success: true,
+      data: {
+        hospitalId: hospitalId,
+        mongoHospitalId: mongoHospitalId,
+        hospitalSOSRecords: hospitalSOSRecords,
+        allSOSRequests: allSOSRequests,
+        allHospitalSOS: allHospitalSOS,
+        counts: {
+          hospitalSOSRecords: hospitalSOSRecords.length,
+          allSOSRequests: allSOSRequests.length,
+          allHospitalSOS: allHospitalSOS.length
+        }
+      }
+    });
+    
+  } catch (e) {
+    console.error('❌ Error in debug endpoint:', e);
+    return res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // Add: fetch hospital SOS log (recent actions and handledByOther details)
 router.get('/:hospitalId/sos-log', firebaseAuthMiddleware, async (req, res) => {
   try {
