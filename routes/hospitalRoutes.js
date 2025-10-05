@@ -128,6 +128,27 @@ router.post('/direct-alerts/:alertId/cancel', firebaseAuthMiddleware, async (req
   }
 });
 
+// Get current user's latest direct alerts (for user app status)
+router.get('/direct-alerts/my', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    const uid = req.user && (req.user.uid || req.user.user_id);
+    const { status, limit = 5 } = req.query;
+    const HospitalAlert = require('../models/HospitalAlert');
+    const query = Object.assign(
+      { patientId: uid },
+      status ? { status } : {}
+    );
+    const alerts = await HospitalAlert.find(query)
+      .sort({ updatedAt: -1, createdAt: -1 })
+      .limit(parseInt(limit))
+      .lean();
+    return res.json({ success: true, data: alerts, count: alerts.length });
+  } catch (e) {
+    console.error('❌ Error fetching my direct alerts:', e);
+    return res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // Public route to get all approved hospitals (for appointment booking)
 router.get('/', firebaseAuthMiddleware, hospitalController.getAllApprovedHospitals);
 
