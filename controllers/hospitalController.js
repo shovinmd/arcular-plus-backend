@@ -755,25 +755,7 @@ const getAnalytics = async (req, res) => {
       }
     ]);
     
-    // Calculate response time statistics
-    const responseTimeStats = await HospitalSOS.aggregate([
-      { 
-        $match: { 
-          ...hospitalSOSQuery,
-          hospitalStatus: { $in: ['accepted', 'hospitalReached', 'admitted'] },
-          'responseDetails.responseTime': { $exists: true, $ne: null }
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          avgResponseTime: { $avg: '$responseDetails.responseTime' },
-          minResponseTime: { $min: '$responseDetails.responseTime' },
-          maxResponseTime: { $max: '$responseDetails.responseTime' },
-          count: { $sum: 1 }
-        }
-      }
-    ]);
+    // Response time statistics removed as requested
     
     // Calculate acceptance rate
     const acceptedCount = statusStats.find(stat => stat._id === 'accepted')?.count || 0;
@@ -785,15 +767,10 @@ const getAnalytics = async (req, res) => {
     const completedCount = statusStats.find(stat => ['admitted', 'discharged'].includes(stat._id))?.count || 0;
     const completionRate = totalRequests > 0 ? (completedCount / totalRequests) * 100 : 0;
     
-    // Format response time
-    const avgResponseTime = responseTimeStats.length > 0 ? responseTimeStats[0].avgResponseTime : 0;
-    const responseTimeSeconds = avgResponseTime ? Math.round(avgResponseTime * 100) / 100 : 0;
-    
     console.log(`✅ Analytics calculated for hospital ${hospitalId}:`);
     console.log(`  - Total requests: ${totalRequests}`);
     console.log(`  - Acceptance rate: ${acceptanceRate.toFixed(1)}%`);
     console.log(`  - Completion rate: ${completionRate.toFixed(1)}%`);
-    console.log(`  - Avg response time: ${responseTimeSeconds}s`);
     
     res.json({
       success: true,
@@ -805,16 +782,9 @@ const getAnalytics = async (req, res) => {
         completedRequests: completedCount,
         acceptanceRate: Math.round(acceptanceRate * 100) / 100, // Round to 2 decimal places
         completionRate: Math.round(completionRate * 100) / 100,
-        averageResponseTime: responseTimeSeconds,
         statusDistribution: statusStats,
         emergencyTypeDistribution: emergencyTypeStats,
-        severityDistribution: severityStats,
-        responseTimeStats: responseTimeStats.length > 0 ? responseTimeStats[0] : {
-          avgResponseTime: 0,
-          minResponseTime: 0,
-          maxResponseTime: 0,
-          count: 0
-        }
+        severityDistribution: severityStats
       }
     });
     

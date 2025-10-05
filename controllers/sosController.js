@@ -1019,8 +1019,7 @@ const getSOSStatistics = async (req, res) => {
       {
         $group: {
           _id: '$hospitalStatus',
-          count: { $sum: 1 },
-          avgResponseTime: { $avg: '$responseDetails.responseTime' }
+          count: { $sum: 1 }
         }
       }
     ]);
