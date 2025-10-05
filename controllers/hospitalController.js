@@ -1,4 +1,6 @@
 const Hospital = require('../models/Hospital');
+const SOSRequest = require('../models/SOSRequest');
+const HospitalSOS = require('../models/HospitalSOS');
 const { v4: uuidv4 } = require('uuid');
 const QRCode = require('qrcode');
 const { 
@@ -642,7 +644,189 @@ const addLabTest = async (req, res) => res.status(501).json({ error: 'Not implem
 const updateLabTest = async (req, res) => res.status(501).json({ error: 'Not implemented' });
 const removeLabTest = async (req, res) => res.status(501).json({ error: 'Not implemented' });
 const getQrRecords = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-const getAnalytics = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+const getAnalytics = async (req, res) => {
+  try {
+    const { id: hospitalId } = req.params;
+    const { period = '7D' } = req.query; // Default to 7 days
+    
+    console.log(`📊 Getting analytics for hospital: ${hospitalId}, period: ${period}`);
+    
+    // Calculate date range based on period
+    const now = new Date();
+    let startDate;
+    
+    switch (period) {
+      case '1D':
+        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        break;
+      case '7D':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case '30D':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case '90D':
+        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        break;
+      default:
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    }
+    
+    // Find hospital by ID (handle both UID and ObjectId)
+    let hospital;
+    try {
+      hospital = await Hospital.findOne({ uid: hospitalId });
+      if (!hospital) {
+        const mongoose = require('mongoose');
+        if (mongoose.isValidObjectId(hospitalId)) {
+          hospital = await Hospital.findById(hospitalId);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error finding hospital:', error);
+    }
+    
+    if (!hospital) {
+      return res.status(404).json({
+        success: false,
+        message: 'Hospital not found'
+      });
+    }
+    
+    // Get SOS requests for this hospital within the date range
+    const hospitalSOSQuery = {
+      hospitalId: hospitalId,
+      createdAt: { $gte: startDate, $lte: now }
+    };
+    
+    console.log('🔍 HospitalSOS query:', hospitalSOSQuery);
+    
+    // Get basic statistics
+    const totalRequests = await HospitalSOS.countDocuments(hospitalSOSQuery);
+    
+    // Get status distribution
+    const statusStats = await HospitalSOS.aggregate([
+      { $match: hospitalSOSQuery },
+      {
+        $group: {
+          _id: '$hospitalStatus',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+    
+    // Get emergency type distribution
+    const emergencyTypeStats = await HospitalSOS.aggregate([
+      { $match: hospitalSOSQuery },
+      {
+        $lookup: {
+          from: 'sosrequests',
+          localField: 'sosRequestId',
+          foreignField: '_id',
+          as: 'sosRequest'
+        }
+      },
+      { $unwind: '$sosRequest' },
+      {
+        $group: {
+          _id: '$sosRequest.emergencyType',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+    
+    // Get severity distribution
+    const severityStats = await HospitalSOS.aggregate([
+      { $match: hospitalSOSQuery },
+      {
+        $lookup: {
+          from: 'sosrequests',
+          localField: 'sosRequestId',
+          foreignField: '_id',
+          as: 'sosRequest'
+        }
+      },
+      { $unwind: '$sosRequest' },
+      {
+        $group: {
+          _id: '$sosRequest.severity',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+    
+    // Calculate response time statistics
+    const responseTimeStats = await HospitalSOS.aggregate([
+      { 
+        $match: { 
+          ...hospitalSOSQuery,
+          hospitalStatus: { $in: ['accepted', 'hospitalReached', 'admitted'] },
+          'responseDetails.responseTime': { $exists: true, $ne: null }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          avgResponseTime: { $avg: '$responseDetails.responseTime' },
+          minResponseTime: { $min: '$responseDetails.responseTime' },
+          maxResponseTime: { $max: '$responseDetails.responseTime' },
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+    
+    // Calculate acceptance rate
+    const acceptedCount = statusStats.find(stat => stat._id === 'accepted')?.count || 0;
+    const handledByOtherCount = statusStats.find(stat => stat._id === 'handledByOther')?.count || 0;
+    const totalRespondedCount = acceptedCount + handledByOtherCount;
+    const acceptanceRate = totalRespondedCount > 0 ? (acceptedCount / totalRespondedCount) * 100 : 0;
+    
+    // Calculate completion rate (admitted + discharged)
+    const completedCount = statusStats.find(stat => ['admitted', 'discharged'].includes(stat._id))?.count || 0;
+    const completionRate = totalRequests > 0 ? (completedCount / totalRequests) * 100 : 0;
+    
+    // Format response time
+    const avgResponseTime = responseTimeStats.length > 0 ? responseTimeStats[0].avgResponseTime : 0;
+    const responseTimeSeconds = avgResponseTime ? Math.round(avgResponseTime * 100) / 100 : 0;
+    
+    console.log(`✅ Analytics calculated for hospital ${hospitalId}:`);
+    console.log(`  - Total requests: ${totalRequests}`);
+    console.log(`  - Acceptance rate: ${acceptanceRate.toFixed(1)}%`);
+    console.log(`  - Completion rate: ${completionRate.toFixed(1)}%`);
+    console.log(`  - Avg response time: ${responseTimeSeconds}s`);
+    
+    res.json({
+      success: true,
+      data: {
+        period: period,
+        hospitalId: hospitalId,
+        hospitalName: hospital.hospitalName,
+        totalRequests: totalRequests,
+        completedRequests: completedCount,
+        acceptanceRate: Math.round(acceptanceRate * 100) / 100, // Round to 2 decimal places
+        completionRate: Math.round(completionRate * 100) / 100,
+        averageResponseTime: responseTimeSeconds,
+        statusDistribution: statusStats,
+        emergencyTypeDistribution: emergencyTypeStats,
+        severityDistribution: severityStats,
+        responseTimeStats: responseTimeStats.length > 0 ? responseTimeStats[0] : {
+          avgResponseTime: 0,
+          minResponseTime: 0,
+          maxResponseTime: 0,
+          count: 0
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error getting hospital analytics:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get analytics',
+      error: error.message
+    });
+  }
+};
 const getReports = async (req, res) => res.status(501).json({ error: 'Not implemented' });
 const getChatMessages = async (req, res) => res.status(501).json({ error: 'Not implemented' });
 const sendChatMessage = async (req, res) => res.status(501).json({ error: 'Not implemented' });

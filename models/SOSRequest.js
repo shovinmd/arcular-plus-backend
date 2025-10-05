@@ -206,8 +206,13 @@ SOSRequestSchema.methods.hasTimedOut = function() {
 
 // Method to calculate response time
 SOSRequestSchema.methods.calculateResponseTime = function() {
-  if (this.acceptedBy && this.acceptedBy.acceptedAt) {
-    this.responseTime = Math.floor((this.acceptedBy.acceptedAt - this.createdAt) / 1000);
+  if (this.acceptedBy && this.acceptedBy.acceptedAt && this.createdAt) {
+    const responseTimeMs = this.acceptedBy.acceptedAt - this.createdAt;
+    this.responseTime = Math.max(0, Math.floor(responseTimeMs / 1000)); // Ensure non-negative and convert to seconds
+    console.log(`⏱️ Response time calculated: ${this.responseTime}s (${responseTimeMs}ms)`);
+  } else {
+    console.log('⚠️ Cannot calculate response time - missing acceptedAt or createdAt');
+    this.responseTime = 0;
   }
   return this.responseTime;
 };
