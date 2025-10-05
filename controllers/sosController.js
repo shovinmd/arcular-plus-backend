@@ -1804,6 +1804,27 @@ const sendHospitalAlert = async (req, res) => {
       });
     }
 
+    // Prevent multiple active direct alerts per user
+    try {
+      const HospitalAlert = require('../models/HospitalAlert');
+      const existing = await HospitalAlert.findOne({ patientId, status: 'pending' });
+      if (existing) {
+        console.log(`ℹ️ Direct alert already active for patient ${patientId} -> ${existing._id}`);
+        return res.status(200).json({
+          success: true,
+          message: 'Direct alert already active',
+          data: {
+            alertId: existing._id,
+            hospitalName: existing.hospitalName,
+            timestamp: existing.createdAt,
+            alreadyActive: true,
+          },
+        });
+      }
+    } catch (checkErr) {
+      console.error('❌ Error checking existing direct alerts:', checkErr);
+    }
+
     // Find the hospital - handle multiple identifier types
     let hospital;
     try {
