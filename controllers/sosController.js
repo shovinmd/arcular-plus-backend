@@ -489,6 +489,32 @@ const createSOSRequest = async (req, res) => {
       // Ensure HospitalSOS records exist/updated
       await ensureHospitalSOSForRequest(existingRequest, location, address, city, state, pincode, emergencyType, description, severity);
 
+      // Check if patient is already admitted - prevent new SOS
+      if (existingRequest.status === 'admitted') {
+        return res.status(409).json({
+          success: false,
+          message: 'Patient is already admitted. Cannot create new SOS request until patient is discharged.',
+          data: {
+            sosRequestId: existingRequest._id,
+            status: existingRequest.status,
+            admittedAt: existingRequest.admissionDetails?.admittedAt
+          }
+        });
+      }
+
+      // Check if hospital has reached - prevent new SOS
+      if (existingRequest.status === 'hospitalReached') {
+        return res.status(409).json({
+          success: false,
+          message: 'Hospital has reached patient. Cannot create new SOS request until patient is discharged.',
+          data: {
+            sosRequestId: existingRequest._id,
+            status: existingRequest.status,
+            hospitalReachedAt: existingRequest.hospitalReachedAt
+          }
+        });
+      }
+
       return res.status(200).json({
         success: true,
         message: 'Active SOS request updated and returned',
@@ -778,19 +804,27 @@ const markPatientAdmitted = async (req, res) => {
     console.log('  - Strict equality:', sosRequest.acceptedBy?.hospitalId === hospitalId);
     console.log('  - Loose equality:', sosRequest.acceptedBy?.hospitalId == hospitalId);
 
-    if (sosRequest.acceptedBy.hospitalId !== hospitalId) {
-      console.log('❌ Hospital ID mismatch:', sosRequest.acceptedBy.hospitalId, 'vs', hospitalId);
+    // Check if this hospital is authorized to mark admission
+    // Must be either the accepted hospital or the hospital that reached the patient
+    const isAcceptedHospital = sosRequest.acceptedBy?.hospitalId === hospitalId;
+    const isReachingHospital = sosRequest.reachedHospitalId === hospitalId;
+    
+    if (!isAcceptedHospital && !isReachingHospital) {
+      console.log('❌ Hospital not authorized:', hospitalId);
+      console.log('  - Accepted by:', sosRequest.acceptedBy?.hospitalId);
+      console.log('  - Reached by:', sosRequest.reachedHospitalId);
       return res.status(403).json({
         success: false,
-        message: 'You are not authorized to update this SOS request'
+        message: 'Only the hospital that accepted or reached the patient can mark admission'
       });
     }
 
-    if (sosRequest.status !== 'accepted') {
-      console.log('❌ SOS request not accepted:', sosRequest.status);
+    // Allow admission if hospital has reached patient or if status is accepted
+    if (sosRequest.status !== 'accepted' && sosRequest.status !== 'hospitalReached') {
+      console.log('❌ SOS request not in correct status:', sosRequest.status);
       return res.status(409).json({
         success: false,
-        message: 'SOS request must be accepted before marking as admitted'
+        message: 'SOS request must be accepted or hospital must have reached patient before marking as admitted'
       });
     }
 
@@ -1249,26 +1283,29 @@ const handleSOSEscalation = async (req, res) => {
     if (acceptedHospital) {
       console.log(`✅ Hospital ${acceptedHospital.hospitalId} has already accepted SOS ${sosRequestId}`);
       
-      // If hospital has reached, only call emergency contact (not 123)
+      // If hospital has reached, STOP all escalation - no more calls to 123 or other hospitals
       if (acceptedHospital.hospitalStatus === 'hospitalReached') {
-        console.log(`🏥 Hospital has reached patient, only calling emergency contact`);
-        
-        let emergencyCalls = [];
-        if (sosRequest.emergencyContact && sosRequest.emergencyContact.phone) {
-          emergencyCalls.push({
-            number: sosRequest.emergencyContact.phone,
-            type: 'emergency_contact',
-            triggered: true,
-            reason: 'Hospital has reached patient - emergency contact notification'
-          });
-        }
+        console.log(`🏥 Hospital has reached patient - STOPPING all escalation`);
         
         return res.status(200).json({
           success: true,
-          message: 'Hospital has reached patient - emergency contact called',
-          action: 'emergency_contact_only',
-          emergencyCalls: emergencyCalls,
-          acceptedHospital: acceptedHospital.hospitalId
+          message: 'Hospital has reached patient - escalation stopped',
+          action: 'escalation_stopped',
+          acceptedHospital: acceptedHospital.hospitalId,
+          escalationStopped: true
+        });
+      }
+      
+      // If patient is admitted, STOP all escalation completely
+      if (acceptedHospital.hospitalStatus === 'admitted') {
+        console.log(`🏥 Patient admitted - STOPPING all escalation`);
+        
+        return res.status(200).json({
+          success: true,
+          message: 'Patient admitted - escalation stopped',
+          action: 'escalation_stopped',
+          acceptedHospital: acceptedHospital.hospitalId,
+          escalationStopped: true
         });
       }
       
