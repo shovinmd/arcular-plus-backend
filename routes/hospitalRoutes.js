@@ -119,6 +119,15 @@ router.post('/:hospitalId/direct-alerts/:alertId/acknowledge', firebaseAuthMiddl
   }
 });
 
+// Cancel a direct alert (user side) - keep in hospitals namespace for simplicity
+router.post('/direct-alerts/:alertId/cancel', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    await sosController.cancelDirectAlert(req, res);
+  } catch (e) {
+    return res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // Public route to get all approved hospitals (for appointment booking)
 router.get('/', firebaseAuthMiddleware, hospitalController.getAllApprovedHospitals);
 

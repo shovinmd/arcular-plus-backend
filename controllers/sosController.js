@@ -1940,5 +1940,36 @@ module.exports = {
   dischargePatient,
   synchronizeHospitalCoordinates,
   sendHospitalAlert,
+  // new export added below
 };
+
+// Cancel a direct hospital alert (user-initiated)
+const cancelDirectAlert = async (req, res) => {
+  try {
+    const { alertId } = req.params;
+    const uid = req.user && (req.user.uid || req.user.user_id);
+
+    const HospitalAlert = require('../models/HospitalAlert');
+    const alert = await HospitalAlert.findOne({ _id: alertId });
+    if (!alert) {
+      return res.status(404).json({ success: false, message: 'Alert not found' });
+    }
+
+    // Only the patient who created can cancel
+    if (uid && alert.patientId && alert.patientId !== uid) {
+      return res.status(403).json({ success: false, message: 'Not authorized to cancel this alert' });
+    }
+
+    alert.status = 'cancelled';
+    alert.updatedAt = new Date();
+    await alert.save();
+
+    return res.json({ success: true, message: 'Direct alert cancelled', data: { alertId: alert._id } });
+  } catch (e) {
+    console.error('❌ Error cancelling direct alert:', e);
+    return res.status(500).json({ success: false, message: 'Failed to cancel direct alert', error: e.message });
+  }
+};
+
+module.exports.cancelDirectAlert = cancelDirectAlert;
 
