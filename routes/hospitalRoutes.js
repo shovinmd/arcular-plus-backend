@@ -6,6 +6,15 @@ const hospitalLocationController = require('../controllers/hospitalLocationContr
 const sosController = require('../controllers/sosController');
 const router = express.Router();
 
+// Send direct alert to hospital (from user app) - MUST BE BEFORE :id ROUTES
+router.post('/alert', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    await sosController.sendHospitalAlert(req, res);
+  } catch (e) {
+    return res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // Public route to get all approved hospitals (for appointment booking)
 router.get('/', firebaseAuthMiddleware, hospitalController.getAllApprovedHospitals);
 
@@ -29,15 +38,6 @@ router.post('/sync-coordinates', firebaseAuthMiddleware, async (req, res) => {
   try {
     const result = await sosController.synchronizeHospitalCoordinates();
     return res.status(200).json({ success: true, ...result });
-  } catch (e) {
-    return res.status(500).json({ success: false, error: e.message });
-  }
-});
-
-// Send direct alert to hospital (from user app)
-router.post('/alert', firebaseAuthMiddleware, async (req, res) => {
-  try {
-    await sosController.sendHospitalAlert(req, res);
   } catch (e) {
     return res.status(500).json({ success: false, error: e.message });
   }
