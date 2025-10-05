@@ -20,49 +20,57 @@ router.get('/:hospitalId/direct-alerts', firebaseAuthMiddleware, async (req, res
   try {
     const { hospitalId } = req.params;
     const { status, limit = 50 } = req.query;
-    
+
     const HospitalAlert = require('../models/HospitalAlert');
     const Hospital = require('../models/Hospital');
-    
-    // Try to resolve hospitalId to MongoDB ObjectId
-    let mongoHospitalId = hospitalId;
-    
-    // If hospitalId looks like a Firebase UID (long string), find the MongoDB _id
-    if (hospitalId.length > 20) {
-      const hospital = await Hospital.findOne({ firebaseUid: hospitalId });
-      if (hospital) {
-        mongoHospitalId = hospital._id;
-        console.log(`🔍 Resolved Firebase UID ${hospitalId} to MongoDB _id: ${mongoHospitalId}`);
-      } else {
-        console.log(`⚠️ Hospital not found for Firebase UID: ${hospitalId}`);
-        return res.json({
-          success: true,
-          data: [],
-          count: 0,
-          message: 'Hospital not found'
-        });
+    const { Types } = require('mongoose');
+
+    // Resolve hospitalId to MongoDB ObjectId by trying multiple identifiers
+    let mongoHospitalId = null;
+
+    console.log('🔎 Resolving hospital identifier for direct alerts:', hospitalId);
+
+    // 1) If hospitalId is a valid ObjectId, use it directly
+    if (Types.ObjectId.isValid(hospitalId)) {
+      mongoHospitalId = hospitalId;
+      console.log('✅ Using provided MongoDB _id for hospital');
+    } else {
+      // 2) Try firebaseUid
+      let hospitalDoc = await Hospital.findOne({ firebaseUid: hospitalId });
+      if (!hospitalDoc) {
+        // 3) Try generic uid
+        hospitalDoc = await Hospital.findOne({ uid: hospitalId });
+      }
+      if (!hospitalDoc) {
+        // 4) Try qrUid/publicId as a last resort
+        hospitalDoc = await Hospital.findOne({ $or: [{ qrUid: hospitalId }, { publicId: hospitalId }] });
+      }
+      if (hospitalDoc) {
+        mongoHospitalId = hospitalDoc._id;
+        console.log(`✅ Resolved hospital to _id: ${mongoHospitalId}`);
       }
     }
-    
-    let query = { hospitalId: mongoHospitalId };
-    if (status) {
-      query.status = status;
+
+    if (!mongoHospitalId) {
+      console.log('⚠️ Hospital not found for identifier:', hospitalId);
+      return res.json({ success: true, data: [], count: 0, message: 'Hospital not found' });
     }
-    
-    console.log(`🔍 Querying direct alerts with:`, query);
-    
+
+    const query = Object.assign(
+      { hospitalId: mongoHospitalId },
+      status ? { status } : {}
+    );
+
+    console.log('🔍 Querying direct alerts with:', query);
+
     const alerts = await HospitalAlert.find(query)
       .sort({ createdAt: -1 })
       .limit(parseInt(limit))
       .lean();
-    
+
     console.log(`📊 Found ${alerts.length} direct alerts`);
-    
-    res.json({
-      success: true,
-      data: alerts,
-      count: alerts.length
-    });
+
+    return res.json({ success: true, data: alerts, count: alerts.length });
   } catch (e) {
     console.error('❌ Error fetching direct alerts:', e);
     return res.status(500).json({ success: false, error: e.message });
@@ -74,31 +82,37 @@ router.post('/:hospitalId/direct-alerts/:alertId/acknowledge', firebaseAuthMiddl
   try {
     const { hospitalId, alertId } = req.params;
     const { responseDetails } = req.body;
-    
+
     const HospitalAlert = require('../models/HospitalAlert');
-    
+    const Hospital = require('../models/Hospital');
+    const { Types } = require('mongoose');
+
+    // Resolve hospital id similar to GET route
+    let mongoHospitalId = null;
+    if (Types.ObjectId.isValid(hospitalId)) {
+      mongoHospitalId = hospitalId;
+    } else {
+      let hospitalDoc = await Hospital.findOne({ firebaseUid: hospitalId })
+        || await Hospital.findOne({ uid: hospitalId })
+        || await Hospital.findOne({ $or: [{ qrUid: hospitalId }, { publicId: hospitalId }] });
+      if (hospitalDoc) mongoHospitalId = hospitalDoc._id;
+    }
+
     const alert = await HospitalAlert.findOneAndUpdate(
-      { _id: alertId, hospitalId: hospitalId },
-      { 
+      { _id: alertId, hospitalId: mongoHospitalId },
+      {
         status: 'acknowledged',
         acknowledgedAt: new Date(),
         responseDetails: responseDetails || 'Alert acknowledged by hospital'
       },
       { new: true }
     );
-    
+
     if (!alert) {
-      return res.status(404).json({
-        success: false,
-        message: 'Alert not found'
-      });
+      return res.status(404).json({ success: false, message: 'Alert not found' });
     }
-    
-    res.json({
-      success: true,
-      message: 'Alert acknowledged successfully',
-      data: alert
-    });
+
+    return res.json({ success: true, message: 'Alert acknowledged successfully', data: alert });
   } catch (e) {
     console.error('❌ Error acknowledging alert:', e);
     return res.status(500).json({ success: false, error: e.message });
