@@ -15,6 +15,96 @@ router.post('/alert', firebaseAuthMiddleware, async (req, res) => {
   }
 });
 
+// Get direct alerts for hospital - MUST BE BEFORE :id ROUTES
+router.get('/:hospitalId/direct-alerts', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    const { hospitalId } = req.params;
+    const { status, limit = 50 } = req.query;
+    
+    const HospitalAlert = require('../models/HospitalAlert');
+    const Hospital = require('../models/Hospital');
+    
+    // Try to resolve hospitalId to MongoDB ObjectId
+    let mongoHospitalId = hospitalId;
+    
+    // If hospitalId looks like a Firebase UID (long string), find the MongoDB _id
+    if (hospitalId.length > 20) {
+      const hospital = await Hospital.findOne({ firebaseUid: hospitalId });
+      if (hospital) {
+        mongoHospitalId = hospital._id;
+        console.log(`🔍 Resolved Firebase UID ${hospitalId} to MongoDB _id: ${mongoHospitalId}`);
+      } else {
+        console.log(`⚠️ Hospital not found for Firebase UID: ${hospitalId}`);
+        return res.json({
+          success: true,
+          data: [],
+          count: 0,
+          message: 'Hospital not found'
+        });
+      }
+    }
+    
+    let query = { hospitalId: mongoHospitalId };
+    if (status) {
+      query.status = status;
+    }
+    
+    console.log(`🔍 Querying direct alerts with:`, query);
+    
+    const alerts = await HospitalAlert.find(query)
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit))
+      .lean();
+    
+    console.log(`📊 Found ${alerts.length} direct alerts`);
+    
+    res.json({
+      success: true,
+      data: alerts,
+      count: alerts.length
+    });
+  } catch (e) {
+    console.error('❌ Error fetching direct alerts:', e);
+    return res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Acknowledge direct alert - MUST BE BEFORE :id ROUTES
+router.post('/:hospitalId/direct-alerts/:alertId/acknowledge', firebaseAuthMiddleware, async (req, res) => {
+  try {
+    const { hospitalId, alertId } = req.params;
+    const { responseDetails } = req.body;
+    
+    const HospitalAlert = require('../models/HospitalAlert');
+    
+    const alert = await HospitalAlert.findOneAndUpdate(
+      { _id: alertId, hospitalId: hospitalId },
+      { 
+        status: 'acknowledged',
+        acknowledgedAt: new Date(),
+        responseDetails: responseDetails || 'Alert acknowledged by hospital'
+      },
+      { new: true }
+    );
+    
+    if (!alert) {
+      return res.status(404).json({
+        success: false,
+        message: 'Alert not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Alert acknowledged successfully',
+      data: alert
+    });
+  } catch (e) {
+    console.error('❌ Error acknowledging alert:', e);
+    return res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // Public route to get all approved hospitals (for appointment booking)
 router.get('/', firebaseAuthMiddleware, hospitalController.getAllApprovedHospitals);
 
