@@ -1079,6 +1079,147 @@ const confirmPatientAdmission = async (req, res) => {
   }
 };
 
+// Get hospital SOS log (recent actions and handledByOther details)
+const getHospitalSOSLog = async (req, res) => {
+  try {
+    const { hospitalId } = req.params;
+    const { limit = 30 } = req.query;
+    
+    console.log(`📊 Getting SOS log for hospital: ${hospitalId}`);
+    
+    // Try to resolve hospitalId to MongoDB ObjectId
+    let mongoHospitalId = hospitalId;
+    
+    // If hospitalId looks like a Firebase UID (long string), find the MongoDB _id
+    if (hospitalId.length > 20) {
+      const hospital = await Hospital.findOne({ firebaseUid: hospitalId });
+      if (hospital) {
+        mongoHospitalId = hospital._id;
+        console.log(`🔍 Resolved Firebase UID ${hospitalId} to MongoDB _id: ${mongoHospitalId}`);
+      } else {
+        console.log(`⚠️ Hospital not found for Firebase UID: ${hospitalId}`);
+        return res.json({
+          success: true,
+          data: [],
+          count: 0,
+          message: 'Hospital not found'
+        });
+      }
+    }
+    
+    // Get all SOS requests that this hospital was involved with
+    const hospitalSOSRecords = await HospitalSOS.find({
+      hospitalId: mongoHospitalId
+    })
+    .sort({ createdAt: -1 })
+    .limit(parseInt(limit))
+    .populate('sosRequestId')
+    .lean();
+    
+    console.log(`📊 Found ${hospitalSOSRecords.length} hospital SOS records`);
+    
+    const logItems = [];
+    
+    for (const hospitalSOS of hospitalSOSRecords) {
+      const sosRequest = hospitalSOS.sosRequestId;
+      if (!sosRequest) continue;
+      
+      // Get all hospitals involved in this SOS request
+      const allHospitalSOS = await HospitalSOS.find({
+        sosRequestId: sosRequest._id
+      }).lean();
+      
+      // Find which hospital accepted the request
+      const acceptedHospital = allHospitalSOS.find(h => h.hospitalStatus === 'accepted');
+      const admittedHospital = allHospitalSOS.find(h => h.hospitalStatus === 'admitted');
+      const dischargedHospital = allHospitalSOS.find(h => h.hospitalStatus === 'discharged');
+      
+      // Determine the final status and which hospital handled it
+      let finalStatus = 'pending';
+      let handledByHospital = null;
+      let handledAt = null;
+      
+      if (dischargedHospital) {
+        finalStatus = 'discharged';
+        handledByHospital = dischargedHospital.hospitalId;
+        handledAt = dischargedHospital.dischargedAt || dischargedHospital.updatedAt;
+      } else if (admittedHospital) {
+        finalStatus = 'admitted';
+        handledByHospital = admittedHospital.hospitalId;
+        handledAt = admittedHospital.admittedAt || admittedHospital.updatedAt;
+      } else if (acceptedHospital) {
+        finalStatus = 'accepted';
+        handledByHospital = acceptedHospital.hospitalId;
+        handledAt = acceptedHospital.acceptedAt || acceptedHospital.updatedAt;
+      }
+      
+      // Get hospital name for the handling hospital
+      let handlingHospitalName = 'Unknown Hospital';
+      if (handledByHospital) {
+        const handlingHospital = await Hospital.findById(handledByHospital);
+        if (handlingHospital) {
+          handlingHospitalName = handlingHospital.hospitalName;
+        }
+      }
+      
+      // Create log item
+      const logItem = {
+        sosRequestId: sosRequest._id,
+        patientInfo: {
+          patientName: sosRequest.patientName,
+          patientPhone: sosRequest.patientPhone,
+        },
+        emergencyDetails: {
+          emergencyType: sosRequest.emergencyType,
+          severity: sosRequest.severity,
+          description: sosRequest.description,
+        },
+        location: sosRequest.location,
+        address: sosRequest.address,
+        createdAt: sosRequest.createdAt,
+        status: sosRequest.status,
+        hospitalStatus: hospitalSOS.hospitalStatus,
+        finalStatus: finalStatus,
+        handledByOtherDetails: {
+          handledByHospitalId: handledByHospital,
+          handledByHospitalName: handlingHospitalName,
+          handledAt: handledAt,
+          isHandledByOther: handledByHospital && handledByHospital.toString() !== mongoHospitalId.toString(),
+          patientName: sosRequest.patientName,
+          patientPhone: sosRequest.patientPhone,
+          emergencyType: sosRequest.emergencyType,
+          acceptedAt: handledAt,
+        },
+        // Add timeline information
+        timeline: {
+          created: sosRequest.createdAt,
+          accepted: acceptedHospital?.acceptedAt,
+          admitted: admittedHospital?.admittedAt,
+          discharged: dischargedHospital?.dischargedAt,
+        }
+      };
+      
+      logItems.push(logItem);
+    }
+    
+    console.log(`📊 Returning ${logItems.length} log items`);
+    
+    res.json({
+      success: true,
+      data: logItems,
+      count: logItems.length
+    });
+    
+  } catch (error) {
+    console.error('❌ Error getting hospital SOS log:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get SOS log',
+      error: error.message
+    });
+  }
+};
+
 // SOS Escalation System - Handle automatic emergency calls and retries
 const handleSOSEscalation = async (req, res) => {
   try {
@@ -1711,6 +1852,7 @@ module.exports = {
   cancelSOSRequest,
   getSOSStatistics,
   getSOSRequestById,
+  getHospitalSOSLog,
   handleSOSEscalation,
   getSOSEscalationStatus,
   handleEmergencyCoordination,
