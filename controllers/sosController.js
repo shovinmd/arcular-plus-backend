@@ -894,7 +894,7 @@ const markPatientAdmitted = async (req, res) => {
       }
     }
 
-    // Update all other hospitals to show admission details
+    // Update all other hospitals to show admission details with comprehensive logging
     const admissionInfo = {
       admittedByHospitalId: hospitalId,
       admittedByHospitalName: sosRequest.acceptedBy?.hospitalName || 'Unknown Hospital',
@@ -906,22 +906,37 @@ const markPatientAdmitted = async (req, res) => {
       wardNumber: admissionDetails.wardNumber,
       bedNumber: admissionDetails.bedNumber,
       admissionNotes: admissionDetails.notes,
-      status: 'patient_admitted'
+      status: 'patient_admitted',
+      action: 'Patient admitted to hospital',
+      details: `Patient ${sosRequest.patientName} admitted to ${sosRequest.acceptedBy?.hospitalName || 'hospital'} - Ward: ${admissionDetails.wardNumber || 'N/A'}, Bed: ${admissionDetails.bedNumber || 'N/A'}`
     };
 
-    await HospitalSOS.updateMany(
-      {
-        sosRequestId,
-        hospitalId: { $ne: hospitalId }
-      },
-      {
-        $set: {
-          hospitalStatus: 'patientAdmitted',
-          patientAdmittedDetails: admissionInfo,
-          patientAdmittedAt: new Date()
-        }
-      }
-    );
+    // Update all other hospitals with comprehensive logging
+    const otherHospitals = await HospitalSOS.find({ 
+      sosRequestId,
+      hospitalId: { $ne: hospitalId }
+    });
+
+    for (const otherHospital of otherHospitals) {
+      // Add action to each hospital's log
+      await otherHospital.addAction(
+        'patient_admitted_by_other',
+        {
+          hospitalName: sosRequest.acceptedBy?.hospitalName || 'Unknown Hospital',
+          hospitalId: hospitalId,
+          wardNumber: admissionDetails.wardNumber,
+          bedNumber: admissionDetails.bedNumber,
+          staffInfo: admissionDetails.staffInfo
+        },
+        `Patient ${sosRequest.patientName} admitted to ${sosRequest.acceptedBy?.hospitalName || 'hospital'} - Ward: ${admissionDetails.wardNumber || 'N/A'}, Bed: ${admissionDetails.bedNumber || 'N/A'}`
+      );
+      
+      // Update status and details
+      otherHospital.hospitalStatus = 'patientAdmitted';
+      otherHospital.patientAdmittedDetails = admissionInfo;
+      otherHospital.patientAdmittedAt = new Date();
+      await otherHospital.save();
+    }
 
     res.json({
       success: true,
@@ -1208,20 +1223,36 @@ const confirmHospitalReached = async (req, res) => {
       patientName: sosRequest.patientName,
       patientPhone: sosRequest.patientPhone,
       emergencyType: sosRequest.emergencyType || sosRequest.description || 'Medical',
-      status: 'hospital_reached'
+      status: 'hospital_reached',
+      action: 'Hospital reached patient and confirmed with ARC ID',
+      details: `Hospital ${hospitalSOS.hospitalName} reached patient ${sosRequest.patientName} and confirmed with ARC ID ${hospitalArcId || 'N/A'}`
     };
 
-    await HospitalSOS.updateMany(
-      { 
-        sosRequestId: sosRequestId,
-        hospitalId: { $ne: hospitalId }
-      },
-      { 
-        hospitalStatus: 'handledByOther',
-        handledByOtherDetails: handledByOtherInfo,
-        handledByOtherAt: new Date()
-      }
-    );
+    // Update all other hospitals with comprehensive logging
+    const otherHospitals = await HospitalSOS.find({ 
+      sosRequestId: sosRequestId,
+      hospitalId: { $ne: hospitalId }
+    });
+
+    for (const otherHospital of otherHospitals) {
+      // Add action to each hospital's log
+      await otherHospital.addAction(
+        'hospital_reached_by_other',
+        {
+          hospitalName: hospitalSOS.hospitalName,
+          hospitalId: hospitalId,
+          hospitalArcId: hospitalArcId,
+          doctorArcId: doctorArcId
+        },
+        `Hospital ${hospitalSOS.hospitalName} reached patient and confirmed with ARC ID ${hospitalArcId || 'N/A'}`
+      );
+      
+      // Update status and details
+      otherHospital.hospitalStatus = 'handledByOther';
+      otherHospital.handledByOtherDetails = handledByOtherInfo;
+      otherHospital.handledByOtherAt = new Date();
+      await otherHospital.save();
+    }
 
     console.log(`✅ Hospital reached confirmed by user for hospital ${hospitalId} with ARC ID ${hospitalArcId}`);
 
@@ -1786,6 +1817,141 @@ const dischargePatient = async (req, res) => {
   }
 };
 
+// Get hospital SOS log - shows complete SOS journey for all hospitals
+const getHospitalSOSLog = async (req, res) => {
+  try {
+    const { hospitalId } = req.params;
+    const { limit = 50 } = req.query;
+
+    console.log(`📋 Getting SOS log for hospital: ${hospitalId}`);
+
+    if (!hospitalId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Hospital ID is required'
+      });
+    }
+
+    // Get all SOS requests where this hospital was involved (including missed ones)
+    const hospitalSOSLogs = await HospitalSOS.find({ hospitalId })
+      .populate('sosRequestId')
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit));
+
+    // Format the logs with complete SOS journey information
+    const formattedLogs = hospitalSOSLogs.map(log => {
+      const sosRequest = log.sosRequestId;
+      const logEntry = {
+        logId: log._id,
+        sosRequestId: sosRequest?._id,
+        patientName: sosRequest?.patientName || 'Unknown',
+        patientPhone: sosRequest?.patientPhone || 'N/A',
+        emergencyType: sosRequest?.emergencyType || 'Medical',
+        severity: sosRequest?.severity || 'High',
+        address: sosRequest?.address || 'N/A',
+        city: sosRequest?.city || 'N/A',
+        createdAt: sosRequest?.createdAt,
+        hospitalStatus: log.hospitalStatus,
+        hospitalName: log.hospitalName,
+        
+        // Show complete journey
+        journey: {
+          sosCreated: {
+            timestamp: sosRequest?.createdAt,
+            status: 'SOS Request Created',
+            details: `Patient ${sosRequest?.patientName} created SOS request`
+          },
+          hospitalResponse: log.hospitalStatus === 'accepted' ? {
+            timestamp: log.responseDetails?.respondedAt,
+            status: 'Hospital Accepted',
+            details: `Hospital ${log.hospitalName} accepted the request`,
+            responseTime: log.responseDetails?.responseTime
+          } : null,
+          hospitalReached: log.hospitalStatus === 'hospitalReached' ? {
+            timestamp: log.hospitalReachedAt,
+            status: 'Hospital Reached Patient',
+            details: `Hospital ${log.hospitalName} reached patient`,
+            hospitalArcId: log.hospitalArcId,
+            doctorArcId: log.doctorArcId
+          } : null,
+          patientAdmitted: log.hospitalStatus === 'admitted' ? {
+            timestamp: log.patientAdmittedAt,
+            status: 'Patient Admitted',
+            details: `Patient admitted to ${log.hospitalName}`,
+            wardNumber: log.patientAdmittedDetails?.wardNumber,
+            bedNumber: log.patientAdmittedDetails?.bedNumber
+          } : null,
+          handledByOther: log.handledByOtherDetails ? {
+            timestamp: log.handledByOtherAt,
+            status: 'Handled by Other Hospital',
+            details: `SOS handled by ${log.handledByOtherDetails.handledByHospitalName}`,
+            reason: log.handledByOtherDetails.status,
+            hospitalArcId: log.handledByOtherDetails.hospitalArcId,
+            doctorArcId: log.handledByOtherDetails.doctorArcId
+          } : null,
+          patientDischarged: log.hospitalStatus === 'discharged' ? {
+            timestamp: log.dischargeDetails?.dischargedAt,
+            status: 'Patient Discharged',
+            details: `Patient discharged from ${log.hospitalName}`,
+            dischargeReason: log.dischargeDetails?.dischargeReason
+          } : null
+        },
+
+        // Actions taken by this hospital
+        actions: log.actions || [],
+        
+        // Current status summary
+        currentStatus: getCurrentStatusSummary(log, sosRequest)
+      };
+
+      return logEntry;
+    });
+
+    console.log(`✅ Found ${formattedLogs.length} SOS log entries for hospital ${hospitalId}`);
+
+    res.json({
+      success: true,
+      data: formattedLogs,
+      count: formattedLogs.length,
+      hospitalId: hospitalId
+    });
+
+  } catch (error) {
+    console.error('❌ Error getting hospital SOS log:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get SOS log',
+      error: error.message
+    });
+  }
+};
+
+// Helper function to get current status summary
+const getCurrentStatusSummary = (log, sosRequest) => {
+  if (!sosRequest) return 'Unknown';
+  
+  switch (log.hospitalStatus) {
+    case 'pending':
+      return 'SOS Request Active - Waiting for Response';
+    case 'accepted':
+      return 'Hospital Accepted - Responding to Patient';
+    case 'hospitalReached':
+      return 'Hospital Reached Patient - Treatment in Progress';
+    case 'admitted':
+      return 'Patient Admitted - Under Treatment';
+    case 'discharged':
+      return 'Patient Discharged - Treatment Completed';
+    case 'handledByOther':
+      return `Handled by ${log.handledByOtherDetails?.handledByHospitalName || 'Another Hospital'}`;
+    case 'cancelled':
+      return 'SOS Request Cancelled';
+    case 'timeout':
+      return 'SOS Request Timed Out';
+    default:
+      return 'Status Unknown';
+  }
+};
+
 // Send alert to specific hospital
 const sendHospitalAlert = async (req, res) => {
   try {
@@ -1875,6 +2041,7 @@ const sendHospitalAlert = async (req, res) => {
 module.exports = {
   createSOSRequest,
   getHospitalSOSRequests,
+  getHospitalSOSLog,
   acceptSOSRequest,
   markPatientAdmitted,
   confirmPatientAdmission,
