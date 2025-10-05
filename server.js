@@ -100,6 +100,7 @@ if (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV) {
       'https://arcular-plus-backend-man-65aq.vercel.app',
       'https://arcular-plus-backend-man.vercel.app',
       'https://arcular-pluse-a-unified-healthcare-peach.vercel.app',
+      'https://arcular-plus-staffs.vercel.app/service-provider-details.html',
       'http://localhost:55853',
       'http://localhost:3000',
       'http://localhost:59123',
