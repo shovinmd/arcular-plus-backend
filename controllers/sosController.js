@@ -708,6 +708,8 @@ const acceptSOSRequest = async (req, res) => {
       patientName: sosRequest.patientName,
       patientPhone: sosRequest.patientPhone,
       emergencyType: sosRequest.emergencyType || sosRequest.description || 'Medical',
+      status: 'hospital_accepted',
+      responseTime: sosRequest.responseTime
     };
     await HospitalSOS.updateMany(
       {
@@ -717,7 +719,8 @@ const acceptSOSRequest = async (req, res) => {
       {
         $set: { 
           hospitalStatus: 'handledByOther',
-          handledByOtherDetails: acceptanceInfo
+          handledByOtherDetails: acceptanceInfo,
+          handledByOtherAt: new Date()
         }
       }
     );
@@ -856,6 +859,35 @@ const markPatientAdmitted = async (req, res) => {
         console.log('  - Status:', record.hospitalStatus);
       }
     }
+
+    // Update all other hospitals to show admission details
+    const admissionInfo = {
+      admittedByHospitalId: hospitalId,
+      admittedByHospitalName: sosRequest.acceptedBy?.hospitalName || 'Unknown Hospital',
+      admittedByStaff: admissionDetails.staffInfo,
+      admittedAt: new Date(),
+      patientName: sosRequest.patientName,
+      patientPhone: sosRequest.patientPhone,
+      emergencyType: sosRequest.emergencyType || sosRequest.description || 'Medical',
+      wardNumber: admissionDetails.wardNumber,
+      bedNumber: admissionDetails.bedNumber,
+      admissionNotes: admissionDetails.notes,
+      status: 'patient_admitted'
+    };
+
+    await HospitalSOS.updateMany(
+      {
+        sosRequestId,
+        hospitalId: { $ne: hospitalId }
+      },
+      {
+        $set: {
+          hospitalStatus: 'patientAdmitted',
+          patientAdmittedDetails: admissionInfo,
+          patientAdmittedAt: new Date()
+        }
+      }
+    );
 
     res.json({
       success: true,
@@ -1082,9 +1114,9 @@ const confirmPatientAdmission = async (req, res) => {
 // Confirm hospital reached (for users)
 const confirmHospitalReached = async (req, res) => {
   try {
-    const { sosRequestId, hospitalId, doctorId } = req.body;
+    const { sosRequestId, hospitalArcId, doctorArcId } = req.body;
 
-    console.log(`🏥 User confirming hospital reached for SOS ${sosRequestId} with hospital ${hospitalId}${doctorId ? ` and doctor ${doctorId}` : ''}`);
+    console.log(`🏥 User confirming hospital reached for SOS ${sosRequestId}${hospitalArcId ? ` with hospital ARC ID ${hospitalArcId}` : ''}${doctorArcId ? ` and doctor ARC ID ${doctorArcId}` : ''}`);
 
     // Find the SOS request
     const sosRequest = await SOSRequest.findById(sosRequestId);
@@ -1095,19 +1127,20 @@ const confirmHospitalReached = async (req, res) => {
       });
     }
 
-    // Verify the hospital ID matches the accepted hospital
+    // Find the accepted hospital SOS record
     const hospitalSOS = await HospitalSOS.findOne({
       sosRequestId: sosRequestId,
-      hospitalId: hospitalId,
       hospitalStatus: 'accepted'
     });
 
     if (!hospitalSOS) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid hospital ID or hospital has not accepted this SOS request'
+        message: 'No hospital has accepted this SOS request yet'
       });
     }
+
+    const hospitalId = hospitalSOS.hospitalId;
 
     // Update SOS request status to hospital reached
     await SOSRequest.updateOne(
@@ -1116,21 +1149,35 @@ const confirmHospitalReached = async (req, res) => {
         status: 'hospitalReached',
         hospitalReachedAt: new Date(),
         reachedHospitalId: hospitalId,
-        reachedDoctorId: doctorId || null
+        hospitalArcId: hospitalArcId || null,
+        doctorArcId: doctorArcId || null
       }
     );
 
-    // Update hospital SOS status
+    // Update hospital SOS status with ARC IDs
     await HospitalSOS.updateOne(
       { sosRequestId: sosRequestId, hospitalId: hospitalId },
       { 
         hospitalStatus: 'hospitalReached',
         hospitalReachedAt: new Date(),
-        reachedDoctorId: doctorId || null
+        hospitalArcId: hospitalArcId || null,
+        doctorArcId: doctorArcId || null
       }
     );
 
-    // Update all other hospitals to "handledByOther"
+    // Update all other hospitals to "handledByOther" with detailed logging
+    const handledByOtherInfo = {
+      handledByHospitalId: hospitalId,
+      handledByHospitalName: hospitalSOS.hospitalName,
+      handledAt: new Date(),
+      hospitalArcId: hospitalArcId || null,
+      doctorArcId: doctorArcId || null,
+      patientName: sosRequest.patientName,
+      patientPhone: sosRequest.patientPhone,
+      emergencyType: sosRequest.emergencyType || sosRequest.description || 'Medical',
+      status: 'hospital_reached'
+    };
+
     await HospitalSOS.updateMany(
       { 
         sosRequestId: sosRequestId,
@@ -1138,11 +1185,12 @@ const confirmHospitalReached = async (req, res) => {
       },
       { 
         hospitalStatus: 'handledByOther',
+        handledByOtherDetails: handledByOtherInfo,
         handledByOtherAt: new Date()
       }
     );
 
-    console.log(`✅ Hospital reached confirmed by user for hospital ${hospitalId}`);
+    console.log(`✅ Hospital reached confirmed by user for hospital ${hospitalId} with ARC ID ${hospitalArcId}`);
 
     res.json({
       success: true,
@@ -1151,7 +1199,8 @@ const confirmHospitalReached = async (req, res) => {
         sosRequestId: sosRequestId,
         status: 'hospitalReached',
         hospitalId: hospitalId,
-        doctorId: doctorId
+        hospitalArcId: hospitalArcId,
+        doctorArcId: doctorArcId
       }
     });
 
