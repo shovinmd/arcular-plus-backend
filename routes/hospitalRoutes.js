@@ -50,16 +50,41 @@ router.get('/:hospitalId/direct-alerts', firebaseAuthMiddleware, async (req, res
     const { status, limit = 50 } = req.query;
     
     const HospitalAlert = require('../models/HospitalAlert');
+    const Hospital = require('../models/Hospital');
     
-    let query = { hospitalId: hospitalId };
+    // Try to resolve hospitalId to MongoDB ObjectId
+    let mongoHospitalId = hospitalId;
+    
+    // If hospitalId looks like a Firebase UID (long string), find the MongoDB _id
+    if (hospitalId.length > 20) {
+      const hospital = await Hospital.findOne({ firebaseUid: hospitalId });
+      if (hospital) {
+        mongoHospitalId = hospital._id;
+        console.log(`🔍 Resolved Firebase UID ${hospitalId} to MongoDB _id: ${mongoHospitalId}`);
+      } else {
+        console.log(`⚠️ Hospital not found for Firebase UID: ${hospitalId}`);
+        return res.json({
+          success: true,
+          data: [],
+          count: 0,
+          message: 'Hospital not found'
+        });
+      }
+    }
+    
+    let query = { hospitalId: mongoHospitalId };
     if (status) {
       query.status = status;
     }
+    
+    console.log(`🔍 Querying direct alerts with:`, query);
     
     const alerts = await HospitalAlert.find(query)
       .sort({ createdAt: -1 })
       .limit(parseInt(limit))
       .lean();
+    
+    console.log(`📊 Found ${alerts.length} direct alerts`);
     
     res.json({
       success: true,

@@ -1724,8 +1724,16 @@ const sendHospitalAlert = async (req, res) => {
       });
     }
 
-    // Find the hospital
-    const hospital = await Hospital.findById(hospitalId);
+    // Find the hospital - handle both Firebase UID and MongoDB ObjectId
+    let hospital;
+    if (hospitalId.length > 20) {
+      // Firebase UID
+      hospital = await Hospital.findOne({ firebaseUid: hospitalId });
+    } else {
+      // MongoDB ObjectId
+      hospital = await Hospital.findById(hospitalId);
+    }
+    
     if (!hospital) {
       return res.status(404).json({
         success: false,
@@ -1735,7 +1743,7 @@ const sendHospitalAlert = async (req, res) => {
 
     // Create hospital alert record
     const hospitalAlert = new HospitalAlert({
-      hospitalId,
+      hospitalId: hospital._id, // Use MongoDB ObjectId
       hospitalName: hospitalName || hospital.hospitalName,
       patientId,
       patientName,
