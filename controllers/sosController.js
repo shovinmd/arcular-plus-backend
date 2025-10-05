@@ -1804,17 +1804,52 @@ const sendHospitalAlert = async (req, res) => {
       });
     }
 
-    // Find the hospital - handle both Firebase UID and MongoDB ObjectId
+    // Find the hospital - handle multiple identifier types
     let hospital;
-    if (hospitalId.length > 20) {
-      // Firebase UID
-      hospital = await Hospital.findOne({ firebaseUid: hospitalId });
-    } else {
-      // MongoDB ObjectId
-      hospital = await Hospital.findById(hospitalId);
+    try {
+      const Hospital = require('../models/Hospital');
+      const { Types } = require('mongoose');
+
+      // Log incoming identifier for debugging
+      console.log(`🔎 Resolving hospitalId for alert: ${hospitalId}`);
+
+      // 1) Try exact MongoDB ObjectId
+      if (Types.ObjectId.isValid(hospitalId)) {
+        hospital = await Hospital.findById(hospitalId);
+        if (hospital) {
+          console.log(`✅ Resolved hospital by _id: ${hospital._id}`);
+        }
+      }
+
+      // 2) Try firebaseUid
+      if (!hospital) {
+        hospital = await Hospital.findOne({ firebaseUid: hospitalId });
+        if (hospital) {
+          console.log(`✅ Resolved hospital by firebaseUid: ${hospital.firebaseUid}`);
+        }
+      }
+
+      // 3) Try generic uid field (some records may store uid)
+      if (!hospital) {
+        hospital = await Hospital.findOne({ uid: hospitalId });
+        if (hospital) {
+          console.log(`✅ Resolved hospital by uid: ${hospital.uid}`);
+        }
+      }
+
+      // 4) As a last resort, try QR uid or public identifiers if present
+      if (!hospital) {
+        hospital = await Hospital.findOne({ $or: [ { qrUid: hospitalId }, { publicId: hospitalId } ] });
+        if (hospital) {
+          console.log(`✅ Resolved hospital by qrUid/publicId: ${hospital._id}`);
+        }
+      }
+    } catch (lookupErr) {
+      console.error('❌ Error during hospital lookup:', lookupErr);
     }
-    
+
     if (!hospital) {
+      console.log(`⚠️ Hospital not found for identifier: ${hospitalId}`);
       return res.status(404).json({
         success: false,
         message: 'Hospital not found'
@@ -1822,6 +1857,7 @@ const sendHospitalAlert = async (req, res) => {
     }
 
     // Create hospital alert record
+    const HospitalAlert = require('../models/HospitalAlert');
     const hospitalAlert = new HospitalAlert({
       hospitalId: hospital._id, // Use MongoDB ObjectId
       hospitalName: hospitalName || hospital.hospitalName,
@@ -1841,8 +1877,6 @@ const sendHospitalAlert = async (req, res) => {
 
     await hospitalAlert.save();
 
-    // Send notification to hospital (you can implement FCM here)
-    // For now, we'll just log it
     console.log(`🚨 Direct alert sent to hospital: ${hospital.hospitalName}`);
     console.log(`📍 Patient: ${patientName} (${patientPhone})`);
     console.log(`📍 Location: ${address}`);
