@@ -338,6 +338,7 @@ router.post('/:id/billing', firebaseAuthMiddleware, hospitalController.createBil
 
 // Documents
 router.get('/:id/documents', firebaseAuthMiddleware, hospitalController.getDocuments);
+// Upload hospital document (PDF/images) without changing registration logic
 router.post('/:id/documents', firebaseAuthMiddleware, hospitalController.uploadDocument);
 
 // Notifications

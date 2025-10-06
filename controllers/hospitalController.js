@@ -652,8 +652,82 @@ const updateShift = async (req, res) => res.status(501).json({ error: 'Not imple
 const deleteShift = async (req, res) => res.status(501).json({ error: 'Not implemented' });
 const getBilling = async (req, res) => res.status(501).json({ error: 'Not implemented' });
 const createBillingEntry = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-const getDocuments = async (req, res) => res.status(501).json({ error: 'Not implemented' });
-const uploadDocument = async (req, res) => res.status(501).json({ error: 'Not implemented' });
+const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
+
+// Multer storage for hospital documents (PDF/images)
+const hospitalDocsStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    try {
+      const id = req.params.id || 'unknown';
+      const dir = path.join(__dirname, '..', 'uploads', 'hospitals', id);
+      fs.mkdirSync(dir, { recursive: true });
+      cb(null, dir);
+    } catch (e) {
+      cb(e);
+    }
+  },
+  filename: function (req, file, cb) {
+    const ext = path.extname(file.originalname) || (file.mimetype === 'application/pdf' ? '.pdf' : '');
+    const safe = (req.body.documentType || 'document')
+      .toString()
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]/g, '_');
+    const ts = Date.now();
+    cb(null, `${safe}_${ts}${ext}`);
+  }
+});
+
+const uploadHospitalDoc = multer({
+  storage: hospitalDocsStorage,
+  fileFilter: (req, file, cb) => {
+    const allowed = ['application/pdf', 'image/png', 'image/jpeg'];
+    if (allowed.includes(file.mimetype)) return cb(null, true);
+    return cb(new Error('Unsupported file type'));
+  },
+  limits: { fileSize: 10 * 1024 * 1024 }
+}).single('file');
+
+const getDocuments = async (req, res) => res.status(200).json({ success: true, data: [] });
+
+const uploadDocument = async (req, res) => {
+  uploadHospitalDoc(req, res, async (err) => {
+    if (err) {
+      return res.status(400).json({ success: false, error: err.message });
+    }
+    try {
+      const id = req.params.id || 'unknown';
+      const file = req.file;
+      if (!file) return res.status(400).json({ success: false, error: 'No file uploaded' });
+      const publicUrl = `/uploads/hospitals/${id}/${file.filename}`;
+
+      // Return a normalized payload so frontend can map without changing reg logic
+      const documentType = (req.body.documentType || 'document').toString();
+      const mappedKey = documentType === 'hospital_license'
+        ? 'licenseDocumentUrl'
+        : documentType === 'registration_certificate'
+          ? 'registrationCertificateUrl'
+          : documentType === 'building_permit'
+            ? 'buildingPermitUrl'
+            : 'documentUrl';
+
+      return res.json({
+        success: true,
+        data: {
+          url: publicUrl,
+          filename: file.originalname,
+          mimeType: file.mimetype,
+          size: file.size,
+          documentType,
+          mappedKey
+        }
+      });
+    } catch (e) {
+      return res.status(500).json({ success: false, error: e.message });
+    }
+  });
+};
 const getNotifications = async (req, res) => res.status(501).json({ error: 'Not implemented' });
 const updateSettings = async (req, res) => res.status(501).json({ error: 'Not implemented' });
 
